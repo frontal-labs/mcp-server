@@ -1,0 +1,8 @@
+node_modules
+dist
+.bun-tag
+bun.lockb
+*.log
+.git
+.github
+.husky

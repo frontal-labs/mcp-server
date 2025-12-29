@@ -1,0 +1,4 @@
+[install]
+# Set the default package manager for `bun install`
+save = true
+exact = true
