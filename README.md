@@ -1,6 +1,20 @@
+<picture>
+    <source srcset="./assets/banner-dark.png" media="(prefers-color-scheme: dark)">
+    <source srcset="./assets/banner-dark.png" media="(prefers-color-scheme: light)">
+    <img src="./assets/banner-dark.png" alt="Frontal Banner">
+</picture>
+
 # MCP Server
 
 A Model Context Protocol (MCP) server implemented with Bun and TypeScript.
+
+<p>
+    <a href="https://join.slack.com/t/frontal-community/shared_invite/zt-37vzd191x-KlvQUjTQh6nEpYMAJhAN8g">Slack</a>
+    ·
+    <a href="https://frontal.dev">Website</a>
+    ·
+    <a href="https://github.com/frontal-labs/mcp-server/issues">Issues</a>
+</p>
 
 ## Features
 
