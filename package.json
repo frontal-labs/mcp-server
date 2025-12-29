@@ -1,0 +1,25 @@
+{
+  "name": "mcp-server",
+  "version": "1.0.0",
+  "description": "Initial MCP server setup",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "lint": "biome lint src",
+    "format": "biome format src --write",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "latest",
+    "@changesets/cli": "latest",
+    "@frontal/style-guide": "github:frontal-labs/style-guide",
+    "@types/node": "latest",
+    "husky": "latest",
+    "typescript": "latest"
+  }
+}
