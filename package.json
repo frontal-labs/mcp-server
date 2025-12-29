@@ -9,6 +9,7 @@
     "dev": "bun --watch src/index.ts",
     "lint": "biome lint src",
     "format": "biome format src --write",
+    "type-check": "tsc --noEmit",
     "prepare": "husky"
   },
   "dependencies": {
