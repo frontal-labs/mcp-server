@@ -1,0 +1,11 @@
+{
+    "name": "mcp-server",
+    "description": "Model Context Protocol (MCP) server for Frontal",
+    "tags": [
+        "mcp",
+        "ai",
+        "server",
+        "service"
+    ],
+    "type": "service"
+}

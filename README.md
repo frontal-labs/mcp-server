@@ -4,7 +4,7 @@
     <img src="./assets/banner-dark.png" alt="Frontal Banner">
 </picture>
 
-# MCP Server
+# Frontal MCP Server
 
 A Model Context Protocol (MCP) server implemented with Bun and TypeScript.
 
