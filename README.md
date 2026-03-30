@@ -1,8 +1,14 @@
+<picture>
+ <source srcset="./assets/images/banner-dark.png" media="(prefers-color-scheme: dark)">
+ <source srcset="./assets/images/banner.png" media="(prefers-color-scheme: light)">
+ <img src="./assets/images/banner-dark.png" alt="Frontal Banner">
+</picture>
+
 # Frontal MCP Server
 
 A standalone Model Context Protocol (MCP) server that provides seamless access to Frontal's cloud services (AI, Blob Storage, Functions, Graph Database, and Pipelines) through a standardized interface.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -55,16 +61,16 @@ Add to your Claude Desktop configuration:
 }
 ```
 
-## ✨ Features
+## Features
 
-- **🤖 AI Services**: Text generation, image creation, and embeddings
-- **📁 Blob Storage**: File upload, download, and management
-- **⚡ Functions**: Serverless function execution and management
-- **🕸️ Graph Database**: Graph queries and node creation
-- **🔄 Pipelines**: Data pipeline creation and execution
-- **🔌 Multi-Transport**: Support for both stdio and HTTP
-- **🛡️ Type Safe**: Full TypeScript support with Zod validation
-- **📊 Monitoring**: Built-in metrics and logging
+- **AI Services**: Text generation, image creation, and embeddings
+- **Blob Storage**: File upload, download, and management
+- **Functions**: Serverless function execution and management
+- **Graph Database**: Graph queries and node creation
+- **Pipelines**: Data pipeline creation and execution
+- **Multi-Transport**: Support for both stdio and HTTP
+- **Type Safe**: Full TypeScript support with Zod validation
+- **Monitoring**: Built-in metrics and logging
 
 ## Available Tools
 
@@ -98,7 +104,7 @@ The Frontal MCP Server provides access to the following services:
 
 See [API Documentation](docs/API.md) for detailed tool specifications.
 
-## 🛠️ Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -128,7 +134,7 @@ Options:
   --log-level <level>        Log level (error|warn|info|debug) [default: "info"]
 ```
 
-## 💡 Usage Examples
+## Usage Examples
 
 ### Basic Usage
 
@@ -167,7 +173,7 @@ await server.initialize();
 await server.connectStdio();
 ```
 
-## 🏗️ Architecture
+## Architecture
 
 The MCP Server follows a modular adapter pattern:
 
@@ -176,7 +182,7 @@ The MCP Server follows a modular adapter pattern:
 3. **Configuration**: Centralized config with environment variable support
 4. **Transport Layer**: Supports both stdio and HTTP transports
 
-## 🔧 Development
+## Development
 
 ### Project Structure
 
@@ -218,9 +224,9 @@ bun run format
 bun run type-check
 ```
 
-## 🚦 Current Status
+## Current Status
 
-✅ **Completed Features:**
+**Completed Features:**
 - Project structure and build system
 - Core MCP server implementation
 - Service adapters for all Frontal services
@@ -229,13 +235,13 @@ bun run type-check
 - Comprehensive test suite
 - Complete API documentation
 
-🚧 **In Development:**
+**In Development:**
 - HTTP transport implementation
 - Integration with real Frontal SDKs
 - Advanced error handling
 - Performance monitoring
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see our [Developer Guide](docs/DEVELOPERS.md) for detailed information.
 
@@ -245,13 +251,13 @@ We welcome contributions! Please see our [Developer Guide](docs/DEVELOPERS.md) f
 4. Run tests: `bun run test`
 5. Submit a pull request
 
-## 📚 Documentation
+## Documentation
 
 - [API Documentation](docs/API.md) - Complete API reference
 - [Usage Guide](docs/USAGE.md) - Practical examples and integration patterns
 - [Developer Guide](docs/DEVELOPERS.md) - Architecture and contribution guidelines
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -288,6 +294,6 @@ top -p $(pgrep frontal-mcp-server)
 - **Discord Community**: Join our developer community
 - **Documentation**: Check [docs/](docs/) for detailed guides
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
