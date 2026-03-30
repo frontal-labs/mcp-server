@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcp-server-config
+  namespace: mcp-server
+  labels:
+    app: frontal-mcp-server
+data:
+  NODE_ENV: "production"
+  FRONTAL_BASE_URL: "https://api.frontal.dev/v1"
+  MCP_LOG_LEVEL: "info"
+  ENABLE_AI: "true"
+  ENABLE_BLOB: "true"
+  ENABLE_FUNCTIONS: "true"
+  ENABLE_GRAPH: "true"
+  ENABLE_PIPELINES: "true"
+  
+  # Prometheus configuration
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    rule_files:
+      - "alert_rules.yml"
+    
+    scrape_configs:
+      - job_name: 'mcp-server'
+        static_configs:
+          - targets: ['frontal-mcp-server-service:80']
+        metrics_path: '/metrics'
+        scrape_interval: 30s
+    
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - alertmanager:9093
+  
+  # Alert rules
+  alert_rules.yml: |
+    groups:
+    - name: mcp-server-alerts
+      rules:
+      - alert: MCPServerDown
+        expr: up{job="mcp-server"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MCP Server is down"
+          description: "MCP Server has been down for more than 1 minute."
+      
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 90% for more than 5 minutes."

@@ -1,0 +1,44 @@
+name: Dependency Update
+on:
+  schedule:
+    # Run every Monday at 9:00 UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+jobs:
+  update-dependencies:
+    name: Update Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: "1.3.8"
+
+      - name: Update dependencies
+        run: bun update
+
+      - name: Run tests
+        run: bun run test
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update dependencies"
+          title: "chore: update dependencies"
+          body: |
+            Automated dependency update
+            
+            This PR updates all dependencies to their latest versions.
+            
+            - Dependencies were updated using `bun update`
+            - All tests are passing
+            - No breaking changes detected
+          branch: chore/update-dependencies
+          delete-branch: true

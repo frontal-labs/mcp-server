@@ -1,0 +1,16 @@
+{
+  "servers": {
+    "frontal-mcp": {
+      "command": "node",
+      "args": [
+        "/Volumes/Frontal Labs IP/mcp-server/dist/bin/frontal-mcp-server.js",
+        "--transport",
+        "stdio"
+      ],
+      "env": {
+        "FRONTAL_API_KEY": "your_api_key_here"
+      },
+      "description": "Frontal MCP Server for AI, Blob, Functions, Graph, and Pipelines"
+    }
+  }
+}

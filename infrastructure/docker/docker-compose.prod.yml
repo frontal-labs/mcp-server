@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  mcp-server:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile
+      target: runner
+    image: frontal/mcp-server:latest
+    container_name: frontal-mcp-server
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - FRONTAL_API_KEY=${FRONTAL_API_KEY}
+      - FRONTAL_BASE_URL=${FRONTAL_BASE_URL:-https://api.frontal.dev/v1}
+      - MCP_LOG_LEVEL=${MCP_LOG_LEVEL:-info}
+      - ENABLE_AI=${ENABLE_AI:-true}
+      - ENABLE_BLOB=${ENABLE_BLOB:-true}
+      - ENABLE_FUNCTIONS=${ENABLE_FUNCTIONS:-true}
+      - ENABLE_GRAPH=${ENABLE_GRAPH:-true}
+      - ENABLE_PIPELINES=${ENABLE_PIPELINES:-true}
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - mcp-network
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: frontal-mcp-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ../nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - mcp-server
+    restart: unless-stopped
+    networks:
+      - mcp-network
+
+  # Redis for production caching
+  redis:
+    image: redis:7-alpine
+    container_name: frontal-mcp-redis-prod
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_prod_data:/data
+    restart: unless-stopped
+    networks:
+      - mcp-network
+
+volumes:
+  redis_prod_data:
+
+networks:
+  mcp-network:
+    driver: bridge

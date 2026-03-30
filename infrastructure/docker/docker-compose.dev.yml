@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  mcp-server:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile
+      target: builder
+    container_name: frontal-mcp-server-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - FRONTAL_API_KEY=${FRONTAL_API_KEY}
+      - FRONTAL_BASE_URL=${FRONTAL_BASE_URL:-https://api.frontal.dev/v1}
+      - MCP_LOG_LEVEL=${MCP_LOG_LEVEL:-debug}
+      - ENABLE_AI=${ENABLE_AI:-true}
+      - ENABLE_BLOB=${ENABLE_BLOB:-true}
+      - ENABLE_FUNCTIONS=${ENABLE_FUNCTIONS:-true}
+      - ENABLE_GRAPH=${ENABLE_GRAPH:-true}
+      - ENABLE_PIPELINES=${ENABLE_PIPELINES:-true}
+    volumes:
+      - ../../src:/app/src
+      - ../../package.json:/app/package.json
+      - ../../bun.lock:/app/bun.lock
+      - ../../tsconfig.json:/app/tsconfig.json
+      - ../../tsup.config.ts:/app/tsup.config.ts
+    command: ["bun", "run", "dev"]
+    restart: unless-stopped
+    networks:
+      - mcp-network
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: frontal-mcp-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - mcp-network
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: frontal-mcp-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - mcp-network
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: frontal-mcp-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    restart: unless-stopped
+    networks:
+      - mcp-network
+
+volumes:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  mcp-network:
+    driver: bridge

@@ -1,0 +1,56 @@
+name: Security Issue
+description: Report a security vulnerability
+title: "[SECURITY]: "
+labels: ["security", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # Security Policy
+
+        **IMPORTANT: DO NOT report sensitive security issues publicly!**
+
+        For security vulnerabilities, please email us directly at: security@frontal.cloud
+
+        This form is only for non-sensitive security questions or general security improvements.
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      description: Please confirm the following
+      options:
+        - label: This is NOT a sensitive security vulnerability (for sensitive issues, email security@frontal.cloud)
+          required: true
+        - label: I have checked the existing issues for duplicates
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Security Concern
+      description: Describe the security concern or improvement
+      placeholder: Describe the security issue...
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What is the potential impact of this issue?
+      placeholder: Describe the potential impact...
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Mitigation
+      description: Are there any known workarounds or mitigations?
+      placeholder: Describe any known mitigations...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other relevant security information
+      render: markdown
