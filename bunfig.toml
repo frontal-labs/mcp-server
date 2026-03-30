@@ -1,0 +1,6 @@
+[install]
+peer = false
+
+[resolve]
+# Path aliases — mirrors tsconfig.json "paths"
+"@/*" = ["./src/*"]
