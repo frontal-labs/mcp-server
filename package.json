@@ -86,7 +86,7 @@
     "@biomejs/biome": "2.4.9",
     "@changesets/cli": "^2.30.0",
     "@commitlint/cli": "^20.5.0",
-    "@commitlint/config-conventional": "^20.5.0",
+    "@commitlint/config-conventional": "^21.0.0",
     "@types/node": "^25.3.5",
     "@vitest/coverage-v8": "^2.1.8",
     "husky": "^9.1.7",
