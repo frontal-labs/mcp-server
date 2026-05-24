@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createFetchResponse, createFetchError, mockGlobalFetch } from "@tests/utils/mock-factory.js";
+import {
+  createFetchResponse,
+  createFetchError,
+  mockGlobalFetch,
+} from "@tests/utils/mock-factory.js";
 
 describe("Test Setup", () => {
   beforeEach(() => {
@@ -15,11 +19,7 @@ describe("Test Setup", () => {
   });
 
   it("should create mock response with correct structure", () => {
-    const response = createFetchResponse(
-      { data: "test" },
-      true,
-      201
-    );
+    const response = createFetchResponse({ data: "test" }, true, 201);
 
     expect(response.ok).toBe(true);
     expect(response.status).toBe(201);

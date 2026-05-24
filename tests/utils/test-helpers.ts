@@ -75,18 +75,29 @@ export const createMockFile = (
 export const createMockBuffer = (content: string): Buffer =>
   Buffer.from(content, "utf-8");
 
-export const assertCalledWith = (mock: vi.MockedFunction<(...args: never[]) => unknown>, ...expected: never[]) => {
+export const assertCalledWith = (
+  mock: vi.MockedFunction<(...args: never[]) => unknown>,
+  ...expected: never[]
+) => {
   expect(mock).toHaveBeenCalledWith(...expected);
 };
 
-export const assertCalledWithContaining = (mock: vi.MockedFunction<(...args: never[]) => unknown>, ...expected: never[]) => {
+export const assertCalledWithContaining = (
+  mock: vi.MockedFunction<(...args: never[]) => unknown>,
+  ...expected: never[]
+) => {
   expect(mock).toHaveBeenCalledWith(expect.objectContaining(...expected));
 };
 
-export const assertNotCalled = (mock: vi.MockedFunction<(...args: never[]) => unknown>) => {
+export const assertNotCalled = (
+  mock: vi.MockedFunction<(...args: never[]) => unknown>
+) => {
   expect(mock).not.toHaveBeenCalled();
 };
 
-export const assertCalledTimes = (mock: vi.MockedFunction<(...args: never[]) => unknown>, times: number) => {
+export const assertCalledTimes = (
+  mock: vi.MockedFunction<(...args: never[]) => unknown>,
+  times: number
+) => {
   expect(mock).toHaveBeenCalledTimes(times);
 };

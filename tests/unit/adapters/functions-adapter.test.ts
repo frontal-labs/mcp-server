@@ -11,19 +11,16 @@ type ToolResult = {
 };
 
 function createTestHarness() {
-  const registeredHandlers = new Map<
-    string,
-    (...args: unknown[]) => unknown
-  >();
+  const registeredHandlers = new Map<string, (...args: unknown[]) => unknown>();
   const mockServer = {
     registerTool: vi.fn(
       (
         name: string,
         _meta: unknown,
-        handler: (...args: unknown[]) => unknown,
+        handler: (...args: unknown[]) => unknown
       ) => {
         registeredHandlers.set(name, handler);
-      },
+      }
     ),
   };
   return { mockServer, registeredHandlers };

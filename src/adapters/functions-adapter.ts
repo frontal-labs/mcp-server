@@ -1,10 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Logger } from "winston";
 import type { ServerConfig } from "@/config/server-config.js";
-import {
-  functionsInvokeSchema,
-  functionsListSchema,
-} from "@/models/index.js";
+import { functionsInvokeSchema, functionsListSchema } from "@/models/index.js";
 import { FrontalApiClient } from "@/services/api-client.js";
 import type { ServiceAdapter } from "./types.js";
 
@@ -89,7 +86,7 @@ export class FunctionsAdapter implements ServiceAdapter {
                   executionTime: invokeAsync ? null : 150,
                 },
                 null,
-                2,
+                2
               ),
             },
           ],

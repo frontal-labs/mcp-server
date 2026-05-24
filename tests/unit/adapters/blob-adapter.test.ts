@@ -14,7 +14,11 @@ describe("BlobAdapter", () => {
     registeredHandlers = new Map();
     mockServer = {
       registerTool: vi.fn(
-        (name: string, _meta: unknown, handler: (...args: unknown[]) => unknown) => {
+        (
+          name: string,
+          _meta: unknown,
+          handler: (...args: unknown[]) => unknown
+        ) => {
           registeredHandlers.set(name, handler);
         }
       ),
@@ -44,12 +48,12 @@ describe("BlobAdapter", () => {
 
   it("should upload file in mock mode", async () => {
     const handler = mustGet(registeredHandlers, "blob-upload");
-    const result = await handler({
+    const result = (await handler({
       bucket: "uploads",
       key: "test-file.txt",
       content: "test content",
       contentType: "text/plain",
-    }) as { content: Array<{ type: string; text: string }> };
+    })) as { content: Array<{ type: string; text: string }> };
 
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe("text");
@@ -61,9 +65,9 @@ describe("BlobAdapter", () => {
 
   it("should list objects in mock mode", async () => {
     const handler = mustGet(registeredHandlers, "blob-list");
-    const result = await handler({
+    const result = (await handler({
       bucket: "uploads",
-    }) as { content: Array<{ type: string; text: string }> };
+    })) as { content: Array<{ type: string; text: string }> };
 
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe("text");
@@ -80,7 +84,11 @@ describe("BlobAdapter with API client", () => {
     registeredHandlers = new Map();
     const mockServer = {
       registerTool: vi.fn(
-        (name: string, _meta: unknown, handler: (...args: unknown[]) => unknown) => {
+        (
+          name: string,
+          _meta: unknown,
+          handler: (...args: unknown[]) => unknown
+        ) => {
           registeredHandlers.set(name, handler);
         }
       ),
@@ -108,11 +116,14 @@ describe("BlobAdapter with API client", () => {
     });
 
     const handler = mustGet(registeredHandlers, "blob-upload");
-    const result = await handler({
+    const result = (await handler({
       bucket: "uploads",
       key: "large-file.txt",
       content: "large content",
-    }) as { content: Array<{ type: string; text: string }>; isError?: boolean };
+    })) as {
+      content: Array<{ type: string; text: string }>;
+      isError?: boolean;
+    };
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("Error");
@@ -122,9 +133,12 @@ describe("BlobAdapter with API client", () => {
     mockFetch.mockRejectedValue(new Error("Network error"));
 
     const handler = mustGet(registeredHandlers, "blob-list");
-    const result = await handler({
+    const result = (await handler({
       bucket: "uploads",
-    }) as { content: Array<{ type: string; text: string }>; isError?: boolean };
+    })) as {
+      content: Array<{ type: string; text: string }>;
+      isError?: boolean;
+    };
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("Error");

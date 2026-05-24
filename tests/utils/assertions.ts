@@ -8,7 +8,10 @@ export const assertValidMcpResponse = (response: JsonObject) => {
   expect(response).toHaveProperty("result");
 };
 
-export const assertValidMcpError = (response: JsonObject, expectedCode?: number) => {
+export const assertValidMcpError = (
+  response: JsonObject,
+  expectedCode?: number
+) => {
   expect(response).toHaveProperty("jsonrpc", "2.0");
   expect(response).toHaveProperty("id");
   expect(response).toHaveProperty("error");
@@ -27,7 +30,11 @@ export const assertValidTool = (tool: JsonObject) => {
   expect(tool.inputSchema).toHaveProperty("type", "object");
 };
 
-export const assertValidApiCall = (mock: unknown, url: string, method = "POST") => {
+export const assertValidApiCall = (
+  mock: unknown,
+  url: string,
+  method = "POST"
+) => {
   expect(mock).toHaveBeenCalledWith(
     expect.stringContaining(url),
     expect.objectContaining({
@@ -40,13 +47,19 @@ export const assertValidApiCall = (mock: unknown, url: string, method = "POST") 
   );
 };
 
-export const assertSuccessfulResponse = (response: { ok: boolean; status: number }) => {
+export const assertSuccessfulResponse = (response: {
+  ok: boolean;
+  status: number;
+}) => {
   expect(response.ok).toBe(true);
   expect(response.status).toBeGreaterThanOrEqual(200);
   expect(response.status).toBeLessThan(300);
 };
 
-export const assertErrorResponse = (response: { ok: boolean; status: number }, expectedStatus?: number) => {
+export const assertErrorResponse = (
+  response: { ok: boolean; status: number },
+  expectedStatus?: number
+) => {
   expect(response.ok).toBe(false);
   expect(response.status).toBeGreaterThanOrEqual(400);
 

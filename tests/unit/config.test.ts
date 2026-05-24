@@ -24,7 +24,6 @@ describe("env", () => {
 });
 
 describe("createConfig", () => {
-
   it("should create default configuration with all fields", () => {
     delete process.env.FRONTAL_API_KEY;
     delete process.env.FRONTAL_BASE_URL;
@@ -70,7 +69,13 @@ describe("createConfig", () => {
 
   it("should override individual services", () => {
     const config = createConfig({
-      services: { ai: false, blob: true, functions: false, graph: true, pipelines: false },
+      services: {
+        ai: false,
+        blob: true,
+        functions: false,
+        graph: true,
+        pipelines: false,
+      },
     });
     expect(config.services.ai).toBe(false);
     expect(config.services.blob).toBe(true);
@@ -117,7 +122,6 @@ describe("createConfig", () => {
 });
 
 describe("loadConfig", () => {
-
   it("should return valid config with empty options", async () => {
     const config = await loadConfig({});
 

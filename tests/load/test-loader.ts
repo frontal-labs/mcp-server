@@ -104,7 +104,11 @@ export async function loadScenario(name: string): Promise<JsonObject | null> {
   return scenarios[name] || null;
 }
 
-async function handleAIMock(mock: JsonObject, _url: string, _options?: RequestInit) {
+async function handleAIMock(
+  mock: JsonObject,
+  _url: string,
+  _options?: RequestInit
+) {
   if (mock.success) {
     return new Response(
       JSON.stringify({
@@ -116,10 +120,7 @@ async function handleAIMock(mock: JsonObject, _url: string, _options?: RequestIn
   }
 
   if (mock.error) {
-    return new Response(
-      JSON.stringify({ error: mock.error }),
-      { status: 401 }
-    );
+    return new Response(JSON.stringify({ error: mock.error }), { status: 401 });
   }
 
   if (mock.networkError) {
@@ -127,16 +128,19 @@ async function handleAIMock(mock: JsonObject, _url: string, _options?: RequestIn
   }
 
   if (mock.rateLimit) {
-    return new Response(
-      JSON.stringify({ error: "Rate limit exceeded" }),
-      { status: 429 }
-    );
+    return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+      status: 429,
+    });
   }
 
   return new Response("Internal Server Error", { status: 500 });
 }
 
-async function handleBlobMock(mock: JsonObject, _url: string, _options?: RequestInit) {
+async function handleBlobMock(
+  mock: JsonObject,
+  _url: string,
+  _options?: RequestInit
+) {
   if (mock.success) {
     return new Response(
       JSON.stringify({
@@ -148,10 +152,7 @@ async function handleBlobMock(mock: JsonObject, _url: string, _options?: Request
   }
 
   if (mock.error) {
-    return new Response(
-      JSON.stringify({ error: mock.error }),
-      { status: 404 }
-    );
+    return new Response(JSON.stringify({ error: mock.error }), { status: 404 });
   }
 
   if (mock.networkError) {
@@ -161,7 +162,11 @@ async function handleBlobMock(mock: JsonObject, _url: string, _options?: Request
   return new Response("Internal Server Error", { status: 500 });
 }
 
-async function handleFunctionsMock(mock: JsonObject, _url: string, _options?: RequestInit) {
+async function handleFunctionsMock(
+  mock: JsonObject,
+  _url: string,
+  _options?: RequestInit
+) {
   if (mock.success) {
     return new Response(
       JSON.stringify({
@@ -173,10 +178,7 @@ async function handleFunctionsMock(mock: JsonObject, _url: string, _options?: Re
   }
 
   if (mock.error) {
-    return new Response(
-      JSON.stringify({ error: mock.error }),
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: mock.error }), { status: 500 });
   }
 
   if (mock.networkError) {
@@ -199,7 +201,11 @@ export function createMockFetchForScenario(scenario: JsonObject) {
           return handleBlobMock(mocks.blob as JsonObject, url, options);
         }
         if (url.includes("/functions/") && mocks.functions) {
-          return handleFunctionsMock(mocks.functions as JsonObject, url, options);
+          return handleFunctionsMock(
+            mocks.functions as JsonObject,
+            url,
+            options
+          );
         }
       }
 

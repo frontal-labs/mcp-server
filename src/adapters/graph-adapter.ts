@@ -1,10 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Logger } from "winston";
 import type { ServerConfig } from "@/config/server-config.js";
-import {
-  graphCreateNodeSchema,
-  graphQuerySchema,
-} from "@/models/index.js";
+import { graphCreateNodeSchema, graphQuerySchema } from "@/models/index.js";
 import { FrontalApiClient } from "@/services/api-client.js";
 import type { ServiceAdapter } from "./types.js";
 

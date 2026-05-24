@@ -20,17 +20,13 @@ describe.skipIf(!CLI_EXISTS)("CLI Workflow E2E Tests", () => {
   });
 
   it("should start CLI with stdio transport", async () => {
-    cliProcess = spawn(
-      "node",
-      [CLI_PATH, "--transport", "stdio"],
-      {
-        stdio: ["pipe", "pipe", "pipe"],
-        env: {
-          ...process.env,
-          FRONTAL_API_KEY: "test-key",
-        },
-      }
-    );
+    cliProcess = spawn("node", [CLI_PATH, "--transport", "stdio"], {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        FRONTAL_API_KEY: "test-key",
+      },
+    });
 
     await sleep(1000);
 

@@ -11,19 +11,16 @@ type ToolResult = {
 };
 
 function createTestHarness() {
-  const registeredHandlers = new Map<
-    string,
-    (...args: unknown[]) => unknown
-  >();
+  const registeredHandlers = new Map<string, (...args: unknown[]) => unknown>();
   const mockServer = {
     registerTool: vi.fn(
       (
         name: string,
         _meta: unknown,
-        handler: (...args: unknown[]) => unknown,
+        handler: (...args: unknown[]) => unknown
       ) => {
         registeredHandlers.set(name, handler);
-      },
+      }
     ),
   };
   return { mockServer, registeredHandlers };
@@ -59,7 +56,11 @@ describe("PipelinesAdapter (mock mode)", () => {
     const result = (await handler({
       name: "etl-pipeline",
       description: "Extract, transform, load",
-      steps: [{ action: "extract" }, { action: "transform" }, { action: "load" }],
+      steps: [
+        { action: "extract" },
+        { action: "transform" },
+        { action: "load" },
+      ],
     })) as ToolResult;
 
     expect(result.content[0].type).toBe("text");

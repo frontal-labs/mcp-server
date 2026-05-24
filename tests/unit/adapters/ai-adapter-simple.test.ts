@@ -68,7 +68,11 @@ describe("AIAdapter (Simple)", () => {
     const handlers = new Map<string, (...args: unknown[]) => unknown>();
     const mockServer = {
       registerTool: vi.fn(
-        (name: string, _meta: unknown, handler: (...args: unknown[]) => unknown) => {
+        (
+          name: string,
+          _meta: unknown,
+          handler: (...args: unknown[]) => unknown
+        ) => {
           handlers.set(name, handler);
         }
       ),
@@ -77,10 +81,10 @@ describe("AIAdapter (Simple)", () => {
     adapter.registerTools(mockServer as unknown as McpServer);
 
     const handler = mustGet(handlers, "ai-generate-text");
-    const result = await handler({
+    const result = (await handler({
       model: "gpt-3.5-turbo",
       prompt: "Test prompt",
-    }) as { content: Array<{ type: string; text: string }> };
+    })) as { content: Array<{ type: string; text: string }> };
 
     expect(result).toBeDefined();
     expect(result.content).toBeDefined();

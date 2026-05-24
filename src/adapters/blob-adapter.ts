@@ -80,7 +80,7 @@ export class BlobAdapter implements ServiceAdapter {
                   etag: `mock-etag-${Date.now()}`,
                 },
                 null,
-                2,
+                2
               ),
             },
           ],

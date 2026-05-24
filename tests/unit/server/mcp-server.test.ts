@@ -27,7 +27,13 @@ describe("FrontalMcpServer", () => {
     it("should load only AI adapter when only ai is enabled", async () => {
       const config = createConfig({
         apiKey: "",
-        services: { ai: true, blob: false, functions: false, graph: false, pipelines: false },
+        services: {
+          ai: true,
+          blob: false,
+          functions: false,
+          graph: false,
+          pipelines: false,
+        },
       });
       const server = new FrontalMcpServer(config, logger);
       await server.initialize();
@@ -39,7 +45,13 @@ describe("FrontalMcpServer", () => {
     it("should load all adapters when all services enabled", async () => {
       const config = createConfig({
         apiKey: "",
-        services: { ai: true, blob: true, functions: true, graph: true, pipelines: true },
+        services: {
+          ai: true,
+          blob: true,
+          functions: true,
+          graph: true,
+          pipelines: true,
+        },
       });
       const server = new FrontalMcpServer(config, logger);
       await server.initialize();
@@ -49,7 +61,13 @@ describe("FrontalMcpServer", () => {
     it("should load no adapters when all services disabled", async () => {
       const config = createConfig({
         apiKey: "",
-        services: { ai: false, blob: false, functions: false, graph: false, pipelines: false },
+        services: {
+          ai: false,
+          blob: false,
+          functions: false,
+          graph: false,
+          pipelines: false,
+        },
       });
       const server = new FrontalMcpServer(config, logger);
       await server.initialize();
@@ -59,7 +77,13 @@ describe("FrontalMcpServer", () => {
     it("should load only blob and graph adapters", async () => {
       const config = createConfig({
         apiKey: "",
-        services: { ai: false, blob: true, functions: false, graph: true, pipelines: false },
+        services: {
+          ai: false,
+          blob: true,
+          functions: false,
+          graph: true,
+          pipelines: false,
+        },
       });
       const server = new FrontalMcpServer(config, logger);
       await server.initialize();
@@ -87,7 +111,13 @@ describe("FrontalMcpServer", () => {
     it("should close without error", async () => {
       const config = createConfig({
         apiKey: "",
-        services: { ai: false, blob: false, functions: false, graph: false, pipelines: false },
+        services: {
+          ai: false,
+          blob: false,
+          functions: false,
+          graph: false,
+          pipelines: false,
+        },
       });
       const server = new FrontalMcpServer(config, logger);
       await server.initialize();

@@ -16,7 +16,7 @@ describe("FrontalApiClient", () => {
       "https://api.test.frontal.dev/v1",
       "test-api-key",
       logger,
-      { maxAttempts: 2, baseDelay: 10, maxDelay: 50, jitter: false },
+      { maxAttempts: 2, baseDelay: 10, maxDelay: 50, jitter: false }
     );
   });
 
@@ -142,7 +142,7 @@ describe("FrontalApiClient", () => {
       });
 
       await expect(
-        client.generateText({ model: "gpt-4", prompt: "test" }),
+        client.generateText({ model: "gpt-4", prompt: "test" })
       ).rejects.toThrow(ApiError);
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -156,7 +156,7 @@ describe("FrontalApiClient", () => {
       });
 
       await expect(
-        client.generateText({ model: "gpt-4", prompt: "test" }),
+        client.generateText({ model: "gpt-4", prompt: "test" })
       ).rejects.toThrow(ApiError);
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -166,21 +166,19 @@ describe("FrontalApiClient", () => {
       const networkErr = new Error("Connection reset");
       (networkErr as NodeJS.ErrnoException).code = "ECONNRESET";
 
-      mockFetch
-        .mockRejectedValueOnce(networkErr)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              text: "ok",
-              model: "m",
-              usage: {
-                promptTokens: 1,
-                completionTokens: 1,
-                totalTokens: 2,
-              },
-            }),
-        });
+      mockFetch.mockRejectedValueOnce(networkErr).mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            text: "ok",
+            model: "m",
+            usage: {
+              promptTokens: 1,
+              completionTokens: 1,
+              totalTokens: 2,
+            },
+          }),
+      });
 
       const result = await client.generateText({
         model: "m",
@@ -252,7 +250,7 @@ describe("FrontalApiClient", () => {
       });
 
       await expect(
-        client.generateText({ model: "gpt-4", prompt: "test" }),
+        client.generateText({ model: "gpt-4", prompt: "test" })
       ).rejects.toThrow();
     });
   });
@@ -358,8 +356,7 @@ describe("FrontalApiClient", () => {
     it("listBlobs should encode query params", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () =>
-          Promise.resolve({ objects: [], truncated: false }),
+        json: () => Promise.resolve({ objects: [], truncated: false }),
       });
 
       await client.listBlobs({

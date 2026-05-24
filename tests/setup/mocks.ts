@@ -57,15 +57,17 @@ export const setupMockSpawn = () => {
 
 // Mock File API
 export const setupMockFile = () => {
-  const mockFile = vi.fn((content: unknown, name: string, options: Record<string, unknown>) => ({
-    name,
-    size: (typeof content === "string" ? content.length : 0),
-    type: (options?.type as string) || "text/plain",
-    lastModified: new Date().toISOString(),
-    arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
-    text: vi.fn().mockResolvedValue(content),
-    stream: vi.fn(),
-  }));
+  const mockFile = vi.fn(
+    (content: unknown, name: string, options: Record<string, unknown>) => ({
+      name,
+      size: typeof content === "string" ? content.length : 0,
+      type: (options?.type as string) || "text/plain",
+      lastModified: new Date().toISOString(),
+      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+      text: vi.fn().mockResolvedValue(content),
+      stream: vi.fn(),
+    })
+  );
 
   (global as Record<string, unknown>).File = mockFile;
   return mockFile;

@@ -11,19 +11,16 @@ type ToolResult = {
 };
 
 function createTestHarness() {
-  const registeredHandlers = new Map<
-    string,
-    (...args: unknown[]) => unknown
-  >();
+  const registeredHandlers = new Map<string, (...args: unknown[]) => unknown>();
   const mockServer = {
     registerTool: vi.fn(
       (
         name: string,
         _meta: unknown,
-        handler: (...args: unknown[]) => unknown,
+        handler: (...args: unknown[]) => unknown
       ) => {
         registeredHandlers.set(name, handler);
-      },
+      }
     ),
   };
   return { mockServer, registeredHandlers };
@@ -116,9 +113,7 @@ describe("GraphAdapter (API mode)", () => {
       json: () =>
         Promise.resolve({
           data: {
-            nodes: [
-              { id: "n1", type: "User", properties: { name: "Alice" } },
-            ],
+            nodes: [{ id: "n1", type: "User", properties: { name: "Alice" } }],
             edges: [{ from: "n1", to: "n2", type: "KNOWS" }],
           },
           executionTime: 30,

@@ -14,7 +14,11 @@ describe("AIAdapter", () => {
     registeredHandlers = new Map();
     mockServer = {
       registerTool: vi.fn(
-        (name: string, _meta: unknown, handler: (...args: unknown[]) => unknown) => {
+        (
+          name: string,
+          _meta: unknown,
+          handler: (...args: unknown[]) => unknown
+        ) => {
           registeredHandlers.set(name, handler);
         }
       ),
@@ -45,10 +49,10 @@ describe("AIAdapter", () => {
 
   it("should generate text in mock mode", async () => {
     const handler = mustGet(registeredHandlers, "ai-generate-text");
-    const result = await handler({
+    const result = (await handler({
       model: "gpt-3.5-turbo",
       prompt: "Test prompt",
-    }) as { content: Array<{ type: string; text: string }> };
+    })) as { content: Array<{ type: string; text: string }> };
 
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe("text");
@@ -60,9 +64,9 @@ describe("AIAdapter", () => {
 
   it("should generate image in mock mode", async () => {
     const handler = mustGet(registeredHandlers, "ai-generate-image");
-    const result = await handler({
+    const result = (await handler({
       prompt: "A beautiful landscape",
-    }) as { content: Array<{ type: string; text: string }> };
+    })) as { content: Array<{ type: string; text: string }> };
 
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe("text");
@@ -73,9 +77,9 @@ describe("AIAdapter", () => {
 
   it("should generate embeddings in mock mode", async () => {
     const handler = mustGet(registeredHandlers, "ai-embed");
-    const result = await handler({
+    const result = (await handler({
       text: "Sample text for embedding",
-    }) as { content: Array<{ type: string; text: string }> };
+    })) as { content: Array<{ type: string; text: string }> };
 
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe("text");
@@ -93,7 +97,11 @@ describe("AIAdapter with API client", () => {
     registeredHandlers = new Map();
     mockServer = {
       registerTool: vi.fn(
-        (name: string, _meta: unknown, handler: (...args: unknown[]) => unknown) => {
+        (
+          name: string,
+          _meta: unknown,
+          handler: (...args: unknown[]) => unknown
+        ) => {
           registeredHandlers.set(name, handler);
         }
       ),
@@ -121,10 +129,13 @@ describe("AIAdapter with API client", () => {
     });
 
     const handler = mustGet(registeredHandlers, "ai-generate-text");
-    const result = await handler({
+    const result = (await handler({
       model: "gpt-3.5-turbo",
       prompt: "Test prompt",
-    }) as { content: Array<{ type: string; text: string }>; isError?: boolean };
+    })) as {
+      content: Array<{ type: string; text: string }>;
+      isError?: boolean;
+    };
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("Error");
@@ -134,10 +145,13 @@ describe("AIAdapter with API client", () => {
     mockFetch.mockRejectedValue(new Error("Network error"));
 
     const handler = mustGet(registeredHandlers, "ai-generate-text");
-    const result = await handler({
+    const result = (await handler({
       model: "gpt-3.5-turbo",
       prompt: "Test prompt",
-    }) as { content: Array<{ type: string; text: string }>; isError?: boolean };
+    })) as {
+      content: Array<{ type: string; text: string }>;
+      isError?: boolean;
+    };
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("Error");

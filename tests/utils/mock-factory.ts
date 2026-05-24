@@ -2,7 +2,7 @@ import { vi } from "vitest";
 
 type JsonObject = Record<string, unknown>;
 
-export const mustGet = <T,>(map: Map<string, T>, key: string): T => {
+export const mustGet = <T>(map: Map<string, T>, key: string): T => {
   const value = map.get(key);
   if (value === undefined) throw new Error(`Missing expected key: ${key}`);
   return value;
@@ -54,7 +54,10 @@ export function createValidationError(message = "Invalid input") {
   return vi.fn().mockRejectedValue(error);
 }
 
-export function createFileUploadResponse(fileData: { name: string; size: number }) {
+export function createFileUploadResponse(fileData: {
+  name: string;
+  size: number;
+}) {
   return createFetchResponse({
     key: `uploads/${fileData.name}`,
     url: `https://storage.example.com/${fileData.name}`,
@@ -64,7 +67,10 @@ export function createFileUploadResponse(fileData: { name: string; size: number 
   });
 }
 
-export function createListObjectsResponse(objects: unknown[], totalCount?: number) {
+export function createListObjectsResponse(
+  objects: unknown[],
+  totalCount?: number
+) {
   return createFetchResponse({
     objects,
     totalCount: totalCount || objects.length,
@@ -72,7 +78,14 @@ export function createListObjectsResponse(objects: unknown[], totalCount?: numbe
   });
 }
 
-export function createAIResponse(text: string, usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) {
+export function createAIResponse(
+  text: string,
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  }
+) {
   return createFetchResponse({
     text,
     usage: usage || {
