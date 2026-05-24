@@ -35,17 +35,20 @@ describe.skipIf(!CLI_EXISTS)("CLI Workflow E2E Tests", () => {
   });
 
   it("should handle help command", async () => {
+    const chunks: Buffer[] = [];
     cliProcess = spawn("node", [CLI_PATH, "--help"], {
       stdio: "pipe",
     });
 
-    let output = "";
     cliProcess.stdout?.on("data", (data: Buffer) => {
-      output += data.toString();
+      chunks.push(data);
     });
 
-    await sleep(1000);
+    await new Promise<void>((resolve) => {
+      cliProcess?.on("exit", () => resolve());
+    });
 
+    const output = Buffer.concat(chunks).toString();
     expect(output).toContain("frontal-mcp-server");
     expect(output).toContain("--transport");
     expect(output).toContain("--api-key");
