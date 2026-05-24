@@ -1,7 +1,7 @@
 <picture>
- <source srcset="./assets/images/banner-dark.png" media="(prefers-color-scheme: dark)">
- <source srcset="./assets/images/banner.png" media="(prefers-color-scheme: light)">
- <img src="./assets/images/banner-dark.png" alt="Frontal Banner">
+ <source srcset="./banner-dark.png" media="(prefers-color-scheme: dark)">
+ <source srcset="./banner.png" media="(prefers-color-scheme: light)">
+ <img src="./banner-dark.png" alt="Frontal Banner">
 </picture>
 
 # Frontal MCP Server
