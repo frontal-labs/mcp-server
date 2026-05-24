@@ -122,6 +122,6 @@ jobs:
           args: --severity-threshold=high
 
       - name: Run CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3
         with:
-          languages: javascript
+          languages: javascript-typescript

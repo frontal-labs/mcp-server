@@ -1,17 +1,11 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 echo "🔍 Running pre-commit checks..."
 
-# Run linting
 echo "📝 Running linter..."
 bun run lint
 
-# Run formatting
 echo "✨ Running formatter..."
 bun run format
 
-# Run tests
 echo "🧪 Running tests..."
 bun run test
 

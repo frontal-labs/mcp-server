@@ -1,17 +1,36 @@
-# Global owners
+# Global owners (default reviewers for all files)
 * @frontal-labs/ai
 
-# Repository configuration
+# Repository configuration and CI
 /.github/ @frontal-labs/distribution
 .gitignore @frontal-labs/distribution
+.gitattributes @frontal-labs/distribution
+.editorconfig @frontal-labs/distribution
 
 # Documentation
 *.md @frontal-labs/docs
 docs/ @frontal-labs/docs
+README.md @frontal-labs/docs @frontal-labs/ai
 
 # Source code
 /src/ @frontal-labs/ai
+/src/server/ @frontal-labs/ai @frontal-labs/infra
+/src/adapters/ @frontal-labs/ai
+
+# Tests
 /tests/ @frontal-labs/ai
 
 # Security
 SECURITY.md @frontal-labs/security
+.gitleaks.toml @frontal-labs/security
+
+# Build and deployment
+Dockerfile @frontal-labs/infra
+.dockerignore @frontal-labs/infra
+fly.toml @frontal-labs/infra
+tsup.config.ts @frontal-labs/ai @frontal-labs/distribution
+
+# Configuration
+biome.jsonc @frontal-labs/ai
+tsconfig.json @frontal-labs/ai @frontal-labs/distribution
+package.json @frontal-labs/ai @frontal-labs/distribution

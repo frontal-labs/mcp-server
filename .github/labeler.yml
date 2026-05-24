@@ -1,14 +1,35 @@
-# Labeler configuration
+# Auto-label PRs based on changed paths
 labels:
   - name: documentation
-    pattern: ['*.md', 'docs/**']
+    pattern:
+      - '*.md'
+      - 'docs/**'
+
   - name: bug
-    pattern: ['**/test/**', '**/tests/**']
+    pattern:
+      - 'src/**'
+
   - name: dependencies
-    pattern: ['package.json', 'bun.lock']
+    pattern:
+      - 'package.json'
+      - 'bun.lock'
+
   - name: ci/cd
-    pattern: ['.github/**']
+    pattern:
+      - '.github/**'
+
   - name: tests
-    pattern: ['**/test/**', '**/tests/**']
+    pattern:
+      - '**/test/**'
+      - '**/tests/**'
+
+  - name: enhancement
+    pattern:
+      - 'src/**'
+
+  - name: security
+    pattern:
+      - 'SECURITY.md'
+      - '.gitleaks.toml'
 
 only: PRs

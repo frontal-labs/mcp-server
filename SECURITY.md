@@ -15,7 +15,7 @@ We take security seriously and appreciate your efforts to responsibly disclose v
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please send an email to: **security@frontal.dev**
+Instead, please send an email to: **security@frontal.cloud**
 
 When reporting a vulnerability, please include:
 
