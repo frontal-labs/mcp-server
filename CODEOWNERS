@@ -1,0 +1,17 @@
+# Global owners
+* @frontal-labs/ai
+
+# Repository configuration
+/.github/ @frontal-labs/distribution
+.gitignore @frontal-labs/distribution
+
+# Documentation
+*.md @frontal-labs/docs
+docs/ @frontal-labs/docs
+
+# Source code
+/src/ @frontal-labs/ai
+/tests/ @frontal-labs/ai
+
+# Security
+SECURITY.md @frontal-labs/security
