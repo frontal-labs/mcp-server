@@ -1,0 +1,15 @@
+# Release Drafter Configuration
+version: 2
+categories:
+  - title: Features
+    label: enhancement
+  - title: Bug Fixes
+    label: bug
+  - title: Documentation
+    label: documentation
+  - title: Maintenance
+    label: maintenance
+
+template: |
+  ## What changed
+  ${{changes}}

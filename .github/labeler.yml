@@ -1,0 +1,14 @@
+# Labeler configuration
+labels:
+  - name: documentation
+    pattern: ['*.md', 'docs/**']
+  - name: bug
+    pattern: ['**/test/**', '**/tests/**']
+  - name: dependencies
+    pattern: ['package.json', 'bun.lock']
+  - name: ci/cd
+    pattern: ['.github/**']
+  - name: tests
+    pattern: ['**/test/**', '**/tests/**']
+
+only: PRs

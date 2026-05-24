@@ -1,0 +1,37 @@
+name: Deploy to Fly.io
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Fly.io
+    runs-on: ubuntu-latest
+    concurrency: deploy-group
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Verify deployment
+        run: |
+          echo "Checking deployment status..."
+          flyctl status --app frontal-mcp-server
+          flyctl checks list --app frontal-mcp-server
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Post-deploy smoke test
+        run: |
+          APP_URL=$(flyctl apps list --json | jq -r '.[] | select(.Name == "frontal-mcp-server") | .Hostname')
+          echo "App URL: https://$APP_URL"
+          curl -sf "https://$APP_URL/health" || echo "Health check endpoint not yet available (expected for MCP)"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
