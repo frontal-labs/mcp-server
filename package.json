@@ -56,13 +56,13 @@
     "functions",
     "typescript"
   ],
-  "homepage": "https://github.com/frontal-cloud/mcp-server",
-  "bugs": "https://github.com/frontal-cloud/mcp-server/issues",
+  "homepage": "https://github.com/frontal-labs/mcp-server",
+  "bugs": "https://github.com/frontal-labs/mcp-server/issues",
   "license": "MIT",
   "author": "Frontal Labs",
   "repository": {
     "type": "git",
-    "url": "https://github.com/frontal-cloud/mcp-server.git"
+    "url": "https://github.com/frontal-labs/mcp-server.git"
   },
   "publishConfig": {
     "access": "public"

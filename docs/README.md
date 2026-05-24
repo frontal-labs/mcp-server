@@ -136,6 +136,6 @@ MIT License - see LICENSE.md for details.
 
 ## Support
 
-- GitHub Issues: [Report bugs and request features](https://github.com/frontal-cloud/mcp-server/issues)
+- GitHub Issues: [Report bugs and request features](https://github.com/frontal-labs/mcp-server/issues)
 - Documentation: [Full documentation](https://docs.frontal.cloud)
 - Community: [Join our Discord](https://discord.gg/frontal)
