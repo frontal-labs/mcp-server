@@ -45,6 +45,12 @@ export class EnhancedHttpTransport {
           return;
         }
 
+        if (req.method === "GET" && req.url === "/health") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ status: "ok" }));
+          return;
+        }
+
         try {
           const body =
             req.method === "GET" ? undefined : await this.getRequestBody(req);
