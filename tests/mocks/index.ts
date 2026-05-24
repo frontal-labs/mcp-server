@@ -6,7 +6,7 @@ export * from "./data-generators.js";
 export type MockResponse = {
   ok: boolean;
   status: number;
-  json: () => Promise<any>;
+  json: () => Promise<unknown>;
   text: () => Promise<string>;
   headers?: Map<string, string>;
 };
@@ -51,6 +51,6 @@ export type MockPipeline = {
   name: string;
   description: string;
   status: string;
-  config: any;
+  config: unknown;
   createdAt: string;
 };

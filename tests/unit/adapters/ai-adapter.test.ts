@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mustGet } from "@tests/utils/mock-factory.js";
 import { AIAdapter } from "@/adapters/ai-adapter.js";
 import { createConfig } from "@/config/index.js";
 import { createLogger } from "@/utils/logger.js";
@@ -43,7 +44,7 @@ describe("AIAdapter", () => {
   });
 
   it("should generate text in mock mode", async () => {
-    const handler = registeredHandlers.get("ai-generate-text")!;
+    const handler = mustGet(registeredHandlers, "ai-generate-text");
     const result = await handler({
       model: "gpt-3.5-turbo",
       prompt: "Test prompt",
@@ -58,7 +59,7 @@ describe("AIAdapter", () => {
   });
 
   it("should generate image in mock mode", async () => {
-    const handler = registeredHandlers.get("ai-generate-image")!;
+    const handler = mustGet(registeredHandlers, "ai-generate-image");
     const result = await handler({
       prompt: "A beautiful landscape",
     }) as { content: Array<{ type: string; text: string }> };
@@ -71,7 +72,7 @@ describe("AIAdapter", () => {
   });
 
   it("should generate embeddings in mock mode", async () => {
-    const handler = registeredHandlers.get("ai-embed")!;
+    const handler = mustGet(registeredHandlers, "ai-embed");
     const result = await handler({
       text: "Sample text for embedding",
     }) as { content: Array<{ type: string; text: string }> };
@@ -119,7 +120,7 @@ describe("AIAdapter with API client", () => {
       statusText: "Unauthorized",
     });
 
-    const handler = registeredHandlers.get("ai-generate-text")!;
+    const handler = mustGet(registeredHandlers, "ai-generate-text");
     const result = await handler({
       model: "gpt-3.5-turbo",
       prompt: "Test prompt",
@@ -132,7 +133,7 @@ describe("AIAdapter with API client", () => {
   it("should handle network errors", async () => {
     mockFetch.mockRejectedValue(new Error("Network error"));
 
-    const handler = registeredHandlers.get("ai-generate-text")!;
+    const handler = mustGet(registeredHandlers, "ai-generate-text");
     const result = await handler({
       model: "gpt-3.5-turbo",
       prompt: "Test prompt",

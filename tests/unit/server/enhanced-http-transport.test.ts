@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EnhancedHttpTransport } from "@/server/enhanced-http-transport.js";
 import { createLogger } from "@/utils/logger.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

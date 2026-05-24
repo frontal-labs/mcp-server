@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mustGet } from "@tests/utils/mock-factory.js";
 import { AIAdapter } from "@/adapters/ai-adapter.js";
 import { createConfig } from "@/config/index.js";
 import { createLogger } from "@/utils/logger.js";
@@ -75,7 +76,7 @@ describe("AIAdapter (Simple)", () => {
 
     adapter.registerTools(mockServer as unknown as McpServer);
 
-    const handler = handlers.get("ai-generate-text")!;
+    const handler = mustGet(handlers, "ai-generate-text");
     const result = await handler({
       model: "gpt-3.5-turbo",
       prompt: "Test prompt",

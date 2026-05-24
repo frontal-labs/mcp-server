@@ -152,7 +152,7 @@ export const generateRandomTimestamp = () =>
   ).toISOString();
 
 // Array generators
-export const generateTestArray = (generator: () => any, count: number) =>
+export const generateTestArray = <T,>(generator: () => T, count: number): T[] =>
   Array.from({ length: count }, () => generator());
 
 export const generateTestFiles = (count: number) =>

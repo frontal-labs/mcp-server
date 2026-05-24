@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mustGet } from "@tests/utils/mock-factory.js";
 import { BlobAdapter } from "@/adapters/blob-adapter.js";
 import { createConfig } from "@/config/index.js";
 import { createLogger } from "@/utils/logger.js";
@@ -42,7 +43,7 @@ describe("BlobAdapter", () => {
   });
 
   it("should upload file in mock mode", async () => {
-    const handler = registeredHandlers.get("blob-upload")!;
+    const handler = mustGet(registeredHandlers, "blob-upload");
     const result = await handler({
       bucket: "uploads",
       key: "test-file.txt",
@@ -59,7 +60,7 @@ describe("BlobAdapter", () => {
   });
 
   it("should list objects in mock mode", async () => {
-    const handler = registeredHandlers.get("blob-list")!;
+    const handler = mustGet(registeredHandlers, "blob-list");
     const result = await handler({
       bucket: "uploads",
     }) as { content: Array<{ type: string; text: string }> };
@@ -106,7 +107,7 @@ describe("BlobAdapter with API client", () => {
       statusText: "Payload Too Large",
     });
 
-    const handler = registeredHandlers.get("blob-upload")!;
+    const handler = mustGet(registeredHandlers, "blob-upload");
     const result = await handler({
       bucket: "uploads",
       key: "large-file.txt",
@@ -120,7 +121,7 @@ describe("BlobAdapter with API client", () => {
   it("should handle list errors gracefully", async () => {
     mockFetch.mockRejectedValue(new Error("Network error"));
 
-    const handler = registeredHandlers.get("blob-list")!;
+    const handler = mustGet(registeredHandlers, "blob-list");
     const result = await handler({
       bucket: "uploads",
     }) as { content: Array<{ type: string; text: string }>; isError?: boolean };
