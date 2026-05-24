@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mustGet } from "@tests/utils/mock-factory.js";
 import { GraphAdapter } from "@/adapters/graph-adapter.js";
 import { createConfig } from "@/config/index.js";
 import { createLogger } from "@/utils/logger.js";
@@ -54,7 +55,7 @@ describe("GraphAdapter (mock mode)", () => {
   });
 
   it("should execute graph query in mock mode", async () => {
-    const handler = registeredHandlers.get("graph-query")!;
+    const handler = mustGet(registeredHandlers, "graph-query");
     const result = (await handler({
       query: "MATCH (n) RETURN n",
     })) as ToolResult;
@@ -65,7 +66,7 @@ describe("GraphAdapter (mock mode)", () => {
   });
 
   it("should accept optional variables in query", async () => {
-    const handler = registeredHandlers.get("graph-query")!;
+    const handler = mustGet(registeredHandlers, "graph-query");
     const result = (await handler({
       query: "MATCH (n:User) WHERE n.age > $age RETURN n",
       variables: { age: 18 },
@@ -75,7 +76,7 @@ describe("GraphAdapter (mock mode)", () => {
   });
 
   it("should create node in mock mode", async () => {
-    const handler = registeredHandlers.get("graph-create-node")!;
+    const handler = mustGet(registeredHandlers, "graph-create-node");
     const result = (await handler({
       type: "Person",
       properties: { name: "Alice", age: 30 },
@@ -124,7 +125,7 @@ describe("GraphAdapter (API mode)", () => {
         }),
     });
 
-    const handler = registeredHandlers.get("graph-query")!;
+    const handler = mustGet(registeredHandlers, "graph-query");
     const result = (await handler({
       query: "MATCH (n) RETURN n",
     })) as ToolResult;
@@ -142,7 +143,7 @@ describe("GraphAdapter (API mode)", () => {
       statusText: "Bad Request",
     });
 
-    const handler = registeredHandlers.get("graph-query")!;
+    const handler = mustGet(registeredHandlers, "graph-query");
     const result = (await handler({
       query: "INVALID QUERY",
     })) as ToolResult;
@@ -163,7 +164,7 @@ describe("GraphAdapter (API mode)", () => {
         }),
     });
 
-    const handler = registeredHandlers.get("graph-create-node")!;
+    const handler = mustGet(registeredHandlers, "graph-create-node");
     const result = (await handler({
       type: "Document",
       properties: { title: "Report" },
@@ -177,7 +178,7 @@ describe("GraphAdapter (API mode)", () => {
   it("should handle create-node network error", async () => {
     mockFetch.mockRejectedValue(new Error("timeout"));
 
-    const handler = registeredHandlers.get("graph-create-node")!;
+    const handler = mustGet(registeredHandlers, "graph-create-node");
     const result = (await handler({
       type: "Task",
       properties: { title: "Todo" },

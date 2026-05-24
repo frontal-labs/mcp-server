@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mustGet } from "@tests/utils/mock-factory.js";
 import { PipelinesAdapter } from "@/adapters/pipelines-adapter.js";
 import { createConfig } from "@/config/index.js";
 import { createLogger } from "@/utils/logger.js";
@@ -54,7 +55,7 @@ describe("PipelinesAdapter (mock mode)", () => {
   });
 
   it("should create pipeline in mock mode", async () => {
-    const handler = registeredHandlers.get("pipelines-create")!;
+    const handler = mustGet(registeredHandlers, "pipelines-create");
     const result = (await handler({
       name: "etl-pipeline",
       description: "Extract, transform, load",
@@ -70,7 +71,7 @@ describe("PipelinesAdapter (mock mode)", () => {
   });
 
   it("should run pipeline in mock mode", async () => {
-    const handler = registeredHandlers.get("pipelines-run")!;
+    const handler = mustGet(registeredHandlers, "pipelines-run");
     const result = (await handler({
       pipelineId: "pipeline_123",
       input: { source: "s3://data" },
@@ -80,7 +81,7 @@ describe("PipelinesAdapter (mock mode)", () => {
   });
 
   it("should run pipeline without input", async () => {
-    const handler = registeredHandlers.get("pipelines-run")!;
+    const handler = mustGet(registeredHandlers, "pipelines-run");
     const result = (await handler({
       pipelineId: "pipeline_456",
     })) as ToolResult;
@@ -126,7 +127,7 @@ describe("PipelinesAdapter (API mode)", () => {
         }),
     });
 
-    const handler = registeredHandlers.get("pipelines-create")!;
+    const handler = mustGet(registeredHandlers, "pipelines-create");
     const result = (await handler({
       name: "my-pipeline",
       description: "test",
@@ -145,7 +146,7 @@ describe("PipelinesAdapter (API mode)", () => {
       statusText: "Unprocessable Entity",
     });
 
-    const handler = registeredHandlers.get("pipelines-create")!;
+    const handler = mustGet(registeredHandlers, "pipelines-create");
     const result = (await handler({
       name: "",
       description: "",
@@ -169,7 +170,7 @@ describe("PipelinesAdapter (API mode)", () => {
         }),
     });
 
-    const handler = registeredHandlers.get("pipelines-run")!;
+    const handler = mustGet(registeredHandlers, "pipelines-run");
     const result = (await handler({
       pipelineId: "pipe_1",
       input: { mode: "full" },
@@ -185,7 +186,7 @@ describe("PipelinesAdapter (API mode)", () => {
   it("should handle run network error", async () => {
     mockFetch.mockRejectedValue(new Error("Connection refused"));
 
-    const handler = registeredHandlers.get("pipelines-run")!;
+    const handler = mustGet(registeredHandlers, "pipelines-run");
     const result = (await handler({
       pipelineId: "pipe_1",
     })) as ToolResult;

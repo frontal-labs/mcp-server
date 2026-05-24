@@ -58,13 +58,12 @@ export const resetAllMocks = () => {
 };
 
 // Helper to setup mock responses
-export const setupMockResponses = (responses: any) => {
+export const setupMockResponses = (responses: Record<string, Record<string, unknown>>) => {
   Object.entries(responses).forEach(([service, methods]) => {
     if (mockFrontalAPI[service as keyof typeof mockFrontalAPI]) {
       Object.entries(methods).forEach(([method, response]) => {
-        const mock = (
-          mockFrontalAPI[service as keyof typeof mockFrontalAPI] as any
-        )[method];
+        const serviceMock = mockFrontalAPI[service as keyof typeof mockFrontalAPI] as Record<string, { mockResolvedValue: (v: unknown) => void }>;
+        const mock = serviceMock[method];
         if (mock && typeof mock.mockResolvedValue === "function") {
           mock.mockResolvedValue(response);
         }

@@ -117,6 +117,13 @@ jobs:
       - name: Run security audit
         run: bun audit
 
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@0.4.0
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
       - name: Run CodeQL Analysis
         uses: github/codeql-action/analyze@v2
         with:

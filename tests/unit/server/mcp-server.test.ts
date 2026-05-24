@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { FrontalMcpServer } from "@/server/mcp-server.js";
 import { createConfig } from "@/config/index.js";
 import { createLogger } from "@/utils/logger.js";

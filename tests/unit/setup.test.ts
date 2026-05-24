@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MockFactory, mockGlobalFetch } from "@tests/utils/mock-factory.js";
+import { createFetchResponse, createFetchError, mockGlobalFetch } from "@tests/utils/mock-factory.js";
 
 describe("Test Setup", () => {
   beforeEach(() => {
@@ -7,7 +7,7 @@ describe("Test Setup", () => {
   });
 
   it("should setup mock fetch correctly", () => {
-    const mockResponse = MockFactory.createFetchResponse({ data: "test" });
+    const mockResponse = createFetchResponse({ data: "test" });
     mockGlobalFetch(mockResponse);
 
     expect(global.fetch).toBeDefined();
@@ -15,7 +15,7 @@ describe("Test Setup", () => {
   });
 
   it("should create mock response with correct structure", () => {
-    const response = MockFactory.createFetchResponse(
+    const response = createFetchResponse(
       { data: "test" },
       true,
       201
@@ -27,7 +27,7 @@ describe("Test Setup", () => {
   });
 
   it("should create mock error with correct structure", () => {
-    const error = MockFactory.createFetchError("test error", 400);
+    const error = createFetchError("test error", 400);
 
     expect(error.ok).toBe(false);
     expect(error.status).toBe(400);

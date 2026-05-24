@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mustGet } from "@tests/utils/mock-factory.js";
 import { FunctionsAdapter } from "@/adapters/functions-adapter.js";
 import { createConfig } from "@/config/index.js";
 import { createLogger } from "@/utils/logger.js";
@@ -54,7 +55,7 @@ describe("FunctionsAdapter (mock mode)", () => {
   });
 
   it("should invoke function synchronously in mock mode", async () => {
-    const handler = registeredHandlers.get("functions-invoke")!;
+    const handler = mustGet(registeredHandlers, "functions-invoke");
     const result = (await handler({
       name: "process-data",
       payload: { key: "value" },
@@ -69,7 +70,7 @@ describe("FunctionsAdapter (mock mode)", () => {
   });
 
   it("should invoke function asynchronously in mock mode", async () => {
-    const handler = registeredHandlers.get("functions-invoke")!;
+    const handler = mustGet(registeredHandlers, "functions-invoke");
     const result = (await handler({
       name: "long-task",
       payload: {},
@@ -82,7 +83,7 @@ describe("FunctionsAdapter (mock mode)", () => {
   });
 
   it("should list functions in mock mode", async () => {
-    const handler = registeredHandlers.get("functions-list")!;
+    const handler = mustGet(registeredHandlers, "functions-list");
     const result = (await handler({ status: "all" })) as ToolResult;
 
     expect(result.content[0].type).toBe("text");
@@ -127,7 +128,7 @@ describe("FunctionsAdapter (API mode)", () => {
         }),
     });
 
-    const handler = registeredHandlers.get("functions-invoke")!;
+    const handler = mustGet(registeredHandlers, "functions-invoke");
     const result = (await handler({
       name: "my-func",
       payload: { x: 1 },
@@ -146,7 +147,7 @@ describe("FunctionsAdapter (API mode)", () => {
       statusText: "Internal Server Error",
     });
 
-    const handler = registeredHandlers.get("functions-invoke")!;
+    const handler = mustGet(registeredHandlers, "functions-invoke");
     const result = (await handler({
       name: "broken",
       payload: {},
@@ -176,7 +177,7 @@ describe("FunctionsAdapter (API mode)", () => {
         }),
     });
 
-    const handler = registeredHandlers.get("functions-list")!;
+    const handler = mustGet(registeredHandlers, "functions-list");
     const result = (await handler({ status: "active" })) as ToolResult;
 
     const parsed = JSON.parse(result.content[0].text);

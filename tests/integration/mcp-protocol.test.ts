@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("MCP Protocol Integration", () => {
-  let _mockProcess: any;
+  let _mockProcess: Record<string, unknown>;
 
   beforeEach(() => {
     // Mock process.stdin and process.stdout for testing
