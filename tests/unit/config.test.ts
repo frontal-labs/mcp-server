@@ -13,14 +13,6 @@ describe("env", () => {
   it("should have validated MCP_LOG_LEVEL with default", () => {
     expect(env.MCP_LOG_LEVEL).toBe("info");
   });
-
-  it("should have boolean service flags defaulting to true", () => {
-    expect(env.ENABLE_AI).toBe(true);
-    expect(env.ENABLE_BLOB).toBe(true);
-    expect(env.ENABLE_FUNCTIONS).toBe(true);
-    expect(env.ENABLE_GRAPH).toBe(true);
-    expect(env.ENABLE_PIPELINES).toBe(true);
-  });
 });
 
 describe("createConfig", () => {
@@ -35,16 +27,6 @@ describe("createConfig", () => {
     expect(config.auth.type).toBe("api-key");
     expect(config.logLevel).toBe("info");
     expect(config.verbose).toBe(false);
-  });
-
-  it("should enable all services by default", () => {
-    const config = createConfig();
-
-    expect(config.services.ai).toBe(true);
-    expect(config.services.blob).toBe(true);
-    expect(config.services.functions).toBe(true);
-    expect(config.services.graph).toBe(true);
-    expect(config.services.pipelines).toBe(true);
   });
 
   it("should override apiKey", () => {
@@ -65,23 +47,6 @@ describe("createConfig", () => {
   it("should override verbose", () => {
     const config = createConfig({ verbose: true });
     expect(config.verbose).toBe(true);
-  });
-
-  it("should override individual services", () => {
-    const config = createConfig({
-      services: {
-        ai: false,
-        blob: true,
-        functions: false,
-        graph: true,
-        pipelines: false,
-      },
-    });
-    expect(config.services.ai).toBe(false);
-    expect(config.services.blob).toBe(true);
-    expect(config.services.functions).toBe(false);
-    expect(config.services.graph).toBe(true);
-    expect(config.services.pipelines).toBe(false);
   });
 
   it("should override transport to http", () => {
@@ -170,17 +135,6 @@ describe("loadConfig", () => {
   it("should use verbose from options", async () => {
     const config = await loadConfig({ verbose: true });
     expect(config.verbose).toBe(true);
-  });
-
-  it("should enable all services by default from env", async () => {
-    // env validates ENABLE_* as true unless explicitly "false" at startup
-    const config = await loadConfig({});
-
-    expect(config.services.ai).toBe(true);
-    expect(config.services.blob).toBe(true);
-    expect(config.services.functions).toBe(true);
-    expect(config.services.graph).toBe(true);
-    expect(config.services.pipelines).toBe(true);
   });
 
   it("should throw on invalid config file path", async () => {

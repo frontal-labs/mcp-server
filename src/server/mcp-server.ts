@@ -37,50 +37,30 @@ export class FrontalMcpServer {
     await this.initializeAdapters();
     await this.registerComponents();
 
-    if (this.config.services.incidentio) {
-      await this.healthMonitor.initialize();
-      await this.healthMonitor.reportOperational();
-    }
+    await this.healthMonitor.initialize();
+    await this.healthMonitor.reportOperational();
 
     this.logger.info("Frontal MCP Server initialized successfully");
   }
 
   private async initializeAdapters(): Promise<void> {
     const adapterConfigs = [
-      { name: "ai", enabled: this.config.services.ai, Adapter: AIAdapter },
-      {
-        name: "blob",
-        enabled: this.config.services.blob,
-        Adapter: BlobAdapter,
-      },
-      {
-        name: "functions",
-        enabled: this.config.services.functions,
-        Adapter: FunctionsAdapter,
-      },
-      {
-        name: "graph",
-        enabled: this.config.services.graph,
-        Adapter: GraphAdapter,
-      },
-      {
-        name: "pipelines",
-        enabled: this.config.services.pipelines,
-        Adapter: PipelinesAdapter,
-      },
+      { name: "ai", Adapter: AIAdapter },
+      { name: "blob", Adapter: BlobAdapter },
+      { name: "functions", Adapter: FunctionsAdapter },
+      { name: "graph", Adapter: GraphAdapter },
+      { name: "pipelines", Adapter: PipelinesAdapter },
     ];
 
-    for (const { name, enabled, Adapter } of adapterConfigs) {
-      if (enabled) {
-        try {
-          const adapter = new Adapter();
-          await adapter.initialize(this.config, this.logger);
-          this.adapters.set(name, adapter);
-          this.logger.info(`Initialized ${name} adapter`);
-        } catch (error) {
-          this.logger.error(`Failed to initialize ${name} adapter:`, error);
-          throw error;
-        }
+    for (const { name, Adapter } of adapterConfigs) {
+      try {
+        const adapter = new Adapter();
+        await adapter.initialize(this.config, this.logger);
+        this.adapters.set(name, adapter);
+        this.logger.info(`Initialized ${name} adapter`);
+      } catch (error) {
+        this.logger.error(`Failed to initialize ${name} adapter:`, error);
+        throw error;
       }
     }
   }

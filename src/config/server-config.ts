@@ -16,15 +16,6 @@ export const authConfigSchema = z.object({
   apiKey: z.string().optional(),
 });
 
-export const serviceConfigSchema = z.object({
-  ai: z.boolean().default(true),
-  blob: z.boolean().default(true),
-  functions: z.boolean().default(true),
-  graph: z.boolean().default(true),
-  pipelines: z.boolean().default(true),
-  incidentio: z.boolean().default(false),
-});
-
 export const incidentioConfigSchema = z.object({
   apiKey: z.string().default(""),
   statusPageId: z.string().default(""),
@@ -37,7 +28,6 @@ export const serverConfigSchema = z.object({
   baseUrl: z.string(),
   transport: transportConfigSchema,
   auth: authConfigSchema,
-  services: serviceConfigSchema,
   incidentio: incidentioConfigSchema,
   logLevel: z.enum(["error", "warn", "info", "debug"]),
   verbose: z.boolean().default(false),
@@ -45,7 +35,6 @@ export const serverConfigSchema = z.object({
 
 export type TransportConfig = z.infer<typeof transportConfigSchema>;
 export type AuthConfig = z.infer<typeof authConfigSchema>;
-export type ServiceConfig = z.infer<typeof serviceConfigSchema>;
 export type IncidentioConfig = z.infer<typeof incidentioConfigSchema>;
 export type ServerConfig = z.infer<typeof serverConfigSchema>;
 
@@ -77,14 +66,6 @@ export async function loadConfig(
     auth: {
       type: "api-key" as const,
       apiKey: options.apiKey || env.FRONTAL_API_KEY || undefined,
-    },
-    services: {
-      ai: env.ENABLE_AI,
-      blob: env.ENABLE_BLOB,
-      functions: env.ENABLE_FUNCTIONS,
-      graph: env.ENABLE_GRAPH,
-      pipelines: env.ENABLE_PIPELINES,
-      incidentio: env.ENABLE_INCIDENTIO,
     },
     incidentio: {
       apiKey: env.INCIDENTIO_API_KEY,

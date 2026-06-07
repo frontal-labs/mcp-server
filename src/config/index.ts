@@ -4,7 +4,6 @@ export {
   type IncidentioConfig,
   loadConfig,
   type ServerConfig,
-  type ServiceConfig,
   serverConfigSchema,
   type TransportConfig,
 } from "./server-config.js";

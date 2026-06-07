@@ -12,7 +12,6 @@ export {
   createConfig,
   loadConfig,
   type ServerConfig,
-  type ServiceConfig,
   type TransportConfig,
 } from "./config/index.js";
 export { EnhancedHttpTransport } from "./server/enhanced-http-transport.js";

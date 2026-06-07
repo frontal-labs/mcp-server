@@ -1,12 +1,6 @@
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
-const booleanFromString = z
-  .string()
-  .optional()
-  .transform((val) => val !== "false")
-  .describe("Parsed as true unless explicitly set to 'false'");
-
 export const env = createEnv({
   server: {
     /** Frontal API key for authenticating requests to the Frontal platform */
@@ -30,21 +24,6 @@ export const env = createEnv({
       .optional()
       .default("info")
       .describe("Server log level"),
-
-    /** Enable or disable the AI service (text generation, image generation, embeddings) */
-    ENABLE_AI: booleanFromString,
-
-    /** Enable or disable the Blob storage service */
-    ENABLE_BLOB: booleanFromString,
-
-    /** Enable or disable the Functions service (serverless function execution) */
-    ENABLE_FUNCTIONS: booleanFromString,
-
-    /** Enable or disable the Graph database service */
-    ENABLE_GRAPH: booleanFromString,
-
-    /** Enable or disable the Pipelines service */
-    ENABLE_PIPELINES: booleanFromString,
 
     /** incident.io API key for status page integration */
     INCIDENTIO_API_KEY: z
@@ -73,9 +52,6 @@ export const env = createEnv({
       .optional()
       .default("")
       .describe("incident.io component ID for this server"),
-
-    /** Enable or disable the incident.io integration */
-    ENABLE_INCIDENTIO: booleanFromString,
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

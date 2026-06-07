@@ -9,14 +9,6 @@ export function createConfig(
     baseUrl: env.FRONTAL_BASE_URL,
     transport: { transport: "stdio" as const },
     auth: { type: "api-key" as const },
-    services: {
-      ai: env.ENABLE_AI,
-      blob: env.ENABLE_BLOB,
-      functions: env.ENABLE_FUNCTIONS,
-      graph: env.ENABLE_GRAPH,
-      pipelines: env.ENABLE_PIPELINES,
-      incidentio: env.ENABLE_INCIDENTIO,
-    },
     incidentio: {
       apiKey: env.INCIDENTIO_API_KEY,
       statusPageId: env.INCIDENTIO_STATUS_PAGE_ID,
