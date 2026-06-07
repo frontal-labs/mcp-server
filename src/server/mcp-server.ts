@@ -38,7 +38,7 @@ export class FrontalMcpServer {
     await this.registerComponents();
 
     await this.healthMonitor.initialize();
-    await this.healthMonitor.reportOperational();
+    this.healthMonitor.reportOperational();
 
     this.logger.info("Frontal MCP Server initialized successfully");
   }
