@@ -313,6 +313,6 @@ jobs:
   fly-deploy:
     name: Deploy to Fly.io
     needs: [docker-publish]
-    if: ${{ always() && needs.docker-publish.result == 'success' }}
+    if: ${{ always() && !cancelled() && needs.docker-publish.result == 'success' }}
     uses: ./.github/workflows/fly-deploy.yml
     secrets: inherit
