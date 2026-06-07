@@ -1,21 +1,34 @@
-# Frontal MCP Server - Fly.io Configuration
-# Generated for production deployment on Fly.io
+# fly.toml app configuration file generated for frontal-mcp-server on 2026-06-07T16:20:53Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "frontal-mcp-server"
-primary_region = "iad"
+app = 'frontal-mcp-server'
+primary_region = 'iad'
+
+[experimental]
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
+
+[deploy]
+  strategy = 'rolling'
+
+[env]
+  NODE_ENV = 'production'
+  MCP_LOG_LEVEL = 'info'
+  MCP_SERVER_PORT = '3000'
+  MCP_SERVER_HOST = '0.0.0.0'
 
 [http_service]
   internal_port = 3000
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 1
 
   [http_service.concurrency]
-    type = "requests"
+    type = 'requests'
     hard_limit = 100
     soft_limit = 50
 
@@ -23,51 +36,35 @@ primary_region = "iad"
     idle_timeout = 600
 
   [[http_service.checks]]
-    interval = "15s"
-    timeout = "5s"
-    grace_period = "10s"
-    method = "get"
-    path = "/health"
-    protocol = "http"
-    type = "http"
+    interval = '15s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'get'
+    path = '/health'
+    protocol = 'http'
     tls_skip_verify = false
 
   [[http_service.checks]]
-    interval = "10s"
-    timeout = "3s"
-    grace_period = "5s"
-    type = "tcp"
+    interval = '10s'
+    timeout = '3s'
+    grace_period = '5s'
 
   [[http_service.machine_checks]]
-    interval = "30s"
-    timeout = "10s"
-    grace_period = "15s"
-    command = ["node", "-e", "process.exit(0)"]
+    command = ['node', '-e', 'process.exit(0)']
 
 [checks]
   [checks.health]
-    type = "http"
-    interval = "30s"
-    timeout = "5s"
-    grace_period = "10s"
-    method = "get"
-    path = "/health"
-    protocol = "http"
+    type = 'http'
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'get'
+    path = '/health'
+    protocol = 'http'
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "512mb"
+  size = 'shared-cpu-1x'
+  memory = '512mb'
+  cpu_kind = 'shared'
   cpus = 1
-  cpu_kind = "shared"
-
-[env]
-  NODE_ENV = "production"
-  MCP_LOG_LEVEL = "info"
-  MCP_SERVER_PORT = "3000"
-  MCP_SERVER_HOST = "0.0.0.0"
-
-[deploy]
-  strategy = "rolling"
-
-[experimental]
-  allowed_public_ports = []
+  memory_mb = 512
