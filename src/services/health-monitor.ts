@@ -1,5 +1,5 @@
 import type { Logger } from "winston";
-import type { IncidentioConfig } from "@/config/server-config.js";
+import type { IncidentioConfig } from "@/lib/server-config.js";
 import {
   IncidentioClient,
   type IncidentioComponent,
@@ -68,12 +68,13 @@ export class HealthMonitor {
 
   private async resolveComponent(): Promise<void> {
     if (!this.client || !this.statusPageId) return;
-    const structure = await this.client.getStructure(this.statusPageId);
 
     if (this.config.componentId) {
       this.componentId = this.config.componentId;
       return;
     }
+
+    const structure = await this.client.getStructure(this.statusPageId);
 
     const allComponents: IncidentioComponent[] = [
       ...(structure.components ?? []),

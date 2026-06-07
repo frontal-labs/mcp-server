@@ -12,7 +12,6 @@ export const env = createEnv({
 
     /** Base URL for the Frontal API */
     FRONTAL_BASE_URL: z
-      .string()
       .url()
       .optional()
       .default("https://api.frontal.dev/v1")
@@ -41,7 +40,6 @@ export const env = createEnv({
 
     /** Public URL of the incident.io status page (e.g. https://frontal-status.com) */
     INCIDENTIO_STATUS_PAGE_URL: z
-      .string()
       .url()
       .default("https://frontal-status.com")
       .describe("Public URL of the incident.io status page"),

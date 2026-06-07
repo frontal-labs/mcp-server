@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Logger } from "winston";
-import type { ServerConfig } from "@/config/server-config.js";
+import type { ServerConfig } from "@/lib/server-config.js";
 import { pipelinesCreateSchema, pipelinesRunSchema } from "@/models/index.js";
 import { FrontalApiClient } from "@/services/api-client.js";
 import type { ServiceAdapter } from "./types.js";

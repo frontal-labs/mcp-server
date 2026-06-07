@@ -3,6 +3,7 @@ import type { Logger } from "winston";
 import { z } from "zod";
 
 const INCIDENTIO_BASE_URL = "https://api.incident.io";
+const INCIDENTIO_REQUEST_TIMEOUT_MS = 10_000;
 
 // --- Widget API (public, unauthenticated) ---
 
@@ -180,7 +181,9 @@ export class IncidentioClient {
     statusPageUrl: string
   ): Promise<WidgetSummary> {
     const url = `${statusPageUrl.replace(/\/$/, "")}/api/v1/summary`;
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(INCIDENTIO_REQUEST_TIMEOUT_MS),
+    });
     if (!response.ok) {
       throw new Error(
         `Widget API error ${response.status}: ${response.statusText}`
@@ -217,6 +220,7 @@ export class IncidentioClient {
       method: options.method,
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: AbortSignal.timeout(INCIDENTIO_REQUEST_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -310,6 +314,9 @@ export class IncidentioClient {
 
     if (params.incidentStatus) {
       body.incident_status = params.incidentStatus;
+    }
+    if (params.message !== undefined) {
+      body.message = params.message;
     }
     if (params.componentStatuses) {
       body.component_statuses = params.componentStatuses.map((cs) => ({

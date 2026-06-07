@@ -7,7 +7,7 @@ import { FunctionsAdapter } from "@/adapters/functions-adapter.js";
 import { GraphAdapter } from "@/adapters/graph-adapter.js";
 import { PipelinesAdapter } from "@/adapters/pipelines-adapter.js";
 import type { ServiceAdapter } from "@/adapters/types.js";
-import type { ServerConfig } from "@/config/server-config.js";
+import type { ServerConfig } from "@/lib/server-config.js";
 import { HealthMonitor } from "@/services/health-monitor.js";
 
 export class FrontalMcpServer {

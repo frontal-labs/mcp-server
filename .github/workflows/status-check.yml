@@ -2,8 +2,8 @@ name: Status Check (incident.io)
 
 on:
   schedule:
-    # Every 5 minutes, off the :00/:30 mark
-    - cron: "13,43 * * * *"
+    # Every 5 minutes
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -15,7 +15,8 @@ jobs:
         id: health
         run: |
           APP_URL="https://frontal-mcp-server.fly.dev"
-          if curl -sf --max-time 10 "${APP_URL}/health" > /dev/null 2>&1; then
+          RESPONSE=$(curl -sf --max-time 10 "${APP_URL}/health") || true
+          if echo "$RESPONSE" | jq -e '.status == "ok"' > /dev/null 2>&1; then
             echo "status=up" >> "$GITHUB_OUTPUT"
             echo "Server is UP"
           else
@@ -27,7 +28,7 @@ jobs:
         id: widget
         run: |
           WIDGET_URL="${{ vars.INCIDENTIO_STATUS_PAGE_URL || 'https://frontal-status.com' }}/api/v1/summary"
-          SUMMARY=$(curl -sf --max-time 10 "$WIDGET_URL")
+          SUMMARY=$(curl -sf --max-time 10 "$WIDGET_URL" || echo '{"ongoing_incidents":[]}')
           echo "summary<<EOF" >> "$GITHUB_OUTPUT"
           echo "$SUMMARY" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
@@ -74,9 +75,11 @@ jobs:
         if: |
           steps.health.outputs.status == 'up' &&
           steps.widget.outputs.active_incidents != '0'
+        env:
+          WIDGET_SUMMARY: ${{ steps.widget.outputs.summary }}
+          INCIDENTIO_API_KEY: ${{ secrets.INCIDENTIO_API_KEY }}
         run: |
-          # Only resolve incidents named "MCP Server *" to avoid touching unrelated incidents
-          INCIDENT_IDS=$(echo '${{ steps.widget.outputs.summary }}' | jq -r '.ongoing_incidents[] | select(.name | startswith("MCP Server")) | .id')
+          INCIDENT_IDS=$(echo "$WIDGET_SUMMARY" | jq -r '.ongoing_incidents[] | select(.name | startswith("MCP Server")) | .id')
 
           if [ -z "$INCIDENT_IDS" ]; then
             echo "No MCP Server incidents to resolve"
@@ -91,8 +94,6 @@ jobs:
               -d '{"incident_status": "resolved", "notify_subscribers": true}'
             echo "Resolved incident $INCIDENT_ID"
           done
-        env:
-          INCIDENTIO_API_KEY: ${{ secrets.INCIDENTIO_API_KEY }}
 
       - name: Summary
         if: always()

@@ -1,4 +1,4 @@
-import { env } from "./env.js";
+import { env } from "@/config/env.js";
 import { serverConfigSchema, type ServerConfig } from "./server-config.js";
 
 export function createConfig(

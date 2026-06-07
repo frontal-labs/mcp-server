@@ -6,7 +6,7 @@ export {
   type ServerConfig,
   serverConfigSchema,
   type TransportConfig,
-} from "./server-config.js";
+} from "../lib/server-config.js";
 
-export { createConfig } from "./create-config.js";
+export { createConfig } from "../lib/create-config.js";
 export { env } from "./env.js";

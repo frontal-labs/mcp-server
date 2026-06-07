@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { env } from "./env.js";
+import { env } from "@/config/env.js";
 
 export const transportConfigSchema = z.object({
   transport: z.enum(["stdio", "http"]),
@@ -17,15 +17,15 @@ export const authConfigSchema = z.object({
 });
 
 export const incidentioConfigSchema = z.object({
-  apiKey: z.string().default(""),
-  statusPageId: z.string().default(""),
-  statusPageUrl: z.string().default(""),
-  componentId: z.string().default(""),
+  apiKey: z.string(),
+  statusPageId: z.string(),
+  statusPageUrl: z.url().default(env.INCIDENTIO_STATUS_PAGE_URL),
+  componentId: z.string().default(env.INCIDENTIO_COMPONENT_ID),
 });
 
 export const serverConfigSchema = z.object({
-  apiKey: z.string(),
-  baseUrl: z.string(),
+  apiKey: z.string().default(env.FRONTAL_API_KEY),
+  baseUrl: z.string().default(env.FRONTAL_BASE_URL),
   transport: transportConfigSchema,
   auth: authConfigSchema,
   incidentio: incidentioConfigSchema,
