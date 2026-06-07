@@ -37,11 +37,11 @@ USER mcpserver
 
 EXPOSE 3000
 
-LABEL org.opencontainers.image.source=https://github.com/frontal-labs/mcp-server
-LABEL org.opencontainers.image.description="Model Context Protocol server for Frontal cloud services"
-LABEL org.opencontainers.image.licenses=MIT
-LABEL org.opencontainers.image.vendor=Frontal Labs
-LABEL org.opencontainers.image.version=$VERSION
+LABEL org.opencontainers.image.source="https://github.com/frontal-labs/mcp-server" \
+      org.opencontainers.image.description="Model Context Protocol server for Frontal cloud services" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.vendor="Frontal Labs" \
+      org.opencontainers.image.version="$VERSION"
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
