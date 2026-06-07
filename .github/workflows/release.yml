@@ -309,3 +309,10 @@ jobs:
             --type spdxjson \
             --predicate /tmp/sbom.spdx.json \
             "${{ env.REGISTRY }}/${{ github.repository }}@${{ steps.build.outputs.digest }}"
+
+  fly-deploy:
+    name: Deploy to Fly.io
+    needs: [docker-publish]
+    if: ${{ always() && needs.docker-publish.result == 'success' }}
+    uses: ./.github/workflows/fly-deploy.yml
+    secrets: inherit
