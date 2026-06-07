@@ -295,9 +295,7 @@ export class IncidentioClient {
     return result.status_page_incidents;
   }
 
-  async getIncident(
-    incidentId: string
-  ): Promise<IncidentioStatusPageIncident> {
+  async getIncident(incidentId: string): Promise<IncidentioStatusPageIncident> {
     return this.request(
       `/v2/status_page_incidents/${encodeURIComponent(incidentId)}`,
       { method: "GET", schema: statusPageIncidentSchema }

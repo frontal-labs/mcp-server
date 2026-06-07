@@ -44,10 +44,7 @@ export class HealthMonitor {
         `incident.io integration initialized (statusPage=${this.statusPageId}, component=${this.componentId})`
       );
     } catch (error) {
-      this.logger.error(
-        "Failed to initialize incident.io integration:",
-        error
-      );
+      this.logger.error("Failed to initialize incident.io integration:", error);
     }
   }
 
@@ -89,9 +86,7 @@ export class HealthMonitor {
 
     if (match) {
       this.componentId = match.id;
-      this.logger.info(
-        `Auto-detected component: ${match.name} (${match.id})`
-      );
+      this.logger.info(`Auto-detected component: ${match.name} (${match.id})`);
       return;
     }
 
@@ -151,10 +146,7 @@ export class HealthMonitor {
         );
       }
     } catch (error) {
-      this.logger.error(
-        "Failed to resolve incidents via incident.io:",
-        error
-      );
+      this.logger.error("Failed to resolve incidents via incident.io:", error);
     }
   }
 
