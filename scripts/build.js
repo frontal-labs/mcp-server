@@ -28,7 +28,7 @@ function runCommand(command, description) {
     log(description, "blue");
     execSync(command, { stdio: "inherit", cwd: join(__dirname, "..") });
   } catch (_error) {
-    log(`❌ Error during: ${description}`, "red");
+    log(`Error during: ${description}`, "red");
     log(`Command: ${command}`, "red");
     process.exit(1);
   }

@@ -45,7 +45,7 @@ Performance monitoring and analytics integration examples.
 
 ### HTTP Web Server
 ```typescript
-import { FrontalMcpServer } from '@frontal/mcp-server';
+import { FrontalMcpServer } from '@frontal-labs/mcp-server';
 
 const server = new FrontalMcpServer({
   apiKey: process.env.FRONTAL_API_KEY,

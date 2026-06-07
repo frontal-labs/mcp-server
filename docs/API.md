@@ -366,7 +366,7 @@ Add to your Claude Desktop configuration:
 ### Programmatic Usage
 
 ```typescript
-import { FrontalMcpServer, createLogger } from '@frontal/mcp-server';
+import { FrontalMcpServer, createLogger } from '@frontal-labs/mcp-server';
 
 const config = {
   apiKey: 'your_api_key',
