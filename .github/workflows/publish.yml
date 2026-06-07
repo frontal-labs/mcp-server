@@ -52,16 +52,17 @@ jobs:
         if: steps.check.outputs.already-published == 'false'
         run: bun run build
 
-      - name: Setup Node for npm OIDC
+      - name: Setup Node
         if: steps.check.outputs.already-published == 'false'
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Publish to npm
         if: steps.check.outputs.already-published == 'false'
         run: npm publish --access public --provenance
+        env:
+          NPM_CONFIG_PROVENANCE: true
 
       - name: Create git tag
         if: steps.check.outputs.already-published == 'false'
