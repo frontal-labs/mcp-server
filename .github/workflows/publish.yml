@@ -59,6 +59,12 @@ jobs:
           node-version: 18
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Debug OIDC claims
+        if: steps.check.outputs.already-published == 'false'
+        run: |
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://registry.npmjs.org" | node -e "process.stdin.on('data',d=>console.log(JSON.parse(d).value))")
+          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -m json.tool || true
+
       - name: Publish to npm
         if: steps.check.outputs.already-published == 'false'
         run: npm publish --access public --provenance
