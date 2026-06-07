@@ -1,4 +1,4 @@
-name: Release
+name: Publish
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   release:
-    name: Release
+    name: Publish
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -58,7 +58,7 @@ jobs:
 
       - name: Publish to npm
         if: steps.check.outputs.already-published == 'false'
-        run: npm publish
+        run: npm publish --access public
 
       - name: Create git tag
         if: steps.check.outputs.already-published == 'false'
