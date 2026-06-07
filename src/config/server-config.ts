@@ -22,6 +22,14 @@ export const serviceConfigSchema = z.object({
   functions: z.boolean().default(true),
   graph: z.boolean().default(true),
   pipelines: z.boolean().default(true),
+  incidentio: z.boolean().default(false),
+});
+
+export const incidentioConfigSchema = z.object({
+  apiKey: z.string().default(""),
+  statusPageId: z.string().default(""),
+  statusPageUrl: z.string().default(""),
+  componentId: z.string().default(""),
 });
 
 export const serverConfigSchema = z.object({
@@ -30,6 +38,7 @@ export const serverConfigSchema = z.object({
   transport: transportConfigSchema,
   auth: authConfigSchema,
   services: serviceConfigSchema,
+  incidentio: incidentioConfigSchema,
   logLevel: z.enum(["error", "warn", "info", "debug"]),
   verbose: z.boolean().default(false),
 });
@@ -37,6 +46,7 @@ export const serverConfigSchema = z.object({
 export type TransportConfig = z.infer<typeof transportConfigSchema>;
 export type AuthConfig = z.infer<typeof authConfigSchema>;
 export type ServiceConfig = z.infer<typeof serviceConfigSchema>;
+export type IncidentioConfig = z.infer<typeof incidentioConfigSchema>;
 export type ServerConfig = z.infer<typeof serverConfigSchema>;
 
 export interface ConfigOptions {
@@ -74,6 +84,13 @@ export async function loadConfig(
       functions: env.ENABLE_FUNCTIONS,
       graph: env.ENABLE_GRAPH,
       pipelines: env.ENABLE_PIPELINES,
+      incidentio: env.ENABLE_INCIDENTIO,
+    },
+    incidentio: {
+      apiKey: env.INCIDENTIO_API_KEY,
+      statusPageId: env.INCIDENTIO_STATUS_PAGE_ID,
+      statusPageUrl: env.INCIDENTIO_STATUS_PAGE_URL,
+      componentId: env.INCIDENTIO_COMPONENT_ID,
     },
     logLevel:
       (options.logLevel as "error" | "warn" | "info" | "debug") ||

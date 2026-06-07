@@ -18,4 +18,16 @@ export {
 export { EnhancedHttpTransport } from "./server/enhanced-http-transport.js";
 export { FrontalMcpServer } from "./server/mcp-server.js";
 export { ApiError, FrontalApiClient } from "./services/api-client.js";
+export { HealthMonitor } from "./services/health-monitor.js";
+export {
+  IncidentioApiError,
+  IncidentioClient,
+  type IncidentioComponent,
+  type IncidentioStatusPage,
+  type IncidentioStatusPageIncident,
+  type WidgetComponent,
+  type WidgetIncident,
+  type WidgetMaintenance,
+  type WidgetSummary,
+} from "./services/incidentio-client.js";
 export { createLogger } from "./utils/logger.js";

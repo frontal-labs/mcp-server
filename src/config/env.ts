@@ -45,6 +45,37 @@ export const env = createEnv({
 
     /** Enable or disable the Pipelines service */
     ENABLE_PIPELINES: booleanFromString,
+
+    /** incident.io API key for status page integration */
+    INCIDENTIO_API_KEY: z
+      .string()
+      .optional()
+      .default("")
+      .describe("incident.io API key for status page management"),
+
+    /** incident.io status page ID (optional, auto-detected if not set) */
+    INCIDENTIO_STATUS_PAGE_ID: z
+      .string()
+      .optional()
+      .default("")
+      .describe("incident.io status page ID"),
+
+    /** Public URL of the incident.io status page (e.g. https://frontal-status.com) */
+    INCIDENTIO_STATUS_PAGE_URL: z
+      .string()
+      .url()
+      .default("https://frontal-status.com")
+      .describe("Public URL of the incident.io status page"),
+
+    /** incident.io component ID representing this server (optional, auto-detected if not set) */
+    INCIDENTIO_COMPONENT_ID: z
+      .string()
+      .optional()
+      .default("")
+      .describe("incident.io component ID for this server"),
+
+    /** Enable or disable the incident.io integration */
+    ENABLE_INCIDENTIO: booleanFromString,
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

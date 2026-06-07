@@ -15,6 +15,13 @@ export function createConfig(
       functions: env.ENABLE_FUNCTIONS,
       graph: env.ENABLE_GRAPH,
       pipelines: env.ENABLE_PIPELINES,
+      incidentio: env.ENABLE_INCIDENTIO,
+    },
+    incidentio: {
+      apiKey: env.INCIDENTIO_API_KEY,
+      statusPageId: env.INCIDENTIO_STATUS_PAGE_ID,
+      statusPageUrl: env.INCIDENTIO_STATUS_PAGE_URL,
+      componentId: env.INCIDENTIO_COMPONENT_ID,
     },
     logLevel: env.MCP_LOG_LEVEL,
     verbose: false,

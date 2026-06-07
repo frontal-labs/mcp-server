@@ -70,6 +70,7 @@ primary_region = "iad"
   ENABLE_FUNCTIONS = "true"
   ENABLE_GRAPH = "true"
   ENABLE_PIPELINES = "true"
+  ENABLE_INCIDENTIO = "false"
 
 [deploy]
   strategy = "rolling"

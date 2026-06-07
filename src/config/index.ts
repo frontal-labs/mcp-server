@@ -1,6 +1,7 @@
 export {
   type AuthConfig,
   type ConfigOptions,
+  type IncidentioConfig,
   loadConfig,
   type ServerConfig,
   type ServiceConfig,

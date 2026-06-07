@@ -8,12 +8,14 @@ import { GraphAdapter } from "@/adapters/graph-adapter.js";
 import { PipelinesAdapter } from "@/adapters/pipelines-adapter.js";
 import type { ServiceAdapter } from "@/adapters/types.js";
 import type { ServerConfig } from "@/config/server-config.js";
+import { HealthMonitor } from "@/services/health-monitor.js";
 
 export class FrontalMcpServer {
   private server: McpServer;
   private config: ServerConfig;
   private logger: Logger;
   private adapters: Map<string, ServiceAdapter> = new Map();
+  readonly healthMonitor: HealthMonitor;
 
   constructor(config: ServerConfig, logger: Logger) {
     this.config = config;
@@ -22,6 +24,7 @@ export class FrontalMcpServer {
       name: "frontal-mcp-server",
       version: "1.0.0",
     });
+    this.healthMonitor = new HealthMonitor(config.incidentio, logger);
   }
 
   get mcpServerInstance(): McpServer {
@@ -33,6 +36,11 @@ export class FrontalMcpServer {
 
     await this.initializeAdapters();
     await this.registerComponents();
+
+    if (this.config.services.incidentio) {
+      await this.healthMonitor.initialize();
+      await this.healthMonitor.reportOperational();
+    }
 
     this.logger.info("Frontal MCP Server initialized successfully");
   }
