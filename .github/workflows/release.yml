@@ -1,0 +1,312 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Override version to publish"
+        required: false
+        type: string
+      skip-validation:
+        description: "Skip validation steps"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+  attestations: write
+  actions: read
+  security-events: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  BUN_VERSION: "1.3.8"
+  NODE_VERSION: "18"
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip-validation }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run Biome linter
+        run: bun run lint
+
+      - name: Check formatting
+        run: bunx biome format src/ tests/
+
+      - name: Type check
+        run: bun run type-check
+
+      - name: Run tests with coverage
+        run: bun run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Run Snyk security scan
+        continue-on-error: true
+        uses: snyk/actions/node@0.4.0
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+  npm-publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: [validate]
+    if: ${{ always() && !cancelled() && (inputs.skip-validation || needs.validate.result == 'success') }}
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+      already-published: ${{ steps.check-published.outputs.already-published }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Extract version
+        id: set-version
+        run: |
+          if [[ -n "${{ inputs.version }}" ]]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            VERSION=$(node -e "console.log(require('./package.json').version)")
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check if version is already published
+        id: check-published
+        run: |
+          VERSION="${{ steps.set-version.outputs.version }}"
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            echo "already-published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already-published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        if: steps.check-published.outputs.already-published != 'true'
+        run: bun run build
+
+      - name: Setup Node.js for npm
+        if: steps.check-published.outputs.already-published != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+
+      - name: Publish to npm
+        if: steps.check-published.outputs.already-published != 'true'
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Upload dist artifact
+        if: steps.check-published.outputs.already-published != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
+
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [npm-publish]
+    if: ${{ always() && needs.npm-publish.result == 'success' && needs.npm-publish.outputs.already-published != 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Extract changelog for version
+        id: changelog
+        env:
+          VERSION: ${{ needs.npm-publish.outputs.version }}
+        run: |
+          node -e "
+          const fs = require('fs');
+          const version = process.env.VERSION;
+          const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+          const lines = changelog.split('\n');
+          let inSection = false;
+          let sectionLines = [];
+          for (const line of lines) {
+            const headerMatch = line.match(/^##\s+\[?v?(\d+\.\d+\.\d+(?:-[^\]]+)?)\]?/);
+            if (headerMatch) {
+              if (inSection) break;
+              if (headerMatch[1] === version) {
+                inSection = true;
+                sectionLines.push(line);
+                continue;
+              }
+            }
+            if (inSection) {
+              sectionLines.push(line);
+            }
+          }
+          const text = sectionLines.join('\n').trim();
+          if (!text) {
+            console.error('No changelog section found for version ' + version);
+            process.exit(1);
+          }
+          fs.writeFileSync('/tmp/changelog.md', text);
+          console.log('Changelog section written to /tmp/changelog.md');
+          "
+
+      - name: Create git tag
+        run: |
+          VERSION="${{ needs.npm-publish.outputs.version }}"
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.npm-publish.outputs.version }}
+          name: v${{ needs.npm-publish.outputs.version }}
+          body_path: /tmp/changelog.md
+          draft: false
+          prerelease: ${{ contains(needs.npm-publish.outputs.version, 'alpha') || contains(needs.npm-publish.outputs.version, 'beta') || contains(needs.npm-publish.outputs.version, 'rc') }}
+          files: dist/bin/frontal-mcp-server.js
+
+  docker-publish:
+    name: Publish Docker Image
+    runs-on: ubuntu-latest
+    needs: [npm-publish]
+    if: ${{ always() && needs.npm-publish.result == 'success' && needs.npm-publish.outputs.already-published != 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.npm-publish.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.npm-publish.outputs.version }}
+            type=semver,pattern={{major}},value=${{ needs.npm-publish.outputs.version }}
+            type=sha,prefix=sha-
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=Frontal MCP Server
+            org.opencontainers.image.description=Model Context Protocol server for Frontal cloud services
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.vendor=Frontal Labs
+            org.opencontainers.image.source=https://github.com/frontal-labs/mcp-server
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ needs.npm-publish.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      - name: Install cosign
+        run: |
+          curl -sL "https://github.com/sigstore/cosign/releases/download/v2.6.0/cosign-linux-amd64" -o /usr/local/bin/cosign
+          chmod +x /usr/local/bin/cosign
+          cosign version
+
+      - name: Sign the Docker image with cosign
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes \
+            "${{ env.REGISTRY }}/${{ github.repository }}@${{ steps.build.outputs.digest }}"
+
+      - name: Attest SBOM with cosign
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          CREATED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          jq -n \
+            --arg repo "${{ github.repository }}" \
+            --arg version "${{ needs.npm-publish.outputs.version }}" \
+            --arg created "$CREATED" \
+            '{
+              "spdxVersion": "SPDX-2.3",
+              "dataLicense": "CC0-1.0",
+              "SPDXID": "SPDXRef-DOCUMENT",
+              "name": $repo,
+              "creationInfo": {
+                "creators": ["Tool: docker/buildx"],
+                "created": $created
+              },
+              "packages": [
+                {
+                  "SPDXID": "SPDXRef-Image",
+                  "name": $repo,
+                  "versionInfo": $version
+                }
+              ]
+            }' > /tmp/sbom.spdx.json
+          cosign attest --yes \
+            --type spdxjson \
+            --predicate /tmp/sbom.spdx.json \
+            "${{ env.REGISTRY }}/${{ github.repository }}@${{ steps.build.outputs.digest }}"

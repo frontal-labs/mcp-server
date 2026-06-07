@@ -27,3 +27,8 @@ docker-compose*.yml
 .vscode
 .idea
 .DS_Store
+tests/
+.husky/
+.claude/
+.changeset/
+fly.toml
