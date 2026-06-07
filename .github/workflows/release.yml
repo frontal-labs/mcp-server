@@ -52,11 +52,13 @@ jobs:
         if: steps.check.outputs.already-published == 'false'
         run: bun run build
 
+      - name: Setup npm auth
+        if: steps.check.outputs.already-published == 'false'
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
       - name: Publish to npm
         if: steps.check.outputs.already-published == 'false'
         run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create git tag
         if: steps.check.outputs.already-published == 'false'
