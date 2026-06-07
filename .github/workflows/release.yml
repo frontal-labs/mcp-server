@@ -57,7 +57,7 @@ jobs:
 
             ### NPM
             ```bash
-            npm install -g @frontal/mcp-server@latest
+            npm install -g @frontal-labs/mcp-server@latest
             ```
           draft: false
           prerelease: ${{ contains(fromJSON(steps.changesets.outputs.publishedPackages)[0].version, 'alpha') || contains(fromJSON(steps.changesets.outputs.publishedPackages)[0].version, 'beta') || contains(fromJSON(steps.changesets.outputs.publishedPackages)[0].version, 'rc') }}

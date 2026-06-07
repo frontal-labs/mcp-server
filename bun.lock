@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@frontal/mcp-server",
+      "name": "@frontal-labs/mcp-server",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.28.0",
         "@t3-oss/env-core": "^0.13.11",

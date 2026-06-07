@@ -14,10 +14,10 @@ A standalone Model Context Protocol (MCP) server that provides seamless access t
 
 ```bash
 # Install globally
-npm install -g @frontal/mcp-server
+npm install -g @frontal-labs/mcp-server
 
 # Or install locally
-npm install @frontal/mcp-server
+npm install @frontal-labs/mcp-server
 ```
 
 ### Basic Setup
@@ -152,7 +152,7 @@ ENABLE_AI=true ENABLE_BLOB=false ./dist/bin/frontal-mcp-server.js
 ### Programmatic Usage
 
 ```typescript
-import { FrontalMcpServer, createLogger } from '@frontal/mcp-server';
+import { FrontalMcpServer, createLogger } from '@frontal-labs/mcp-server';
 
 const config = {
   apiKey: 'your_api_key',

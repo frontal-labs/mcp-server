@@ -25,9 +25,9 @@ The Frontal MCP Server bridges AI assistants with Frontal's cloud services, enab
 ### Installation
 
 ```bash
-npm install @frontal/mcp-server
+npm install @frontal-labs/mcp-server
 # or
-bun add @frontal/mcp-server
+bun add @frontal-labs/mcp-server
 ```
 
 ### Basic Usage

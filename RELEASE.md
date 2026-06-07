@@ -86,12 +86,12 @@ This project follows [Semantic Versioning](https://semver.org/):
 
 ### Stable
 
-- Published to npm as `@frontal/mcp-server`
+- Published to npm as `@frontal-labs/mcp-server`
 - Tags: `latest`, version numbers (e.g., `1.0.0`)
 
 ### Development
 
-- Available via `npm install @frontal/mcp-server@next`
+- Available via `npm install @frontal-labs/mcp-server@next`
 - Tags: `next`, pre-release versions
 
 ## Post-Release Tasks

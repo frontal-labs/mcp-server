@@ -1,5 +1,5 @@
 /**
- * @frontal/mcp-server
+ * @frontal-labs/mcp-server
  *
  * Model Context Protocol server for Frontal services.
  * Provides standardized access to AI, Blob, Functions, Graph, and Pipelines.

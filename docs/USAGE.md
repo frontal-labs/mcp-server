@@ -11,9 +11,9 @@ This guide provides practical examples and use cases for using the Frontal MCP S
 1. **Install the MCP Server**
 
 ```bash
-npm install -g @frontal/mcp-server
+npm install -g @frontal-labs/mcp-server
 # or
-bun add @frontal/mcp-server
+bun add @frontal-labs/mcp-server
 ```
 
 2. **Configure your API Key**
@@ -102,7 +102,7 @@ Once configured, you can use Frontal services directly in Claude:
 #### HTTP Transport Example
 
 ```typescript
-import { FrontalMcpServer } from '@frontal/mcp-server';
+import { FrontalMcpServer } from '@frontal-labs/mcp-server';
 
 // Start server with HTTP transport
 const server = new FrontalMcpServer({
@@ -133,7 +133,7 @@ await server.connectHttp();
 #### Programmatic Integration
 
 ```typescript
-import { FrontalMcpServer } from '@frontal/mcp-server';
+import { FrontalMcpServer } from '@frontal-labs/mcp-server';
 
 class MyAIAssistant {
   private mcpServer: FrontalMcpServer;
