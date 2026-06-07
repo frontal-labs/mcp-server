@@ -315,4 +315,5 @@ jobs:
     needs: [docker-publish]
     if: ${{ always() && !cancelled() && needs.docker-publish.result == 'success' }}
     uses: ./.github/workflows/fly-deploy.yml
-    secrets: inherit
+    secrets:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

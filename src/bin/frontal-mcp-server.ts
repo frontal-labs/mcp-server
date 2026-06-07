@@ -3,7 +3,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
-import { loadConfig } from "@/config/server-config.js";
+import { loadConfig } from "@/lib/server-config.js";
 import { FrontalMcpServer } from "@/server/mcp-server.js";
 import { createLogger } from "@/utils/logger.js";
 

@@ -1,12 +1,6 @@
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
-const booleanFromString = z
-  .string()
-  .optional()
-  .transform((val) => val !== "false")
-  .describe("Parsed as true unless explicitly set to 'false'");
-
 export const env = createEnv({
   server: {
     /** Frontal API key for authenticating requests to the Frontal platform */
@@ -18,7 +12,6 @@ export const env = createEnv({
 
     /** Base URL for the Frontal API */
     FRONTAL_BASE_URL: z
-      .string()
       .url()
       .optional()
       .default("https://api.frontal.dev/v1")
@@ -31,20 +24,32 @@ export const env = createEnv({
       .default("info")
       .describe("Server log level"),
 
-    /** Enable or disable the AI service (text generation, image generation, embeddings) */
-    ENABLE_AI: booleanFromString,
+    /** incident.io API key for status page integration */
+    INCIDENTIO_API_KEY: z
+      .string()
+      .optional()
+      .default("")
+      .describe("incident.io API key for status page management"),
 
-    /** Enable or disable the Blob storage service */
-    ENABLE_BLOB: booleanFromString,
+    /** incident.io status page ID (optional, auto-detected if not set) */
+    INCIDENTIO_STATUS_PAGE_ID: z
+      .string()
+      .optional()
+      .default("")
+      .describe("incident.io status page ID"),
 
-    /** Enable or disable the Functions service (serverless function execution) */
-    ENABLE_FUNCTIONS: booleanFromString,
+    /** Public URL of the incident.io status page (e.g. https://frontal-status.com) */
+    INCIDENTIO_STATUS_PAGE_URL: z
+      .url()
+      .default("https://frontal-status.com")
+      .describe("Public URL of the incident.io status page"),
 
-    /** Enable or disable the Graph database service */
-    ENABLE_GRAPH: booleanFromString,
-
-    /** Enable or disable the Pipelines service */
-    ENABLE_PIPELINES: booleanFromString,
+    /** incident.io component ID representing this server (optional, auto-detected if not set) */
+    INCIDENTIO_COMPONENT_ID: z
+      .string()
+      .optional()
+      .default("")
+      .describe("incident.io component ID for this server"),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

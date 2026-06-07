@@ -1,4 +1,4 @@
-import { env } from "./env.js";
+import { env } from "@/config/env.js";
 import { serverConfigSchema, type ServerConfig } from "./server-config.js";
 
 export function createConfig(
@@ -9,12 +9,11 @@ export function createConfig(
     baseUrl: env.FRONTAL_BASE_URL,
     transport: { transport: "stdio" as const },
     auth: { type: "api-key" as const },
-    services: {
-      ai: env.ENABLE_AI,
-      blob: env.ENABLE_BLOB,
-      functions: env.ENABLE_FUNCTIONS,
-      graph: env.ENABLE_GRAPH,
-      pipelines: env.ENABLE_PIPELINES,
+    incidentio: {
+      apiKey: env.INCIDENTIO_API_KEY,
+      statusPageId: env.INCIDENTIO_STATUS_PAGE_ID,
+      statusPageUrl: env.INCIDENTIO_STATUS_PAGE_URL,
+      componentId: env.INCIDENTIO_COMPONENT_ID,
     },
     logLevel: env.MCP_LOG_LEVEL,
     verbose: false,

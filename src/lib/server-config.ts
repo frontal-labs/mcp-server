@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { env } from "./env.js";
+import { env } from "@/config/env.js";
 
 export const transportConfigSchema = z.object({
   transport: z.enum(["stdio", "http"]),
@@ -16,27 +16,26 @@ export const authConfigSchema = z.object({
   apiKey: z.string().optional(),
 });
 
-export const serviceConfigSchema = z.object({
-  ai: z.boolean().default(true),
-  blob: z.boolean().default(true),
-  functions: z.boolean().default(true),
-  graph: z.boolean().default(true),
-  pipelines: z.boolean().default(true),
+export const incidentioConfigSchema = z.object({
+  apiKey: z.string(),
+  statusPageId: z.string(),
+  statusPageUrl: z.url().default(env.INCIDENTIO_STATUS_PAGE_URL),
+  componentId: z.string().default(env.INCIDENTIO_COMPONENT_ID),
 });
 
 export const serverConfigSchema = z.object({
-  apiKey: z.string(),
-  baseUrl: z.string(),
+  apiKey: z.string().default(env.FRONTAL_API_KEY),
+  baseUrl: z.string().default(env.FRONTAL_BASE_URL),
   transport: transportConfigSchema,
   auth: authConfigSchema,
-  services: serviceConfigSchema,
+  incidentio: incidentioConfigSchema,
   logLevel: z.enum(["error", "warn", "info", "debug"]),
   verbose: z.boolean().default(false),
 });
 
 export type TransportConfig = z.infer<typeof transportConfigSchema>;
 export type AuthConfig = z.infer<typeof authConfigSchema>;
-export type ServiceConfig = z.infer<typeof serviceConfigSchema>;
+export type IncidentioConfig = z.infer<typeof incidentioConfigSchema>;
 export type ServerConfig = z.infer<typeof serverConfigSchema>;
 
 export interface ConfigOptions {
@@ -68,12 +67,11 @@ export async function loadConfig(
       type: "api-key" as const,
       apiKey: options.apiKey || env.FRONTAL_API_KEY || undefined,
     },
-    services: {
-      ai: env.ENABLE_AI,
-      blob: env.ENABLE_BLOB,
-      functions: env.ENABLE_FUNCTIONS,
-      graph: env.ENABLE_GRAPH,
-      pipelines: env.ENABLE_PIPELINES,
+    incidentio: {
+      apiKey: env.INCIDENTIO_API_KEY,
+      statusPageId: env.INCIDENTIO_STATUS_PAGE_ID,
+      statusPageUrl: env.INCIDENTIO_STATUS_PAGE_URL,
+      componentId: env.INCIDENTIO_COMPONENT_ID,
     },
     logLevel:
       (options.logLevel as "error" | "warn" | "info" | "debug") ||

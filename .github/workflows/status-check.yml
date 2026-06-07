@@ -1,0 +1,103 @@
+name: Status Check (incident.io)
+
+on:
+  schedule:
+    # Every 5 minutes
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping server health endpoint
+        id: health
+        run: |
+          APP_URL="https://frontal-mcp-server.fly.dev"
+          RESPONSE=$(curl -sf --max-time 10 "${APP_URL}/health") || true
+          if echo "$RESPONSE" | jq -e '.status == "ok"' > /dev/null 2>&1; then
+            echo "status=up" >> "$GITHUB_OUTPUT"
+            echo "Server is UP"
+          else
+            echo "status=down" >> "$GITHUB_OUTPUT"
+            echo "Server is DOWN"
+          fi
+
+      - name: Fetch Widget API summary
+        id: widget
+        run: |
+          WIDGET_URL="${{ vars.INCIDENTIO_STATUS_PAGE_URL || 'https://frontal-status.com' }}/api/v1/summary"
+          SUMMARY=$(curl -sf --max-time 10 "$WIDGET_URL" || echo '{"ongoing_incidents":[]}')
+          echo "summary<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$SUMMARY" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          INCIDENT_COUNT=$(echo "$SUMMARY" | jq '.ongoing_incidents | length')
+          echo "active_incidents=$INCIDENT_COUNT" >> "$GITHUB_OUTPUT"
+          echo "Widget API reports $INCIDENT_COUNT active incident(s)"
+
+      - name: Create incident (server down, no active incident)
+        if: |
+          steps.health.outputs.status == 'down' &&
+          steps.widget.outputs.active_incidents == '0'
+        run: |
+          STATUS_PAGE_ID="${{ vars.INCIDENTIO_STATUS_PAGE_ID }}"
+          COMPONENT_ID="${{ vars.INCIDENTIO_COMPONENT_ID }}"
+
+          if [ -z "$STATUS_PAGE_ID" ] || [ -z "$COMPONENT_ID" ]; then
+            echo "Skipping: INCIDENTIO_STATUS_PAGE_ID or INCIDENTIO_COMPONENT_ID not configured"
+            exit 0
+          fi
+
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          curl -sf -X POST "https://api.incident.io/v2/status_page_incidents" \
+            -H "Authorization: Bearer $INCIDENTIO_API_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Idempotency-Key: mcp-down-$(date -u +%Y%m%d-%H%M)" \
+            -d "$(jq -n \
+              --arg status_page_id "$STATUS_PAGE_ID" \
+              --arg component_id "$COMPONENT_ID" \
+              --arg now "$TIMESTAMP" \
+              '{
+                status_page_id: $status_page_id,
+                incident_status: "investigating",
+                name: "MCP Server Unreachable",
+                message: "Health check failed at \($now). The MCP server at frontal-mcp-server.fly.dev is not responding.",
+                component_statuses: [{ component_id: $component_id, component_status: "major_outage" }],
+                notify_subscribers: true
+              }')"
+          echo "Created incident: MCP Server Unreachable"
+        env:
+          INCIDENTIO_API_KEY: ${{ secrets.INCIDENTIO_API_KEY }}
+
+      - name: Resolve incidents (server recovered)
+        if: |
+          steps.health.outputs.status == 'up' &&
+          steps.widget.outputs.active_incidents != '0'
+        env:
+          WIDGET_SUMMARY: ${{ steps.widget.outputs.summary }}
+          INCIDENTIO_API_KEY: ${{ secrets.INCIDENTIO_API_KEY }}
+        run: |
+          INCIDENT_IDS=$(echo "$WIDGET_SUMMARY" | jq -r '.ongoing_incidents[] | select(.name | startswith("MCP Server")) | .id')
+
+          if [ -z "$INCIDENT_IDS" ]; then
+            echo "No MCP Server incidents to resolve"
+            exit 0
+          fi
+
+          for INCIDENT_ID in $INCIDENT_IDS; do
+            [ -z "$INCIDENT_ID" ] && continue
+            curl -sf -X PATCH "https://api.incident.io/v2/status_page_incidents/$INCIDENT_ID" \
+              -H "Authorization: Bearer $INCIDENTIO_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"incident_status": "resolved", "notify_subscribers": true}'
+            echo "Resolved incident $INCIDENT_ID"
+          done
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Health Check Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Server status: **${{ steps.health.outputs.status }}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Active incidents: **${{ steps.widget.outputs.active_incidents }}**" >> "$GITHUB_STEP_SUMMARY"

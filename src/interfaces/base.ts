@@ -1,5 +1,5 @@
 import type { Logger } from "winston";
-import type { ServerConfig } from "@/config/server-config.js";
+import type { ServerConfig } from "@/lib/server-config.js";
 
 export interface BaseService {
   name: string;

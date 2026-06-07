@@ -7,13 +7,16 @@ on:
     branches: [main]
   workflow_dispatch:
   workflow_call:
+    secrets:
+      FLY_API_TOKEN:
+        required: true
 
 jobs:
   deploy:
     name: Deploy to Fly.io
     runs-on: ubuntu-latest
     concurrency: deploy-group
-    if: ${{ github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success') }}
+    if: ${{ (github.event_name == 'workflow_call' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success') }}
     steps:
       - uses: actions/checkout@v6
         with:
