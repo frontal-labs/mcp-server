@@ -109,9 +109,12 @@ jobs:
           provenance: mode=max
           sbom: true
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.6.0'
+
       - name: Sign image with cosign
         run: |
-          curl -sSL "https://github.com/sigstore/cosign/releases/download/v2.6.0/cosign-linux-amd64" -o /usr/local/bin/cosign
-          chmod +x /usr/local/bin/cosign
           cosign sign --yes \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
