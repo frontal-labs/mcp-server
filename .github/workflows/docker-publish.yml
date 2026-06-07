@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tags:
-        description: 'Additional tags (comma-separated, e.g. "latest,v1.0.0")'
+        description: 'Additional tags beyond auto-generated semver/SHA/latest (comma-separated)'
         required: false
-        default: 'latest'
+        default: ''
       platforms:
         description: 'Platforms to build for'
         required: false
@@ -75,6 +75,18 @@ jobs:
           VERSION=$(node -e "console.log(require('./package.json').version)")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Resolve custom tags
+        id: custom-tags
+        run: |
+          TAGS="${{ inputs.tags || '' }}"
+          if [ -z "$TAGS" ]; then
+            echo "tags=" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$TAGS" | tr ',' '\n' | sed 's/^/type=raw,value=/' >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -86,6 +98,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.version }}
             type=semver,pattern={{major}},value=${{ steps.version.outputs.version }}
             type=sha,prefix=sha-
+            ${{ steps.custom-tags.outputs.tags }}
           labels: |
             org.opencontainers.image.title=Frontal MCP Server
             org.opencontainers.image.description=Model Context Protocol server for Frontal cloud services
