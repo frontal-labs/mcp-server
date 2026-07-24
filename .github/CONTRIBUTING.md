@@ -120,7 +120,7 @@ By contributing to this project, you agree that your contributions will be licen
 
 - Create an issue for bug reports or feature requests
 - Start a discussion for questions
-- Check the [documentation](docs/API.md) for API information
+- Check the [documentation](../docs/API.md) for API information
 
 ## Release Process
 
