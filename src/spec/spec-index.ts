@@ -42,13 +42,52 @@ interface RawOperation {
   security?: unknown[];
 }
 
+/**
+ * A path item: per-method operations plus path-item-level `parameters` (which
+ * apply to every operation in the item, per OpenAPI 3.1) and `x-*` extensions.
+ */
+interface RawPathItem {
+  get?: RawOperation;
+  post?: RawOperation;
+  put?: RawOperation;
+  patch?: RawOperation;
+  delete?: RawOperation;
+  parameters?: SpecParameter[];
+  "x-any-method-route"?: boolean;
+}
+
 interface RawSpec {
   openapi: string;
   info: { title: string; version: string; description?: string };
   servers?: { url: string; description?: string }[];
-  paths: Record<string, Record<string, RawOperation>>;
+  paths: Record<string, RawPathItem>;
   components?: Record<string, unknown>;
   security?: unknown[];
+}
+
+/** Keep only well-formed parameters (defensive against malformed spec entries). */
+function validParameters(list: SpecParameter[]): SpecParameter[] {
+  return list.filter(
+    (p): p is SpecParameter => Boolean(p) && typeof p.name === "string"
+  );
+}
+
+/**
+ * Merge path-item-level parameters with operation-level ones. Operation-level
+ * declarations override path-item ones sharing the same (`in`, `name`) identity.
+ */
+function mergeParameters(
+  itemParams: SpecParameter[],
+  opParams: SpecParameter[]
+): SpecParameter[] {
+  const merged = new Map<string, SpecParameter>();
+  for (const p of [
+    ...validParameters(itemParams),
+    ...validParameters(opParams),
+  ]) {
+    merged.set(`${p.in}:${p.name}`, p);
+  }
+  return [...merged.values()];
 }
 
 const REF_ROOT = "#/";
@@ -67,12 +106,14 @@ export class SpecIndex {
       Array.isArray(spec.security) && spec.security.length > 0;
 
     for (const [path, item] of Object.entries(spec.paths ?? {})) {
+      // Path-item-level parameters apply to every operation in the item.
+      const itemParams = Array.isArray(item.parameters) ? item.parameters : [];
       let hasOperation = false;
       for (const method of HTTP_METHODS) {
         const op = item[method];
         if (op) {
           hasOperation = true;
-          this.indexOperation(path, method, op, globalAuthed);
+          this.indexOperation(path, method, op, itemParams, globalAuthed);
         }
       }
 
@@ -81,8 +122,7 @@ export class SpecIndex {
       // synthetic operation per HTTP method so meta-tool users can discover
       // them (frontal_list_endpoints / frontal_describe_endpoint) and invoke
       // them (frontal_call_endpoint by operationId or method+path).
-      const anyMethod =
-        (item as Record<string, unknown>)["x-any-method-route"] === true;
+      const anyMethod = item["x-any-method-route"] === true;
       if (!hasOperation && anyMethod) {
         this.indexAnyMethodRoute(path, globalAuthed);
       }
@@ -93,6 +133,7 @@ export class SpecIndex {
     path: string,
     method: HttpMethod,
     op: RawOperation,
+    itemParams: SpecParameter[],
     globalAuthed: boolean
   ): void {
     const operationId =
@@ -110,9 +151,7 @@ export class SpecIndex {
       tags: op.tags ?? [],
       summary: op.summary,
       description: op.description,
-      parameters: (op.parameters ?? []).filter(
-        (p): p is SpecParameter => Boolean(p) && typeof p.name === "string"
-      ),
+      parameters: mergeParameters(itemParams, op.parameters ?? []),
       requestBody: op.requestBody,
       responses: op.responses,
       requiresAuth,

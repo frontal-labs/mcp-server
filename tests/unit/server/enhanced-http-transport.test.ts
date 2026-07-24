@@ -51,25 +51,70 @@ describe("EnhancedHttpTransport", () => {
     await expect(transport.stop()).resolves.toBeUndefined();
   });
 
-  it("should set CORS headers on requests", async () => {
+  it("should not send a wildcard CORS origin for untrusted origins", async () => {
     const transport = new EnhancedHttpTransport(mockMcpServer, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
 
     try {
-      // Send an OPTIONS request to check CORS
+      // OPTIONS preflight from an origin that is not on the allowlist.
       const response = await fetch(`http://127.0.0.1:${port}`, {
         method: "OPTIONS",
+        headers: { Origin: "https://evil.example" },
       });
 
       expect(response.status).toBe(200);
-      expect(response.headers.get("access-control-allow-origin")).toBe("*");
+      // No wildcard, and the untrusted origin is not echoed back.
+      expect(response.headers.get("access-control-allow-origin")).toBeNull();
       expect(response.headers.get("access-control-allow-methods")).toContain(
         "POST"
       );
       expect(response.headers.get("access-control-allow-headers")).toContain(
         "Content-Type"
       );
+    } finally {
+      await transport.stop();
+    }
+  });
+
+  it("should echo a configured trusted CORS origin", async () => {
+    const transport = new EnhancedHttpTransport(mockMcpServer, logger, {
+      allowedOrigins: ["https://trusted.example"],
+    });
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}`, {
+        method: "OPTIONS",
+        headers: { Origin: "https://trusted.example" },
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("access-control-allow-origin")).toBe(
+        "https://trusted.example"
+      );
+    } finally {
+      await transport.stop();
+    }
+  });
+
+  it("should reject MCP requests without a bearer token with 401", async () => {
+    const transport = new EnhancedHttpTransport(mockMcpServer, logger);
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "ping", id: 1 }),
+      });
+
+      expect(response.status).toBe(401);
+      expect(response.headers.get("www-authenticate")).toBe("Bearer");
+      const data = (await response.json()) as { error: string };
+      expect(data.error).toBe("unauthorized");
     } finally {
       await transport.stop();
     }
@@ -113,7 +158,11 @@ describe("EnhancedHttpTransport", () => {
     try {
       const response = await fetch(`http://127.0.0.1:${port}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // Authenticated so the request reaches JSON parsing (not the 401 gate).
+          Authorization: "Bearer frt_test",
+        },
         body: "not valid json{{{",
       });
 

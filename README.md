@@ -111,15 +111,19 @@ Everything not covered by a curated tool stays reachable via the generic tools.
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `FRONTAL_API_KEY` | Frontal API key (`frt_...`). Fallback for HTTP; required for stdio | - | For stdio |
+| `FRONTAL_API_KEY` | Frontal API key (`frt_...`). Used by stdio only; never a fallback for HTTP | - | For stdio |
 | `FRONTAL_BASE_URL` | API base URL (bare host; `/v1/` is in the paths) | `https://api.frontal.dev` | No |
 | `FRONTAL_REGION` | Region pin (`x-frontal-region`, e.g. `iad`, `lhr`, `fra`, `sin`) | - | No |
-| `FRONTAL_TOOLSETS` | Comma-separated tool sets to register | `generic,ontology,data` | No |
+| `FRONTAL_TOOLSETS` | Comma-separated tool sets to register (invalid values are rejected) | `generic,ontology,data` | No |
+| `FRONTAL_HTTP_ALLOWED_ORIGINS` | Comma-separated CORS allowlist for the HTTP transport | - (no origin trusted) | No |
 | `MCP_LOG_LEVEL` | Log level | `info` | No |
 
-Over the HTTP transport, callers may send a per-request
-`Authorization: Bearer frt_...` header, which overrides `FRONTAL_API_KEY`
-(enables multi-tenant hosting).
+Over the HTTP transport, every request **must** send a per-request
+`Authorization: Bearer frt_...` header (multi-tenant hosting); requests without
+one are rejected with `401`. The `FRONTAL_API_KEY` env key is used only by the
+stdio transport and is never applied to HTTP requests. CORS trusts no origin by
+default: responses only carry `Access-Control-Allow-Origin` for origins listed
+in `FRONTAL_HTTP_ALLOWED_ORIGINS` (never `*`).
 
 ### CLI Options
 

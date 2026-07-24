@@ -17,6 +17,7 @@
     "rootDir": ".",
     "removeComments": false,
     "ignoreDeprecations": "6.0",
+    "types": ["node"],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,

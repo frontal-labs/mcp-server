@@ -42,6 +42,19 @@ export const env = createEnv({
       .default("generic,ontology,data")
       .describe("Comma-separated tool sets to enable"),
 
+    /**
+     * Comma-separated list of browser origins allowed to make cross-origin
+     * requests to the HTTP transport. Empty by default: no origin is trusted,
+     * so `Access-Control-Allow-Origin` is only echoed for a listed origin
+     * (never `*`). HTTP callers still authenticate with a per-request bearer
+     * token regardless of CORS.
+     */
+    FRONTAL_HTTP_ALLOWED_ORIGINS: z
+      .string()
+      .optional()
+      .default("")
+      .describe("Comma-separated CORS allowlist for the HTTP transport"),
+
     /** Log level for the MCP server */
     MCP_LOG_LEVEL: z
       .enum(["error", "warn", "info", "debug"])
@@ -81,6 +94,7 @@ export const env = createEnv({
     FRONTAL_BASE_URL: process.env.FRONTAL_BASE_URL,
     FRONTAL_REGION: process.env.FRONTAL_REGION,
     FRONTAL_TOOLSETS: process.env.FRONTAL_TOOLSETS,
+    FRONTAL_HTTP_ALLOWED_ORIGINS: process.env.FRONTAL_HTTP_ALLOWED_ORIGINS,
     MCP_LOG_LEVEL: process.env.MCP_LOG_LEVEL,
     INCIDENTIO_API_KEY: process.env.INCIDENTIO_API_KEY,
     INCIDENTIO_STATUS_PAGE_ID: process.env.INCIDENTIO_STATUS_PAGE_ID,

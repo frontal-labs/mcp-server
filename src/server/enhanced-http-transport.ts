@@ -29,16 +29,28 @@ function extractBearerToken(req: IncomingMessage): string | undefined {
   return token || undefined;
 }
 
+export interface EnhancedHttpTransportOptions {
+  /**
+   * Browser origins allowed by CORS. Empty (the default) trusts no origin:
+   * `Access-Control-Allow-Origin` is only echoed for a listed origin, never
+   * sent as `*`.
+   */
+  allowedOrigins?: string[];
+}
+
 export class EnhancedHttpTransport {
   private server: Server | undefined;
   private transport: StreamableHTTPServerTransport;
   private logger: Logger;
+  private readonly allowedOrigins: Set<string>;
 
   constructor(
     private mcpServer: McpServer,
-    logger: Logger
+    logger: Logger,
+    options: EnhancedHttpTransportOptions = {}
   ) {
     this.logger = logger;
+    this.allowedOrigins = new Set(options.allowedOrigins ?? []);
     this.transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
     });
@@ -62,8 +74,15 @@ export class EnhancedHttpTransport {
     });
   }
 
-  private static setCorsHeaders(res: ServerResponse): void {
-    res.setHeader("Access-Control-Allow-Origin", "*");
+  private setCorsHeaders(req: IncomingMessage, res: ServerResponse): void {
+    // Never reply with a wildcard: only echo an origin that is explicitly
+    // trusted. Unlisted (or absent) origins get no ACAO header, so browsers
+    // block the cross-origin response.
+    const origin = req.headers.origin;
+    if (origin && this.allowedOrigins.has(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+    }
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     res.setHeader(
       "Access-Control-Allow-Headers",
@@ -75,7 +94,7 @@ export class EnhancedHttpTransport {
     req: IncomingMessage,
     res: ServerResponse
   ): Promise<void> {
-    EnhancedHttpTransport.setCorsHeaders(res);
+    this.setCorsHeaders(req, res);
 
     if (req.method === "OPTIONS") {
       res.writeHead(200);
@@ -89,8 +108,27 @@ export class EnhancedHttpTransport {
       return;
     }
 
+    // HTTP is multi-tenant: every MCP request must carry its own bearer token.
+    // Reject unauthenticated requests up front so they can never reach the
+    // adapters and borrow the server's stdio-only FRONTAL_API_KEY fallback.
+    const token = extractBearerToken(req);
+    if (!token) {
+      res.writeHead(401, {
+        "Content-Type": "application/json",
+        "WWW-Authenticate": "Bearer",
+      });
+      res.end(
+        JSON.stringify({
+          error: "unauthorized",
+          message:
+            "Missing bearer token. Send Authorization: Bearer <frt_...> with every HTTP request.",
+        })
+      );
+      return;
+    }
+
     try {
-      await this.dispatchMcp(req, res);
+      await this.dispatchMcp(req, res, token);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";
       this.logger.error("Error handling MCP request:", error);
@@ -103,16 +141,15 @@ export class EnhancedHttpTransport {
 
   private async dispatchMcp(
     req: IncomingMessage,
-    res: ServerResponse
+    res: ServerResponse,
+    token: string
   ): Promise<void> {
     const body =
       req.method === "GET" ? undefined : await this.getRequestBody(req);
     const parsedBody = body ? JSON.parse(body) : undefined;
 
     // Bind the caller's bearer token to this request's async context so tool
-    // handlers use it (multi-tenant hosting). stdio has no per-request token
-    // and falls back to the configured FRONTAL_API_KEY.
-    const token = extractBearerToken(req);
+    // handlers use it (multi-tenant hosting).
     await runWithToken(token, () =>
       this.transport.handleRequest(req, res, parsedBody)
     );
