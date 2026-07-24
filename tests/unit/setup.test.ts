@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createFetchResponse,
   createFetchError,
+  createFetchResponse,
   mockGlobalFetch,
 } from "@tests/utils/mock-factory.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("Test Setup", () => {
   beforeEach(() => {

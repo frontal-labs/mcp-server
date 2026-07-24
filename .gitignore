@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# This is a Bun project; npm/yarn lockfiles are not used
+package-lock.json
+yarn.lock
+
 # Build outputs
 dist/
 build/

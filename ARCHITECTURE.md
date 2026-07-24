@@ -2,37 +2,43 @@
 
 ## Overview
 
-The Frontal MCP Server is a standalone Model Context Protocol (MCP) server that provides seamless access to Frontal's cloud services through a standardized interface. The architecture follows a modular, adapter-based design that enables easy extension and maintenance.
+The Frontal MCP Server is a standalone Model Context Protocol (MCP) server for
+the Frontal public API (`api.frontal.dev`). It is **spec-driven**: a vendored
+OpenAPI document is the source of truth, indexed at startup and used to power
+both generic (any-endpoint) meta-tools and a set of curated, typed tools for the
+highest-value surfaces.
 
 ## High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Frontal MCP Server                        │
-├─────────────────────────────────────────────────────────────┤
-│                    Core Server Layer                         │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │   MCP Server    │  │ Config Manager  │  │   Logger     │ │
-│  │   (Protocol)    │  │   (Settings)    │  │ (Winston)    │ │
-│  └─────────────────┘  └─────────────────┘  └──────────────┘ │
-├─────────────────────────────────────────────────────────────┤
-│                   Service Adapter Layer                     │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────┐ │
-│  │ AI Adapter  │ │Blob Adapter │ │Func Adapter │ │  ...   │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────┘ │
-├─────────────────────────────────────────────────────────────┤
-│                    API Client Layer                          │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │ HTTP Transport   │  │  Retry Logic    │  │ Error Handling│ │
-│  │   (Fetch)        │  │  (Exponential)  │  │ (Custom Types)│ │
-│  └─────────────────┘  └─────────────────┘  └──────────────┘ │
-├─────────────────────────────────────────────────────────────┤
-│                   Transport Layer                            │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │  Stdio Transport │  │ HTTP Transport  │  │  WebSocket    │ │
-│  │   (Claude)       │  │   (Web Apps)    │  │  (Future)     │ │
-│  └─────────────────┘  └─────────────────┘  └──────────────┘ │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                     Frontal MCP Server                         │
+├──────────────────────────────────────────────────────────────┤
+│  Transport Layer                                               │
+│   ┌────────────────────┐   ┌───────────────────────────────┐  │
+│   │  stdio (Claude)     │   │ Streamable HTTP (multi-tenant │  │
+│   │  env FRONTAL_API_KEY│   │ per-request Authorization)    │  │
+│   └────────────────────┘   └───────────────────────────────┘  │
+├──────────────────────────────────────────────────────────────┤
+│  Tool Layer (adapters, gated by FRONTAL_TOOLSETS)              │
+│   ┌──────────────┐  ┌───────────────┐  ┌───────────────────┐  │
+│   │ Generic      │  │ Ontology      │  │ Data platform     │  │
+│   │ (list/       │  │ (curated)     │  │ (curated)         │  │
+│   │  describe/   │  │               │  │                   │  │
+│   │  call)       │  │               │  │                   │  │
+│   └──────────────┘  └───────────────┘  └───────────────────┘  │
+├──────────────────────────────────────────────────────────────┤
+│  Spec Index (openapi/public.v1.json)                           │
+│   operation catalog · $ref resolution · lookup by id/tag       │
+├──────────────────────────────────────────────────────────────┤
+│  Frontal Client (edge-aware fetch)                             │
+│   bearer frt_ auth · cursor pagination · retry matrix          │
+│   (429/502/503/504) · Retry-After · idempotency · region pin   │
+│   · google.rpc.Status / gateway / geo-router error parsing     │
+└──────────────────────────────────────────────────────────────┘
+                              │  HTTPS
+                              ▼
+        Cloudflare → geo-router → REST gateway → regional backend
 ```
 
 ## Core Components
@@ -52,69 +58,62 @@ The main server class that orchestrates all components:
 - Manage transport connections
 - Coordinate error handling and logging
 
-### 2. Service Adapters (`src/adapters/`)
+### 2. Spec Index (`src/spec/spec-index.ts`)
 
-Modular adapters that translate Frontal API calls to MCP tools:
+Indexes the vendored OpenAPI document (`openapi/public.v1.json`) at startup:
 
-#### AI Adapter
-- **Tools**: `ai-generate-text`, `ai-generate-image`, `ai-embed`
-- **Features**: Text generation, image creation, embeddings
-- **Validation**: Zod schemas for input validation
+- **Operation catalog**: normalized `{ operationId, method, path, tags, params, requestBody, responses, requiresAuth }`.
+- **Lookup**: by `operationId` and by `METHOD path`, plus tag/free-text listing.
+- **`$ref` resolution**: cycle- and depth-guarded dereferencing for `describe`.
+- Refresh the vendored spec with `bun run sync-spec` (verified in CI via `sync-spec:check`).
 
-#### Blob Adapter  
-- **Tools**: `blob-upload`, `blob-list`, `blob-delete`
-- **Features**: File storage, object management
-- **Validation**: File type and size validation
+### 3. Tool Adapters (`src/adapters/`)
 
-#### Functions Adapter
-- **Tools**: `functions-invoke`, `functions-list`
-- **Features**: Serverless function execution
-- **Validation**: Parameter and payload validation
+Adapters register MCP tools and are gated by `FRONTAL_TOOLSETS`:
 
-#### Graph Adapter
-- **Tools**: `graph-query`, `graph-create-node`
-- **Features**: Graph database operations
-- **Validation**: Query syntax and node structure
+#### Generic adapter (`generic`)
+- **Tools**: `frontal_list_endpoints`, `frontal_describe_endpoint`, `frontal_call_endpoint`.
+- Spec-driven; covers every endpoint without a tool-per-operation explosion.
 
-#### Pipelines Adapter
-- **Tools**: `pipelines-create`, `pipelines-run`
-- **Features**: Data pipeline management
-- **Validation**: Pipeline configuration validation
+#### Ontology adapter (`ontology`) and Data adapter (`data`)
+- Curated, typed wrappers (zod input schemas) over real operations for the two largest surfaces. Each tool maps to a real `operationId`; a drift guard skips (and warns) if that id is absent from the spec.
 
-**Adapter Interface:**
+**Adapter interface:**
 ```typescript
+interface AdapterContext {
+  client: FrontalClient;
+  spec: SpecIndex;
+  logger: Logger;
+  config: ServerConfig;
+  getToken(): string | undefined; // per-request token or env fallback
+}
+
 interface ServiceAdapter {
   name: string;
-  initialize(config: ServerConfig, logger: Logger): Promise<void>;
-  registerTools(server: McpServer): void;
-  registerResources?(server: McpServer): void;
-  registerPrompts?(server: McpServer): void;
+  toolset: Toolset; // "generic" | "ontology" | "data"
+  register(server: McpServer, ctx: AdapterContext): void;
 }
 ```
 
-### 3. Configuration Management (`src/config/`)
+### 3a. Configuration (`src/config/`, `src/lib/`)
 
-Centralized configuration with environment variable support:
+Centralized, Zod-validated config sourced from env via `@t3-oss/env-core`:
 
-- **ServerConfig**: Main configuration structure
-- **Environment Variables**: `.env` file support
-- **Validation**: Zod schema validation
-- **Service Configuration**: Per-service enable/disable flags
-
-**Configuration Structure:**
 ```typescript
 interface ServerConfig {
-  apiKey: string;
-  baseUrl: string;
+  apiKey: string;      // FRONTAL_API_KEY (frt_...)
+  baseUrl: string;     // FRONTAL_BASE_URL (bare host)
+  region: string;      // FRONTAL_REGION -> x-frontal-region
+  toolsets: Toolset[]; // FRONTAL_TOOLSETS
   transport: TransportConfig;
   auth: AuthConfig;
-  services: ServiceConfig;
+  incidentio: IncidentioConfig;
   logLevel: LogLevel;
   verbose: boolean;
 }
 ```
 
-### 4. API Client (`src/services/api-client.ts`)
+### 4. Frontal Client (`src/clients/frontal-client.ts`)
 
 Unified HTTP client with advanced features:
 

@@ -1,5 +1,9 @@
 import { env } from "@/config/env.js";
-import { serverConfigSchema, type ServerConfig } from "./server-config.js";
+import {
+  parseToolsets,
+  type ServerConfig,
+  serverConfigSchema,
+} from "./server-config.js";
 
 export function createConfig(
   overrides: Record<string, unknown> = {}
@@ -7,6 +11,8 @@ export function createConfig(
   const defaults = {
     apiKey: env.FRONTAL_API_KEY,
     baseUrl: env.FRONTAL_BASE_URL,
+    region: env.FRONTAL_REGION,
+    toolsets: parseToolsets(env.FRONTAL_TOOLSETS),
     transport: { transport: "stdio" as const },
     auth: { type: "api-key" as const },
     incidentio: {

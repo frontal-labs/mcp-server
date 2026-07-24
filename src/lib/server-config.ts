@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { env } from "@/config/env.js";
+import { ConfigError } from "./error.js";
 
 export const transportConfigSchema = z.object({
   transport: z.enum(["stdio", "http"]),
@@ -23,9 +24,34 @@ export const incidentioConfigSchema = z.object({
   componentId: z.string().default(env.INCIDENTIO_COMPONENT_ID),
 });
 
+/** Known tool sets that can be registered. */
+export const TOOLSETS = ["generic", "ontology", "data"] as const;
+export const toolsetSchema = z.enum(TOOLSETS);
+
+/** Parse a comma-separated tool set list into a validated, de-duped array. */
+export function parseToolsets(raw: string): Toolset[] {
+  const parsed = raw
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => entry.length > 0);
+  const seen = new Set<Toolset>();
+  for (const entry of parsed) {
+    const result = toolsetSchema.safeParse(entry);
+    if (result.success) {
+      seen.add(result.data);
+    }
+  }
+  // Default to everything when nothing valid was provided.
+  return seen.size > 0 ? [...seen] : [...TOOLSETS];
+}
+
 export const serverConfigSchema = z.object({
   apiKey: z.string().default(env.FRONTAL_API_KEY),
   baseUrl: z.string().default(env.FRONTAL_BASE_URL),
+  /** Optional region pin sent as the `x-frontal-region` header. */
+  region: z.string().default(env.FRONTAL_REGION),
+  /** Tool sets to register on startup. */
+  toolsets: z.array(toolsetSchema).default([...TOOLSETS]),
   transport: transportConfigSchema,
   auth: authConfigSchema,
   incidentio: incidentioConfigSchema,
@@ -33,6 +59,7 @@ export const serverConfigSchema = z.object({
   verbose: z.boolean().default(false),
 });
 
+export type Toolset = z.infer<typeof toolsetSchema>;
 export type TransportConfig = z.infer<typeof transportConfigSchema>;
 export type AuthConfig = z.infer<typeof authConfigSchema>;
 export type IncidentioConfig = z.infer<typeof incidentioConfigSchema>;
@@ -54,6 +81,8 @@ export async function loadConfig(
   const envConfig = {
     apiKey: options.apiKey || env.FRONTAL_API_KEY,
     baseUrl: env.FRONTAL_BASE_URL,
+    region: env.FRONTAL_REGION,
+    toolsets: parseToolsets(env.FRONTAL_TOOLSETS),
     transport: {
       transport: (options.transport as "stdio" | "http") || "stdio",
       http: options.port
@@ -87,8 +116,9 @@ export async function loadConfig(
       );
       Object.assign(envConfig, configData);
     } catch (error) {
-      throw new Error(
-        `Failed to load config file: ${(error as Error).message}`
+      throw new ConfigError(
+        `Failed to load config file: ${(error as Error).message}`,
+        { path: options.configPath }
       );
     }
   }

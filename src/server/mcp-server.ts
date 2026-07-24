@@ -1,20 +1,26 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { Logger } from "winston";
-import { AIAdapter } from "@/adapters/ai-adapter.js";
-import { BlobAdapter } from "@/adapters/blob-adapter.js";
-import { FunctionsAdapter } from "@/adapters/functions-adapter.js";
-import { GraphAdapter } from "@/adapters/graph-adapter.js";
-import { PipelinesAdapter } from "@/adapters/pipelines-adapter.js";
-import type { ServiceAdapter } from "@/adapters/types.js";
+import { DataAdapter } from "@/adapters/data-adapter.js";
+import { GenericAdapter } from "@/adapters/generic-adapter.js";
+import { OntologyAdapter } from "@/adapters/ontology-adapter.js";
+import type { AdapterContext, ServiceAdapter } from "@/adapters/types.js";
+import { FrontalClient } from "@/clients/frontal-client.js";
 import type { ServerConfig } from "@/lib/server-config.js";
 import { HealthMonitor } from "@/services/health-monitor.js";
+import { loadSpecIndex } from "@/spec/spec-index.js";
+import { getRequestToken } from "./auth-context.js";
+
+const ALL_ADAPTERS: ServiceAdapter[] = [
+  new GenericAdapter(),
+  new OntologyAdapter(),
+  new DataAdapter(),
+];
 
 export class FrontalMcpServer {
   private server: McpServer;
   private config: ServerConfig;
   private logger: Logger;
-  private adapters: Map<string, ServiceAdapter> = new Map();
   readonly healthMonitor: HealthMonitor;
 
   constructor(config: ServerConfig, logger: Logger) {
@@ -34,8 +40,7 @@ export class FrontalMcpServer {
   async initialize(): Promise<void> {
     this.logger.info("Initializing Frontal MCP Server...");
 
-    await this.initializeAdapters();
-    await this.registerComponents();
+    this.registerAdapters();
 
     await this.healthMonitor.initialize();
     this.healthMonitor.reportOperational();
@@ -43,51 +48,41 @@ export class FrontalMcpServer {
     this.logger.info("Frontal MCP Server initialized successfully");
   }
 
-  private async initializeAdapters(): Promise<void> {
-    const adapterConfigs = [
-      { name: "ai", Adapter: AIAdapter },
-      { name: "blob", Adapter: BlobAdapter },
-      { name: "functions", Adapter: FunctionsAdapter },
-      { name: "graph", Adapter: GraphAdapter },
-      { name: "pipelines", Adapter: PipelinesAdapter },
-    ];
+  private registerAdapters(): void {
+    const spec = loadSpecIndex();
+    const client = new FrontalClient({
+      baseUrl: this.config.baseUrl,
+      apiKey: this.config.apiKey,
+      region: this.config.region,
+      logger: this.logger,
+    });
 
-    for (const { name, Adapter } of adapterConfigs) {
-      try {
-        const adapter = new Adapter();
-        await adapter.initialize(this.config, this.logger);
-        this.adapters.set(name, adapter);
-        this.logger.info(`Initialized ${name} adapter`);
-      } catch (error) {
-        this.logger.error(`Failed to initialize ${name} adapter:`, error);
-        throw error;
+    const ctx: AdapterContext = {
+      client,
+      spec,
+      logger: this.logger,
+      config: this.config,
+      // Per-request token (HTTP) wins; otherwise fall back to the env key.
+      getToken: () => getRequestToken() ?? (this.config.apiKey || undefined),
+    };
+
+    const enabled = new Set(this.config.toolsets);
+    for (const adapter of ALL_ADAPTERS) {
+      if (!enabled.has(adapter.toolset)) {
+        continue;
       }
+      adapter.register(this.server, ctx);
+      this.logger.info(`Registered ${adapter.name} tools`);
     }
-  }
 
-  private async registerComponents(): Promise<void> {
-    for (const [name, adapter] of this.adapters) {
-      try {
-        adapter.registerTools(this.server);
-        this.logger.debug(`Registered tools from ${name} adapter`);
-
-        if (adapter.registerResources) {
-          adapter.registerResources(this.server);
-          this.logger.debug(`Registered resources from ${name} adapter`);
-        }
-
-        if (adapter.registerPrompts) {
-          adapter.registerPrompts(this.server);
-          this.logger.debug(`Registered prompts from ${name} adapter`);
-        }
-      } catch (error) {
-        this.logger.error(
-          `Failed to register components from ${name} adapter:`,
-          error
-        );
-        throw error;
-      }
+    if (!this.config.apiKey) {
+      this.logger.warn(
+        "No FRONTAL_API_KEY set — tools will require a per-request Authorization header (HTTP transport) or return an auth error."
+      );
     }
+    this.logger.info(
+      `Frontal MCP Server ready: ${spec.count} operations available across tool sets [${this.config.toolsets.join(", ")}] (spec ${spec.version})`
+    );
   }
 
   async connectStdio(): Promise<void> {

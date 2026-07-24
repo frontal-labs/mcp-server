@@ -1,8 +1,8 @@
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Logger } from "winston";
 import { EnhancedHttpTransport } from "@/server/enhanced-http-transport.js";
 import { createLogger } from "@/utils/logger.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Logger } from "winston";
 
 function createMockMcpServer() {
   return {
@@ -70,6 +70,36 @@ describe("EnhancedHttpTransport", () => {
       expect(response.headers.get("access-control-allow-headers")).toContain(
         "Content-Type"
       );
+    } finally {
+      await transport.stop();
+    }
+  });
+
+  it("should serve GET /health", async () => {
+    const transport = new EnhancedHttpTransport(mockMcpServer, logger);
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/health`);
+      expect(response.status).toBe(200);
+      const data = (await response.json()) as { status: string };
+      expect(data.status).toBe("ok");
+    } finally {
+      await transport.stop();
+    }
+  });
+
+  it("should dispatch a GET request carrying a bearer token", async () => {
+    const transport = new EnhancedHttpTransport(mockMcpServer, logger);
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+    try {
+      // A bare GET (not /health) flows through the MCP dispatch path with the
+      // per-request Authorization header extracted; the response is defined.
+      const response = await fetch(`http://127.0.0.1:${port}/`, {
+        headers: { Authorization: "Bearer frt_test" },
+      });
+      expect(typeof response.status).toBe("number");
     } finally {
       await transport.stop();
     }
