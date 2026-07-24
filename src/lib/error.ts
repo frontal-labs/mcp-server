@@ -183,8 +183,39 @@ function statusError(obj: ErrorFields): ErrorEnvelope | undefined {
 }
 
 /**
- * Parse the three distinct edge error envelopes (gateway, geo-router, backend
- * google.rpc.Status) into a single normalized {@link ErrorEnvelope}.
+ * Identity/IAM shape (`iam_ErrorSchema`, governs `/token`, `/user`, `/admin/*`):
+ * `{ code, msg, error_code }`, with `error_description` used by OAuth-style
+ * token errors. Prefer the machine-readable `error_code`, falling back to a
+ * stringified numeric `code`.
+ */
+function identityError(
+  obj: ErrorFields,
+  fallback: string
+): ErrorEnvelope | undefined {
+  const message =
+    typeof obj.msg === "string"
+      ? obj.msg
+      : typeof obj.error_description === "string"
+        ? obj.error_description
+        : undefined;
+  let code: string | undefined;
+  if (typeof obj.error_code === "string") {
+    code = obj.error_code;
+  } else if (typeof obj.code === "number") {
+    code = String(obj.code);
+  } else if (typeof obj.code === "string") {
+    code = obj.code;
+  }
+  if (message === undefined && code === undefined) {
+    return;
+  }
+  return { code, message: message ?? fallback };
+}
+
+/**
+ * Parse the distinct edge error envelopes (gateway, geo-router, backend
+ * google.rpc.Status, identity/IAM) into a single normalized
+ * {@link ErrorEnvelope}.
  */
 export function parseErrorEnvelope(
   body: unknown,
@@ -197,6 +228,7 @@ export function parseErrorEnvelope(
   return (
     gatewayError(obj, fallbackMessage) ??
     geoRouterError(obj) ??
-    statusError(obj) ?? { message: fallbackMessage }
+    statusError(obj) ??
+    identityError(obj, fallbackMessage) ?? { message: fallbackMessage }
   );
 }

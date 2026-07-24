@@ -62,7 +62,12 @@ export function toToolError(error: unknown): ToolResult {
   return errorResult(`Error: ${message}`);
 }
 
-/** Substitute `{name}` path params in a templated path, URL-encoding values. */
+/**
+ * Substitute `{name}` path params in a templated path. Values are URL-encoded,
+ * but an embedded `/` is preserved so catch-all params (declared upstream as
+ * `{name:path}` and vendored here as plain `{name}`) route as real path
+ * segments instead of collapsing into a single `%2F`-escaped segment.
+ */
 export function substitutePath(
   templatePath: string,
   pathParams: Record<string, string | number> = {}
@@ -76,7 +81,7 @@ export function substitutePath(
         { path: templatePath }
       );
     }
-    return encodeURIComponent(String(value));
+    return encodeURIComponent(String(value)).replace(/%2F/gi, "/");
   });
 }
 
@@ -85,6 +90,8 @@ export interface CallOperationInput {
   query?: Record<string, unknown>;
   body?: unknown;
   autoPaginate?: boolean;
+  /** Stable key for retry-safe writes; forwarded to the edge as-is. */
+  idempotencyKey?: string;
 }
 
 /**
@@ -119,6 +126,7 @@ export async function callOperation(
     query: input.query,
     body: input.body,
     token,
+    idempotencyKey: input.idempotencyKey,
   });
   return response.data;
 }

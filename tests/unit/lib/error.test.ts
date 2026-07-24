@@ -84,6 +84,24 @@ describe("parseErrorEnvelope", () => {
     ).toEqual({ code: "X", message: "m", details: [1] });
   });
 
+  it("parses the identity/IAM shape", () => {
+    expect(
+      parseErrorEnvelope(
+        { code: 400, msg: "bad request", error_code: "validation_failed" },
+        "fb"
+      )
+    ).toEqual({ code: "validation_failed", message: "bad request" });
+  });
+
+  it("uses the numeric code and error_description for identity errors", () => {
+    expect(
+      parseErrorEnvelope(
+        { code: 401, error_description: "token expired" },
+        "fb"
+      )
+    ).toEqual({ code: "401", message: "token expired" });
+  });
+
   it("falls back for unrecognized bodies", () => {
     expect(parseErrorEnvelope(null, "fb")).toEqual({ message: "fb" });
     expect(parseErrorEnvelope(42, "fb")).toEqual({ message: "fb" });

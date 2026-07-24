@@ -67,39 +67,77 @@ export class SpecIndex {
       Array.isArray(spec.security) && spec.security.length > 0;
 
     for (const [path, item] of Object.entries(spec.paths ?? {})) {
+      let hasOperation = false;
       for (const method of HTTP_METHODS) {
         const op = item[method];
-        if (!op) {
-          continue;
+        if (op) {
+          hasOperation = true;
+          this.indexOperation(path, method, op, globalAuthed);
         }
-        const operationId =
-          op.operationId ?? this.syntheticOperationId(method, path);
-        // Per-op `security: []` disables auth; a non-empty array or absence
-        // (falling back to global) means auth is required.
-        const requiresAuth = Array.isArray(op.security)
-          ? op.security.length > 0
-          : globalAuthed;
+      }
 
-        const info: OperationInfo = {
-          operationId,
-          method,
-          path,
-          tags: op.tags ?? [],
-          summary: op.summary,
-          description: op.description,
-          parameters: (op.parameters ?? []).filter(
-            (p): p is SpecParameter => Boolean(p) && typeof p.name === "string"
-          ),
-          requestBody: op.requestBody,
-          responses: op.responses,
-          requiresAuth,
-        };
-
-        this.operations.push(info);
-        this.byOperationId.set(operationId, info);
-        this.byMethodPath.set(`${method.toUpperCase()} ${path}`, info);
+      // Catch-all engine routes are vendored as metadata-only path items
+      // (`x-any-method-route`) with no per-method operations. Materialize a
+      // synthetic operation per HTTP method so meta-tool users can discover
+      // them (frontal_list_endpoints / frontal_describe_endpoint) and invoke
+      // them (frontal_call_endpoint by operationId or method+path).
+      const anyMethod =
+        (item as Record<string, unknown>)["x-any-method-route"] === true;
+      if (!hasOperation && anyMethod) {
+        this.indexAnyMethodRoute(path, globalAuthed);
       }
     }
+  }
+
+  private indexOperation(
+    path: string,
+    method: HttpMethod,
+    op: RawOperation,
+    globalAuthed: boolean
+  ): void {
+    const operationId =
+      op.operationId ?? this.syntheticOperationId(method, path);
+    // Per-op `security: []` disables auth; a non-empty array or absence
+    // (falling back to global) means auth is required.
+    const requiresAuth = Array.isArray(op.security)
+      ? op.security.length > 0
+      : globalAuthed;
+
+    this.addOperation({
+      operationId,
+      method,
+      path,
+      tags: op.tags ?? [],
+      summary: op.summary,
+      description: op.description,
+      parameters: (op.parameters ?? []).filter(
+        (p): p is SpecParameter => Boolean(p) && typeof p.name === "string"
+      ),
+      requestBody: op.requestBody,
+      responses: op.responses,
+      requiresAuth,
+    });
+  }
+
+  private indexAnyMethodRoute(path: string, globalAuthed: boolean): void {
+    const tag = path.split("/").filter(Boolean)[1];
+    for (const method of HTTP_METHODS) {
+      this.addOperation({
+        operationId: this.syntheticOperationId(method, path),
+        method,
+        path,
+        tags: tag ? [tag] : [],
+        summary: `${method.toUpperCase()} ${path} (any-method route)`,
+        parameters: [],
+        requiresAuth: globalAuthed,
+      });
+    }
+  }
+
+  private addOperation(info: OperationInfo): void {
+    this.operations.push(info);
+    this.byOperationId.set(info.operationId, info);
+    this.byMethodPath.set(`${info.method.toUpperCase()} ${info.path}`, info);
   }
 
   private syntheticOperationId(method: string, path: string): string {
