@@ -106,7 +106,14 @@ export class FrontalClient {
   constructor(options: FrontalClientOptions) {
     // Strip a trailing slash and a stray `/v1` suffix — versioned paths already
     // include `/v1/`, so the base must be the bare host.
-    this.baseUrl = options.baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "");
+    let base = options.baseUrl;
+    while (base.endsWith("/")) {
+      base = base.slice(0, -1);
+    }
+    if (base.endsWith("/v1")) {
+      base = base.slice(0, -3);
+    }
+    this.baseUrl = base;
     this.apiKey = options.apiKey || undefined;
     this.region = options.region || undefined;
     this.logger = options.logger;

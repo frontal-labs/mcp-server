@@ -16,8 +16,17 @@ function extractBearerToken(req: IncomingMessage): string | undefined {
   if (!header) {
     return;
   }
-  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
-  return match?.[1];
+  const trimmed = header.trim();
+  // Split on the first whitespace run without a backtracking-prone regex.
+  const separator = trimmed.search(/\s/);
+  if (separator === -1) {
+    return;
+  }
+  if (trimmed.slice(0, separator).toLowerCase() !== "bearer") {
+    return;
+  }
+  const token = trimmed.slice(separator + 1).trim();
+  return token || undefined;
 }
 
 export class EnhancedHttpTransport {
