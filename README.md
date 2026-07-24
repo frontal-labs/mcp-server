@@ -6,7 +6,11 @@
 
 # Frontal MCP Server
 
-A standalone Model Context Protocol (MCP) server that provides seamless access to Frontal's cloud services (AI, Blob Storage, Functions, Graph Database, and Pipelines) through a standardized interface.
+A standalone Model Context Protocol (MCP) server for the Frontal public API
+(`api.frontal.dev`). It exposes the API as a **hybrid** of curated, typed tools
+for the highest-value surfaces (ontology / knowledge graph and the data
+platform) plus spec-driven generic meta-tools that can reach any of the API's
+~430 operations — all driven by the vendored OpenAPI spec.
 
 ## Quick Start
 
@@ -63,46 +67,43 @@ Add to your Claude Desktop configuration:
 
 ## Features
 
-- **AI Services**: Text generation, image creation, and embeddings
-- **Blob Storage**: File upload, download, and management
-- **Functions**: Serverless function execution and management
-- **Graph Database**: Graph queries and node creation
-- **Pipelines**: Data pipeline creation and execution
-- **Multi-Transport**: Support for both stdio and HTTP
-- **Type Safe**: Full TypeScript support with Zod validation
-- **Monitoring**: Built-in metrics and logging
+- **Full API coverage**: Generic meta-tools drive any endpoint from the
+  vendored OpenAPI spec (`api.frontal.dev`, ~430 operations).
+- **Curated tools**: First-class, typed tools for the ontology /
+  knowledge-graph and data-platform surfaces.
+- **Edge-aware client**: Bearer `frt_` auth, cursor pagination,
+  `429`/`Retry-After` backoff, the edge retry matrix (retry 429/502/503/504,
+  never 401/409/501), idempotency keys on retried writes, and region pinning.
+- **Multi-transport**: stdio (local / Claude Desktop) and Streamable HTTP,
+  with per-request `Authorization` for multi-tenant hosting.
+- **Type safe**: TypeScript throughout with Zod-validated tool inputs.
+- **Monitoring**: Optional incident.io status-page integration and structured logging.
 
 ## Available Tools
 
-The Frontal MCP Server provides access to the following services:
+Tools are grouped into **tool sets** selectable via `FRONTAL_TOOLSETS`.
 
-### AI Service
+### Generic (spec-driven) — `generic`
 
-- **ai-generate-text**: Generate text using AI models
-- **ai-generate-image**: Generate images from text prompts
-- **ai-embed**: Generate text embeddings
+- **frontal_list_endpoints**: Browse the API surface, filtered by tag/search.
+- **frontal_describe_endpoint**: Full parameter/body/response detail for one operation.
+- **frontal_call_endpoint**: Invoke any operation by `operationId` (or `method` + `path`), with optional auto-pagination.
 
-### Blob Storage
+### Ontology (curated) — `ontology`
 
-- **blob-upload**: Upload files to blob storage
-- **blob-list**: List objects in storage buckets
+`ontology_list_objects`, `ontology_get_object`, `ontology_list_object_types`,
+`ontology_list_relationships`, `ontology_query_graph`,
+`ontology_graph_neighborhood`, `ontology_graph_path`,
+`ontology_extract_entities`, `ontology_list_schemas`, `ontology_get_schema`.
 
-### Functions
+### Data platform (curated) — `data`
 
-- **functions-invoke**: Execute serverless functions
-- **functions-list**: List deployed functions
+`data_query_federated`, `data_list_datasets`, `data_get_dataset`,
+`data_list_pipelines`, `data_create_pipeline`, `data_get_pipeline`,
+`data_list_pipeline_runs`, `data_get_pipeline_run`, `data_ingest_dataset`,
+`data_list_streams`, `data_list_schemas`.
 
-### Graph Database
-
-- **graph-query**: Execute graph queries
-- **graph-create-node**: Create graph nodes
-
-### Pipelines
-
-- **pipelines-create**: Create data pipelines
-- **pipelines-run**: Execute pipelines
-
-See [API Documentation](docs/API.md) for detailed tool specifications.
+Everything not covered by a curated tool stays reachable via the generic tools.
 
 ## Configuration
 
@@ -110,14 +111,15 @@ See [API Documentation](docs/API.md) for detailed tool specifications.
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `FRONTAL_API_KEY` | Frontal API key | - | Yes |
-| `FRONTAL_BASE_URL` | API base URL | `https://api.frontal.dev/v1` | No |
+| `FRONTAL_API_KEY` | Frontal API key (`frt_...`). Fallback for HTTP; required for stdio | - | For stdio |
+| `FRONTAL_BASE_URL` | API base URL (bare host; `/v1/` is in the paths) | `https://api.frontal.dev` | No |
+| `FRONTAL_REGION` | Region pin (`x-frontal-region`, e.g. `iad`, `lhr`, `fra`, `sin`) | - | No |
+| `FRONTAL_TOOLSETS` | Comma-separated tool sets to register | `generic,ontology,data` | No |
 | `MCP_LOG_LEVEL` | Log level | `info` | No |
-| `ENABLE_AI` | Enable AI service | `true` | No |
-| `ENABLE_BLOB` | Enable Blob service | `true` | No |
-| `ENABLE_FUNCTIONS` | Enable Functions service | `true` | No |
-| `ENABLE_GRAPH` | Enable Graph service | `true` | No |
-| `ENABLE_PIPELINES` | Enable Pipelines service | `true` | No |
+
+Over the HTTP transport, callers may send a per-request
+`Authorization: Bearer frt_...` header, which overrides `FRONTAL_API_KEY`
+(enables multi-tenant hosting).
 
 ### CLI Options
 
@@ -145,8 +147,8 @@ FRONTAL_API_KEY=your_key ./dist/bin/frontal-mcp-server.js
 # Start with HTTP transport for web integration
 FRONTAL_API_KEY=your_key ./dist/bin/frontal-mcp-server.js --transport http --port 3000
 
-# Enable only specific services
-ENABLE_AI=true ENABLE_BLOB=false ./dist/bin/frontal-mcp-server.js
+# Register only specific tool sets
+FRONTAL_TOOLSETS=generic,data FRONTAL_API_KEY=your_key ./dist/bin/frontal-mcp-server.js
 ```
 
 ### Programmatic Usage
@@ -154,17 +156,13 @@ ENABLE_AI=true ENABLE_BLOB=false ./dist/bin/frontal-mcp-server.js
 ```typescript
 import { FrontalMcpServer, createLogger } from '@frontal-labs/mcp-server';
 
-const config = {
-  apiKey: 'your_api_key',
+import { createConfig } from '@frontal-labs/mcp-server';
+
+const config = createConfig({
+  apiKey: 'frt_your_api_key',
+  toolsets: ['generic', 'ontology', 'data'],
   transport: { transport: 'stdio' },
-  services: {
-    ai: true,
-    blob: true,
-    functions: false,
-    graph: false,
-    pipelines: false,
-  }
-};
+});
 
 const logger = createLogger({ level: 'info' });
 const server = new FrontalMcpServer(config, logger);
@@ -175,12 +173,18 @@ await server.connectStdio();
 
 ## Architecture
 
-The MCP Server follows a modular adapter pattern:
+The server is a thin, spec-driven layer over the Frontal public API:
 
-1. **Core Server**: Handles MCP protocol and transport management
-2. **Service Adapters**: Each Frontal service has its own adapter
-3. **Configuration**: Centralized config with environment variable support
-4. **Transport Layer**: Supports both stdio and HTTP transports
+1. **Vendored OpenAPI spec** (`openapi/public.v1.json`) indexed at startup —
+   the source of truth for endpoints, params, and auth.
+2. **Frontal client** (`src/clients/frontal-client.ts`) — an edge-aware fetch
+   client (auth, pagination, retry matrix, idempotency, region pin, errors).
+3. **Tool adapters** — a generic (meta-tool) adapter plus curated
+   ontology/data adapters, gated by `FRONTAL_TOOLSETS`.
+4. **Transport layer** — stdio and Streamable HTTP, the latter binding a
+   per-request bearer token via AsyncLocalStorage.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
 
 ## Development
 
@@ -226,20 +230,20 @@ bun run type-check
 
 ## Current Status
 
-**Completed Features:**
-- Project structure and build system
-- Core MCP server implementation
-- Service adapters for all Frontal services
-- Configuration management
-- CLI interface with stdio transport
-- Comprehensive test suite
-- Complete API documentation
+**Completed:**
 
-**In Development:**
-- HTTP transport implementation
-- Integration with real Frontal SDKs
-- Advanced error handling
-- Performance monitoring
+- Spec-driven integration against the real `api.frontal.dev` OpenAPI contract
+  (vendored + refreshable via `bun run sync-spec`).
+- Generic meta-tools (full coverage) + curated ontology/data tools.
+- Edge-aware client (auth, pagination, retry matrix, idempotency, region pin).
+- stdio and Streamable HTTP transports, per-request auth over HTTP.
+- Test suite and CI (lint, type-check, coverage, build) plus Fly.io deploy.
+
+**Planned:**
+
+- Curated tools for more surfaces (events, webhooks, integrations, workflows,
+  billing) — reachable today via the generic tools.
+- MCP resources/prompts and optional OAuth flows.
 
 ## Contributing
 
@@ -296,4 +300,4 @@ top -p $(pgrep frontal-mcp-server)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE.md) file for details.

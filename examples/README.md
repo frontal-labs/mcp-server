@@ -7,16 +7,16 @@ This directory contains practical examples and integration patterns for using th
 ### [claude-desktop.json](./claude-desktop.json)
 Basic Claude Desktop configuration for stdio transport integration.
 
-### [http-integration/](./http-integration/)
+### HTTP Integration
 Complete HTTP transport example with Express.js server and web client.
 
-### [ai-assistant/](./ai-assistant/)
+### AI Assistant
 Custom AI assistant implementation showing programmatic MCP integration.
 
-### [batch-processing/](./batch-processing/)
+### Batch Processing
 Batch processing examples with rate limiting and error handling.
 
-### [monitoring/](./monitoring/)
+### Monitoring
 Performance monitoring and analytics integration examples.
 
 ## Quick Start

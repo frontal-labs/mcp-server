@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createConfig } from "@/config/index.js";
+import type { ServerConfig } from "@/config/server-config.js";
 import { FrontalMcpServer } from "@/server/mcp-server.js";
 import { createLogger } from "@/utils/logger.js";
-import type { ServerConfig } from "@/config/server-config.js";
 
 describe("FrontalMcpServer", () => {
   let server: FrontalMcpServer;

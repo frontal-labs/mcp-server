@@ -10,12 +10,37 @@ export const env = createEnv({
       .default("")
       .describe("Frontal API key for authentication"),
 
-    /** Base URL for the Frontal API */
+    /**
+     * Base URL for the Frontal public API. Bare host — versioned paths already
+     * include the `/v1/` prefix (e.g. `https://api.frontal.dev/v1/data/...`).
+     * Regional hosts (`https://us.api.frontal.dev`) are also valid.
+     */
     FRONTAL_BASE_URL: z
       .url()
       .optional()
-      .default("https://api.frontal.dev/v1")
-      .describe("Frontal API base URL"),
+      .default("https://api.frontal.dev")
+      .describe("Frontal public API base URL (bare host, no /v1 suffix)"),
+
+    /**
+     * Optional region pin. Sent as the `x-frontal-region` header on every
+     * request. Unknown regions are rejected by the edge with HTTP 409.
+     * Examples: iad, lhr, fra, sin.
+     */
+    FRONTAL_REGION: z
+      .string()
+      .optional()
+      .default("")
+      .describe("Optional region pin (x-frontal-region header)"),
+
+    /**
+     * Comma-separated list of tool sets to register. `generic` exposes the
+     * spec-driven meta-tools; `ontology` and `data` expose curated tools.
+     */
+    FRONTAL_TOOLSETS: z
+      .string()
+      .optional()
+      .default("generic,ontology,data")
+      .describe("Comma-separated tool sets to enable"),
 
     /** Log level for the MCP server */
     MCP_LOG_LEVEL: z
@@ -51,6 +76,16 @@ export const env = createEnv({
       .default("")
       .describe("incident.io component ID for this server"),
   },
-  runtimeEnv: process.env,
+  runtimeEnv: {
+    FRONTAL_API_KEY: process.env.FRONTAL_API_KEY,
+    FRONTAL_BASE_URL: process.env.FRONTAL_BASE_URL,
+    FRONTAL_REGION: process.env.FRONTAL_REGION,
+    FRONTAL_TOOLSETS: process.env.FRONTAL_TOOLSETS,
+    MCP_LOG_LEVEL: process.env.MCP_LOG_LEVEL,
+    INCIDENTIO_API_KEY: process.env.INCIDENTIO_API_KEY,
+    INCIDENTIO_STATUS_PAGE_ID: process.env.INCIDENTIO_STATUS_PAGE_ID,
+    INCIDENTIO_STATUS_PAGE_URL: process.env.INCIDENTIO_STATUS_PAGE_URL,
+    INCIDENTIO_COMPONENT_ID: process.env.INCIDENTIO_COMPONENT_ID,
+  },
   emptyStringAsUndefined: true,
 });

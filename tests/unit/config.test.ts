@@ -7,7 +7,7 @@ describe("env", () => {
   });
 
   it("should have validated FRONTAL_BASE_URL with default", () => {
-    expect(env.FRONTAL_BASE_URL).toBe("https://api.frontal.dev/v1");
+    expect(env.FRONTAL_BASE_URL).toBe("https://api.frontal.dev");
   });
 
   it("should have validated MCP_LOG_LEVEL with default", () => {
@@ -22,7 +22,7 @@ describe("createConfig", () => {
     const config = createConfig();
 
     expect(config.apiKey).toBe("");
-    expect(config.baseUrl).toBe("https://api.frontal.dev/v1");
+    expect(config.baseUrl).toBe("https://api.frontal.dev");
     expect(config.transport.transport).toBe("stdio");
     expect(config.auth.type).toBe("api-key");
     expect(config.logLevel).toBe("info");
@@ -66,8 +66,8 @@ describe("createConfig", () => {
 
   it("should use env defaults for baseUrl when no override given", () => {
     const config = createConfig();
-    // env.FRONTAL_BASE_URL defaults to the Frontal API URL
-    expect(config.baseUrl).toBe("https://api.frontal.dev/v1");
+    // env.FRONTAL_BASE_URL defaults to the bare Frontal API host
+    expect(config.baseUrl).toBe("https://api.frontal.dev");
   });
 
   it("should allow empty string apiKey", () => {
@@ -91,7 +91,7 @@ describe("loadConfig", () => {
     const config = await loadConfig({});
 
     expect(config.apiKey).toBe("");
-    expect(config.baseUrl).toBe("https://api.frontal.dev/v1");
+    expect(config.baseUrl).toBe("https://api.frontal.dev");
     expect(config.transport.transport).toBe("stdio");
     expect(config.logLevel).toBe("info");
   });
