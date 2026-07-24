@@ -300,4 +300,4 @@ top -p $(pgrep frontal-mcp-server)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE.md) file for details.
