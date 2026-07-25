@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { IncidentioConfig } from "@/lib/server-config.js";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { IncidentioConfig } from "@/lib/server-config.js";
 import { HealthMonitor } from "@/services/health-monitor.js";
 import { createLogger } from "@/utils/logger.js";
 

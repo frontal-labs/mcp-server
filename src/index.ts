@@ -30,6 +30,15 @@ export {
   type RequestOptions,
 } from "./clients/frontal-client.js";
 export {
+  type AuthConfig,
+  type ConfigOptions,
+  createConfig,
+  loadConfig,
+  type ServerConfig,
+  type Toolset,
+  type TransportConfig,
+} from "./config/index.js";
+export {
   ConfigError,
   ERROR_CODE,
   type ErrorCode,
@@ -45,15 +54,6 @@ export {
   SpecError,
   ToolInputError,
 } from "./lib/error.js";
-export {
-  type AuthConfig,
-  type ConfigOptions,
-  createConfig,
-  loadConfig,
-  type ServerConfig,
-  type Toolset,
-  type TransportConfig,
-} from "./config/index.js";
 export { EnhancedHttpTransport } from "./server/enhanced-http-transport.js";
 export { FrontalMcpServer } from "./server/mcp-server.js";
 export { HealthMonitor } from "./services/health-monitor.js";

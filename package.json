@@ -39,6 +39,7 @@
     "clean": "rm -rf dist",
     "sync-spec": "bun run scripts/sync-spec.ts",
     "sync-spec:check": "bun run scripts/sync-spec.ts --check",
+    "smoke": "bun run scripts/smoke.ts",
     "dev": "bun run src/bin/frontal-mcp-server.ts",
     "prepublishOnly": "bun run build",
     "changeset": "changeset",
