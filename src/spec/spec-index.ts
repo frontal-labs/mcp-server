@@ -23,6 +23,12 @@ export interface OperationInfo {
   summary?: string;
   description?: string;
   parameters: SpecParameter[];
+  /**
+   * Names of path params declared as catch-all (`{name:path}`) upstream. Their
+   * values may span multiple `/`-separated segments, so `substitutePath` keeps
+   * their slashes intact instead of percent-encoding them.
+   */
+  catchAllParams: string[];
   /** Raw requestBody object from the spec (schemas may contain `$ref`). */
   requestBody?: unknown;
   /** Raw responses object from the spec. */
@@ -54,6 +60,8 @@ interface RawPathItem {
   delete?: RawOperation;
   parameters?: SpecParameter[];
   "x-any-method-route"?: boolean;
+  /** Original upstream path templates, retaining `{name:path}` catch-all markers. */
+  "x-audit-original-paths"?: string[];
 }
 
 interface RawSpec {
@@ -63,6 +71,28 @@ interface RawSpec {
   paths: Record<string, RawPathItem>;
   components?: Record<string, unknown>;
   security?: unknown[];
+}
+
+/**
+ * Names of path params declared as catch-all (`{name:path}`) upstream. The
+ * vendored path template drops the `:path` suffix, but `x-audit-original-paths`
+ * retains it, so catch-all identity is recovered from there.
+ */
+function catchAllParamNames(item: RawPathItem): string[] {
+  const originals = item["x-audit-original-paths"];
+  if (!Array.isArray(originals)) {
+    return [];
+  }
+  const names = new Set<string>();
+  for (const original of originals) {
+    if (typeof original !== "string") {
+      continue;
+    }
+    for (const match of original.matchAll(/\{([^}:]+):path\}/g)) {
+      names.add(match[1]);
+    }
+  }
+  return [...names];
 }
 
 /** Keep only well-formed parameters (defensive against malformed spec entries). */
@@ -108,12 +138,20 @@ export class SpecIndex {
     for (const [path, item] of Object.entries(spec.paths ?? {})) {
       // Path-item-level parameters apply to every operation in the item.
       const itemParams = Array.isArray(item.parameters) ? item.parameters : [];
+      const catchAllParams = catchAllParamNames(item);
       let hasOperation = false;
       for (const method of HTTP_METHODS) {
         const op = item[method];
         if (op) {
           hasOperation = true;
-          this.indexOperation(path, method, op, itemParams, globalAuthed);
+          this.indexOperation(
+            path,
+            method,
+            op,
+            itemParams,
+            catchAllParams,
+            globalAuthed
+          );
         }
       }
 
@@ -124,7 +162,12 @@ export class SpecIndex {
       // them (frontal_call_endpoint by operationId or method+path).
       const anyMethod = item["x-any-method-route"] === true;
       if (!hasOperation && anyMethod) {
-        this.indexAnyMethodRoute(path, globalAuthed);
+        this.indexAnyMethodRoute(
+          path,
+          itemParams,
+          catchAllParams,
+          globalAuthed
+        );
       }
     }
   }
@@ -134,6 +177,7 @@ export class SpecIndex {
     method: HttpMethod,
     op: RawOperation,
     itemParams: SpecParameter[],
+    catchAllParams: string[],
     globalAuthed: boolean
   ): void {
     const operationId =
@@ -152,14 +196,24 @@ export class SpecIndex {
       summary: op.summary,
       description: op.description,
       parameters: mergeParameters(itemParams, op.parameters ?? []),
+      catchAllParams,
       requestBody: op.requestBody,
       responses: op.responses,
       requiresAuth,
     });
   }
 
-  private indexAnyMethodRoute(path: string, globalAuthed: boolean): void {
+  private indexAnyMethodRoute(
+    path: string,
+    itemParams: SpecParameter[],
+    catchAllParams: string[],
+    globalAuthed: boolean
+  ): void {
     const tag = path.split("/").filter(Boolean)[1];
+    // Path items with no per-method operations declare any templated segment
+    // via the path-item-level `parameters`, so carry those into each synthetic
+    // operation rather than dropping them.
+    const parameters = validParameters(itemParams);
     for (const method of HTTP_METHODS) {
       this.addOperation({
         operationId: this.syntheticOperationId(method, path),
@@ -167,7 +221,8 @@ export class SpecIndex {
         path,
         tags: tag ? [tag] : [],
         summary: `${method.toUpperCase()} ${path} (any-method route)`,
-        parameters: [],
+        parameters,
+        catchAllParams,
         requiresAuth: globalAuthed,
       });
     }

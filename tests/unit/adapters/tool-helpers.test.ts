@@ -56,8 +56,14 @@ describe("substitutePath", () => {
     expect(substitutePath("/a/{id}", { id: "x y" })).toBe("/a/x%20y");
   });
 
-  it("preserves slashes for catch-all path params", () => {
-    expect(substitutePath("/a/{ref}", { ref: "foo/bar" })).toBe("/a/foo/bar");
+  it("preserves slashes only for identified catch-all path params", () => {
+    expect(substitutePath("/a/{ref}", { ref: "foo/bar" }, ["ref"])).toBe(
+      "/a/foo/bar"
+    );
+  });
+
+  it("encodes slashes for ordinary path params", () => {
+    expect(substitutePath("/a/{ref}", { ref: "foo/bar" })).toBe("/a/foo%2Fbar");
   });
 
   it("throws on a missing param", () => {

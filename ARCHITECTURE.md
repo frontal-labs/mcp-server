@@ -145,11 +145,13 @@ Multiple transport protocols for different use cases:
 #### Enhanced HTTP Transport
 - **Use Case**: Advanced web integration
 - **Features**: WebSocket support, streaming, authentication
-- **Authentication**: every request must carry an `Authorization: Bearer frt_...`
-  header; unauthenticated requests are rejected with `401` before dispatch. The
-  `FRONTAL_API_KEY` env fallback is **stdio-only** and is never used to serve an
-  HTTP request. CORS trusts no origin by default: `Access-Control-Allow-Origin`
-  is only echoed for origins listed in `FRONTAL_HTTP_ALLOWED_ORIGINS` (never `*`).
+- **Authentication**: every MCP request must carry an `Authorization: Bearer
+  frt_...` header; unauthenticated MCP requests are rejected with `401` before
+  dispatch. The unauthenticated `GET /health` endpoint is the one exception and
+  returns `200` without a token. The `FRONTAL_API_KEY` env fallback is
+  **stdio-only** and is never used to serve an HTTP request. CORS trusts no
+  origin by default: `Access-Control-Allow-Origin` is only echoed for origins
+  listed in `FRONTAL_HTTP_ALLOWED_ORIGINS` (never `*`).
 
 ### 6. Type System (`src/interfaces/`, `src/models/`)
 

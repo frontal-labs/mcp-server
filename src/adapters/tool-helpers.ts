@@ -64,14 +64,17 @@ export function toToolError(error: unknown): ToolResult {
 
 /**
  * Substitute `{name}` path params in a templated path. Values are URL-encoded,
- * but an embedded `/` is preserved so catch-all params (declared upstream as
- * `{name:path}` and vendored here as plain `{name}`) route as real path
- * segments instead of collapsing into a single `%2F`-escaped segment.
+ * so ordinary params keep an embedded `/` escaped as `%2F` (one segment).
+ * Params named in `catchAllParams` (declared upstream as `{name:path}` and
+ * vendored here as plain `{name}`) instead keep their slashes so multi-segment
+ * values route as real path segments.
  */
 export function substitutePath(
   templatePath: string,
-  pathParams: Record<string, string | number> = {}
+  pathParams: Record<string, string | number> = {},
+  catchAllParams: Iterable<string> = []
 ): string {
+  const catchAll = new Set(catchAllParams);
   return templatePath.replace(/\{([^}]+)\}/g, (_match, name: string) => {
     const value = pathParams[name];
     if (value === undefined) {
@@ -81,7 +84,8 @@ export function substitutePath(
         { path: templatePath }
       );
     }
-    return encodeURIComponent(String(value)).replace(/%2F/gi, "/");
+    const encoded = encodeURIComponent(String(value));
+    return catchAll.has(name) ? encoded.replace(/%2F/gi, "/") : encoded;
   });
 }
 
@@ -111,7 +115,7 @@ export async function callOperation(
       { operationId }
     );
   }
-  const path = substitutePath(op.path, input.pathParams);
+  const path = substitutePath(op.path, input.pathParams, op.catchAllParams);
   const token = ctx.getToken();
 
   if (input.autoPaginate && op.method === "get") {

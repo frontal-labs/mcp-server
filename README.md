@@ -118,12 +118,14 @@ Everything not covered by a curated tool stays reachable via the generic tools.
 | `FRONTAL_HTTP_ALLOWED_ORIGINS` | Comma-separated CORS allowlist for the HTTP transport | - (no origin trusted) | No |
 | `MCP_LOG_LEVEL` | Log level | `info` | No |
 
-Over the HTTP transport, every request **must** send a per-request
-`Authorization: Bearer frt_...` header (multi-tenant hosting); requests without
-one are rejected with `401`. The `FRONTAL_API_KEY` env key is used only by the
-stdio transport and is never applied to HTTP requests. CORS trusts no origin by
-default: responses only carry `Access-Control-Allow-Origin` for origins listed
-in `FRONTAL_HTTP_ALLOWED_ORIGINS` (never `*`).
+Over the HTTP transport, every **MCP request** must send a per-request
+`Authorization: Bearer frt_...` header (multi-tenant hosting); MCP requests
+without one are rejected with `401`. The unauthenticated `GET /health` endpoint
+is the one exception: it always returns `200 {"status":"ok"}` without a token.
+The `FRONTAL_API_KEY` env key is used only by the stdio transport and is never
+applied to HTTP requests. CORS trusts no origin by default: responses only carry
+`Access-Control-Allow-Origin` for origins listed in
+`FRONTAL_HTTP_ALLOWED_ORIGINS` (never `*`).
 
 ### CLI Options
 
