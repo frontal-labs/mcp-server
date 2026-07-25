@@ -62,11 +62,19 @@ export function toToolError(error: unknown): ToolResult {
   return errorResult(`Error: ${message}`);
 }
 
-/** Substitute `{name}` path params in a templated path, URL-encoding values. */
+/**
+ * Substitute `{name}` path params in a templated path. Values are URL-encoded,
+ * so ordinary params keep an embedded `/` escaped as `%2F` (one segment).
+ * Params named in `catchAllParams` (declared upstream as `{name:path}` and
+ * vendored here as plain `{name}`) instead keep their slashes so multi-segment
+ * values route as real path segments.
+ */
 export function substitutePath(
   templatePath: string,
-  pathParams: Record<string, string | number> = {}
+  pathParams: Record<string, string | number> = {},
+  catchAllParams: Iterable<string> = []
 ): string {
+  const catchAll = new Set(catchAllParams);
   return templatePath.replace(/\{([^}]+)\}/g, (_match, name: string) => {
     const value = pathParams[name];
     if (value === undefined) {
@@ -76,7 +84,8 @@ export function substitutePath(
         { path: templatePath }
       );
     }
-    return encodeURIComponent(String(value));
+    const encoded = encodeURIComponent(String(value));
+    return catchAll.has(name) ? encoded.replace(/%2F/gi, "/") : encoded;
   });
 }
 
@@ -85,6 +94,8 @@ export interface CallOperationInput {
   query?: Record<string, unknown>;
   body?: unknown;
   autoPaginate?: boolean;
+  /** Stable key for retry-safe writes; forwarded to the edge as-is. */
+  idempotencyKey?: string;
 }
 
 /**
@@ -104,7 +115,7 @@ export async function callOperation(
       { operationId }
     );
   }
-  const path = substitutePath(op.path, input.pathParams);
+  const path = substitutePath(op.path, input.pathParams, op.catchAllParams);
   const token = ctx.getToken();
 
   if (input.autoPaginate && op.method === "get") {
@@ -119,6 +130,7 @@ export async function callOperation(
     query: input.query,
     body: input.body,
     token,
+    idempotencyKey: input.idempotencyKey,
   });
   return response.data;
 }

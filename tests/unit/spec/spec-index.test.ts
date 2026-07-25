@@ -45,4 +45,15 @@ describe("SpecIndex", () => {
     const result = idx.dereference({ $ref: "#/components/schemas/Missing" });
     expect(result).toMatchObject({ note: expect.any(String) });
   });
+
+  it("inherits path-item-level parameters into each operation", () => {
+    // `/admin/users/{userId}` declares `userId` at the path-item level, so
+    // every operation on it (get/put/delete) must expose that path param.
+    for (const method of ["GET", "PUT", "DELETE"]) {
+      const op = idx.getByMethodPath(method, "/admin/users/{userId}");
+      expect(op).toBeDefined();
+      const userId = op?.parameters.find((p) => p.name === "userId");
+      expect(userId).toMatchObject({ name: "userId", in: "path" });
+    }
+  });
 });

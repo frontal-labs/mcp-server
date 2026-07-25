@@ -23,6 +23,12 @@ export interface OperationInfo {
   summary?: string;
   description?: string;
   parameters: SpecParameter[];
+  /**
+   * Names of path params declared as catch-all (`{name:path}`) upstream. Their
+   * values may span multiple `/`-separated segments, so `substitutePath` keeps
+   * their slashes intact instead of percent-encoding them.
+   */
+  catchAllParams: string[];
   /** Raw requestBody object from the spec (schemas may contain `$ref`). */
   requestBody?: unknown;
   /** Raw responses object from the spec. */
@@ -42,13 +48,76 @@ interface RawOperation {
   security?: unknown[];
 }
 
+/**
+ * A path item: per-method operations plus path-item-level `parameters` (which
+ * apply to every operation in the item, per OpenAPI 3.1) and `x-*` extensions.
+ */
+interface RawPathItem {
+  get?: RawOperation;
+  post?: RawOperation;
+  put?: RawOperation;
+  patch?: RawOperation;
+  delete?: RawOperation;
+  parameters?: SpecParameter[];
+  "x-any-method-route"?: boolean;
+  /** Original upstream path templates, retaining `{name:path}` catch-all markers. */
+  "x-audit-original-paths"?: string[];
+}
+
 interface RawSpec {
   openapi: string;
   info: { title: string; version: string; description?: string };
   servers?: { url: string; description?: string }[];
-  paths: Record<string, Record<string, RawOperation>>;
+  paths: Record<string, RawPathItem>;
   components?: Record<string, unknown>;
   security?: unknown[];
+}
+
+/**
+ * Names of path params declared as catch-all (`{name:path}`) upstream. The
+ * vendored path template drops the `:path` suffix, but `x-audit-original-paths`
+ * retains it, so catch-all identity is recovered from there.
+ */
+function catchAllParamNames(item: RawPathItem): string[] {
+  const originals = item["x-audit-original-paths"];
+  if (!Array.isArray(originals)) {
+    return [];
+  }
+  const names = new Set<string>();
+  for (const original of originals) {
+    if (typeof original !== "string") {
+      continue;
+    }
+    for (const match of original.matchAll(/\{([^}:]+):path\}/g)) {
+      names.add(match[1]);
+    }
+  }
+  return [...names];
+}
+
+/** Keep only well-formed parameters (defensive against malformed spec entries). */
+function validParameters(list: SpecParameter[]): SpecParameter[] {
+  return list.filter(
+    (p): p is SpecParameter => Boolean(p) && typeof p.name === "string"
+  );
+}
+
+/**
+ * Merge path-item-level parameters with operation-level ones. Operation-level
+ * declarations override path-item ones sharing the same (`in`, `name`) identity.
+ */
+function mergeParameters(
+  itemParams: SpecParameter[],
+  opParams: SpecParameter[]
+): SpecParameter[] {
+  const merged = new Map<string, SpecParameter>();
+  for (const p of [
+    ...validParameters(itemParams),
+    ...validParameters(opParams),
+  ]) {
+    merged.set(`${p.in}:${p.name}`, p);
+  }
+  return [...merged.values()];
 }
 
 const REF_ROOT = "#/";
@@ -67,39 +136,102 @@ export class SpecIndex {
       Array.isArray(spec.security) && spec.security.length > 0;
 
     for (const [path, item] of Object.entries(spec.paths ?? {})) {
+      // Path-item-level parameters apply to every operation in the item.
+      const itemParams = Array.isArray(item.parameters) ? item.parameters : [];
+      const catchAllParams = catchAllParamNames(item);
+      let hasOperation = false;
       for (const method of HTTP_METHODS) {
         const op = item[method];
-        if (!op) {
-          continue;
+        if (op) {
+          hasOperation = true;
+          this.indexOperation(
+            path,
+            method,
+            op,
+            itemParams,
+            catchAllParams,
+            globalAuthed
+          );
         }
-        const operationId =
-          op.operationId ?? this.syntheticOperationId(method, path);
-        // Per-op `security: []` disables auth; a non-empty array or absence
-        // (falling back to global) means auth is required.
-        const requiresAuth = Array.isArray(op.security)
-          ? op.security.length > 0
-          : globalAuthed;
+      }
 
-        const info: OperationInfo = {
-          operationId,
-          method,
+      // Catch-all engine routes are vendored as metadata-only path items
+      // (`x-any-method-route`) with no per-method operations. Materialize a
+      // synthetic operation per HTTP method so meta-tool users can discover
+      // them (frontal_list_endpoints / frontal_describe_endpoint) and invoke
+      // them (frontal_call_endpoint by operationId or method+path).
+      const anyMethod = item["x-any-method-route"] === true;
+      if (!hasOperation && anyMethod) {
+        this.indexAnyMethodRoute(
           path,
-          tags: op.tags ?? [],
-          summary: op.summary,
-          description: op.description,
-          parameters: (op.parameters ?? []).filter(
-            (p): p is SpecParameter => Boolean(p) && typeof p.name === "string"
-          ),
-          requestBody: op.requestBody,
-          responses: op.responses,
-          requiresAuth,
-        };
-
-        this.operations.push(info);
-        this.byOperationId.set(operationId, info);
-        this.byMethodPath.set(`${method.toUpperCase()} ${path}`, info);
+          itemParams,
+          catchAllParams,
+          globalAuthed
+        );
       }
     }
+  }
+
+  private indexOperation(
+    path: string,
+    method: HttpMethod,
+    op: RawOperation,
+    itemParams: SpecParameter[],
+    catchAllParams: string[],
+    globalAuthed: boolean
+  ): void {
+    const operationId =
+      op.operationId ?? this.syntheticOperationId(method, path);
+    // Per-op `security: []` disables auth; a non-empty array or absence
+    // (falling back to global) means auth is required.
+    const requiresAuth = Array.isArray(op.security)
+      ? op.security.length > 0
+      : globalAuthed;
+
+    this.addOperation({
+      operationId,
+      method,
+      path,
+      tags: op.tags ?? [],
+      summary: op.summary,
+      description: op.description,
+      parameters: mergeParameters(itemParams, op.parameters ?? []),
+      catchAllParams,
+      requestBody: op.requestBody,
+      responses: op.responses,
+      requiresAuth,
+    });
+  }
+
+  private indexAnyMethodRoute(
+    path: string,
+    itemParams: SpecParameter[],
+    catchAllParams: string[],
+    globalAuthed: boolean
+  ): void {
+    const tag = path.split("/").filter(Boolean)[1];
+    // Path items with no per-method operations declare any templated segment
+    // via the path-item-level `parameters`, so carry those into each synthetic
+    // operation rather than dropping them.
+    const parameters = validParameters(itemParams);
+    for (const method of HTTP_METHODS) {
+      this.addOperation({
+        operationId: this.syntheticOperationId(method, path),
+        method,
+        path,
+        tags: tag ? [tag] : [],
+        summary: `${method.toUpperCase()} ${path} (any-method route)`,
+        parameters,
+        catchAllParams,
+        requiresAuth: globalAuthed,
+      });
+    }
+  }
+
+  private addOperation(info: OperationInfo): void {
+    this.operations.push(info);
+    this.byOperationId.set(info.operationId, info);
+    this.byMethodPath.set(`${info.method.toUpperCase()} ${info.path}`, info);
   }
 
   private syntheticOperationId(method: string, path: string): string {

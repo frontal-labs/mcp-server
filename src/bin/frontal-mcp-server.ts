@@ -50,7 +50,8 @@ async function main() {
       );
       const httpTransport = new EnhancedHttpTransport(
         server.mcpServerInstance,
-        logger
+        logger,
+        { allowedOrigins: config.transport.http?.allowedOrigins }
       );
       await httpTransport.start(
         config.transport.http?.port || 3000,

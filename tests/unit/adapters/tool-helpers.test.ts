@@ -52,8 +52,18 @@ describe("toToolError", () => {
 });
 
 describe("substitutePath", () => {
-  it("substitutes and URL-encodes params", () => {
-    expect(substitutePath("/a/{id}", { id: "x/y" })).toBe("/a/x%2Fy");
+  it("URL-encodes reserved characters in params", () => {
+    expect(substitutePath("/a/{id}", { id: "x y" })).toBe("/a/x%20y");
+  });
+
+  it("preserves slashes only for identified catch-all path params", () => {
+    expect(substitutePath("/a/{ref}", { ref: "foo/bar" }, ["ref"])).toBe(
+      "/a/foo/bar"
+    );
+  });
+
+  it("encodes slashes for ordinary path params", () => {
+    expect(substitutePath("/a/{ref}", { ref: "foo/bar" })).toBe("/a/foo%2Fbar");
   });
 
   it("throws on a missing param", () => {

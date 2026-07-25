@@ -144,6 +144,12 @@ export class GenericAdapter implements ServiceAdapter {
           query: z.record(z.string(), z.unknown()).optional(),
           body: z.unknown().optional(),
           autoPaginate: z.boolean().optional(),
+          idempotencyKey: z
+            .string()
+            .optional()
+            .describe(
+              "Stable key for retry-safe writes; reuse across retries of the same logical write so the edge can dedupe"
+            ),
         },
       },
       async (input) => {
@@ -167,6 +173,7 @@ export class GenericAdapter implements ServiceAdapter {
       query?: Record<string, unknown>;
       body?: unknown;
       autoPaginate?: boolean;
+      idempotencyKey?: string;
     }
   ): Promise<unknown> {
     const callInput: CallOperationInput = {
@@ -174,6 +181,7 @@ export class GenericAdapter implements ServiceAdapter {
       query: input.query,
       body: input.body,
       autoPaginate: input.autoPaginate,
+      idempotencyKey: input.idempotencyKey,
     };
 
     if (input.operationId) {
@@ -208,6 +216,7 @@ export class GenericAdapter implements ServiceAdapter {
       query: input.query,
       body: input.body,
       token,
+      idempotencyKey: input.idempotencyKey,
     });
     return response.data;
   }
