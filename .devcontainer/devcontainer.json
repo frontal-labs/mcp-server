@@ -1,0 +1,38 @@
+{
+  "name": "MCP Server Development Container",
+  "dockerComposeFile": [
+    "../infrastructure/docker/docker-compose.dev.yml"
+  ],
+  "service": "mcp-server",
+  "workspaceFolder": "/workspace",
+  "serviceUser": "node",
+  "shutdownAction": "none",
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash",
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "terminal.integrated.defaultProfile.linux": "bash"
+  },
+  "extensions": [
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss"
+  ],
+  "forwardPorts": [
+    3000,
+    6379,
+    9090,
+    3001
+  ],
+  "postCreateCommand": "bun install",
+  "remoteEnv": {
+    "NODE_ENV": "development",
+    "FRONTAL_API_KEY": "dev-key",
+    "FRONTAL_BASE_URL": "https://api.frontal.dev/v1",
+    "MCP_LOG_LEVEL": "debug",
+    "ENABLE_AI": "true",
+    "ENABLE_BLOB": "true",
+    "ENABLE_FUNCTIONS": "true",
+    "ENABLE_PIPELINES": "true"
+  }
+}
