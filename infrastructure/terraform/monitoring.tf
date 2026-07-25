@@ -34,7 +34,7 @@ resource "helm_release" "prometheus" {
 resource "aws_cloudwatch_log_group" "application" {
   count = var.enable_logging ? 1 : 0
   name  = "/aws/eks/${var.cluster_name}/application"
-  
+
   retention_in_days = 30
 
   tags = {
@@ -47,7 +47,7 @@ resource "aws_cloudwatch_log_group" "application" {
 resource "aws_iam_policy" "cloudwatch_logs" {
   count = var.enable_logging ? 1 : 0
   name  = "${var.project_name}-cloudwatch-logs-policy"
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [

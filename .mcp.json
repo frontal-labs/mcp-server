@@ -1,17 +1,23 @@
 {
   "mcpServers": {
-    "linear": {
-      "command": "npx",
-      "args": ["-y", "@sylphx/linear-mcp"],
-      "env": {
-        "LINEAR_API_KEY": "${LINEAR_API_KEY}"
-      }
-    },
     "github": {
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": {
         "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "linear": {
+      "args": [
+        "-y",
+        "@sylphx/linear-mcp"
+      ],
+      "command": "npx",
+      "env": {
+        "LINEAR_API_KEY": "${LINEAR_API_KEY}"
       }
     }
   }

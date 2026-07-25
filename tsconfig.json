@@ -1,31 +1,42 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
     "allowJs": true,
+    "allowSyntheticDefaultImports": true,
     "checkJs": false,
-    "strict": true,
-    "noEmit": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "dist",
-    "rootDir": ".",
-    "removeComments": false,
-    "ignoreDeprecations": "6.0",
-    "types": ["node"],
-    "skipLibCheck": true,
+    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
+    "ignoreDeprecations": "6.0",
     "isolatedModules": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "outDir": "dist",
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "removeComments": false,
+    "resolveJsonModule": true,
+    "rootDir": ".",
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "ES2022",
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*", "openapi/public.v1.json"],
-  "exclude": ["node_modules", "dist", "tests"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests"
+  ],
+  "include": [
+    "src/**/*",
+    "openapi/public.v1.json"
+  ]
 }

@@ -63,7 +63,7 @@ await server.connectHttp();
 ```typescript
 class MyAssistant {
   constructor(private mcpServer: FrontalMcpServer) {}
-  
+
   async processRequest(request: string) {
     return await this.mcpServer.callTool('ai-generate-text', {
       model: 'frontal-gpt-4',

@@ -30,7 +30,7 @@ This tool allows you to generate human-like text using Frontal's advanced AI mod
 ```json
 {
   "model": "string",
-  "prompt": "string", 
+  "prompt": "string",
   "maxTokens": "number (optional)",
   "temperature": "number (optional)"
 }
@@ -43,7 +43,7 @@ This tool allows you to generate human-like text using Frontal's advanced AI mod
   "model": "string",
   "usage": {
     "promptTokens": "number",
-    "completionTokens": "number", 
+    "completionTokens": "number",
     "totalTokens": "number"
   }
 }
@@ -112,7 +112,7 @@ Upload files to Frontal blob storage.
 ```json
 {
   "bucket": "string",
-  "key": "string", 
+  "key": "string",
   "content": "string (base64)",
   "contentType": "string (optional)"
 }
@@ -175,7 +175,7 @@ Invoke a serverless function.
 ```json
 {
   "functionId": "string",
-  "name": "string", 
+  "name": "string",
   "status": "pending|completed",
   "result": "object|null",
   "executionTime": "number|null",
@@ -230,7 +230,7 @@ Execute graph queries.
     "nodes": [
       {
         "id": "string",
-        "type": "string", 
+        "type": "string",
         "properties": "object"
       }
     ],
@@ -286,7 +286,7 @@ Create a new pipeline.
 {
   "pipelineId": "string",
   "name": "string",
-  "description": "string", 
+  "description": "string",
   "steps": "object[]",
   "status": "string",
   "created": "string"

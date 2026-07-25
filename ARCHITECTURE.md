@@ -137,7 +137,7 @@ Multiple transport protocols for different use cases:
 - **Protocol**: Standard input/output
 - **Features**: Real-time communication
 
-#### HTTP Transport  
+#### HTTP Transport
 - **Use Case**: Web applications and APIs
 - **Protocol**: HTTP/HTTPS
 - **Features**: RESTful interface, CORS support

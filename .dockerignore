@@ -28,7 +28,6 @@ docker-compose*.yml
 .idea
 .DS_Store
 tests/
-.husky/
 .claude/
 .changeset/
 fly.toml

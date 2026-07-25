@@ -137,19 +137,19 @@ import { FrontalMcpServer } from '@frontal-labs/mcp-server';
 
 class MyAIAssistant {
   private mcpServer: FrontalMcpServer;
-  
+
   constructor() {
     this.mcpServer = new FrontalMcpServer({
       apiKey: process.env.FRONTAL_API_KEY,
       transport: { transport: 'stdio' }
     });
   }
-  
+
   async initialize() {
     await this.mcpServer.initialize();
     await this.mcpServer.connectStdio();
   }
-  
+
   async processUserRequest(request: string) {
     // Parse request and call appropriate MCP tool
     if (request.includes('generate text')) {
@@ -176,7 +176,7 @@ async function createBlogPost(topic: string) {
     prompt: `Create a detailed outline for a blog post about ${topic}`,
     maxTokens: 500
   });
-  
+
   // 2. Generate content for each section
   const sections = await Promise.all(
     outline.data.sections.map(async (section) => {
@@ -187,21 +187,21 @@ async function createBlogPost(topic: string) {
       });
     })
   );
-  
+
   // 3. Generate featured image
   const image = await mcpServer.callTool('ai-generate-image', {
     prompt: `Professional blog post image about ${topic}`,
     size: '1024x1024',
     quality: 'hd'
   });
-  
+
   // 4. Upload image to blob storage
   const uploadedImage = await mcpServer.callTool('blob-upload', {
     bucket: 'blog-images',
     key: `${topic}-featured.jpg`,
     content: image.data.url // Assuming URL-based upload
   });
-  
+
   return {
     outline: outline.data,
     sections: sections.map(s => s.data),
@@ -222,7 +222,7 @@ async function runDataPipeline(dataFile: string) {
     content: fs.readFileSync(dataFile, 'base64'),
     contentType: 'application/json'
   });
-  
+
   // 2. Trigger data processing function
   const processResult = await mcpServer.callTool('functions-invoke', {
     name: 'process-customer-data',
@@ -232,7 +232,7 @@ async function runDataPipeline(dataFile: string) {
     },
     invokeAsync: false
   });
-  
+
   // 3. Create pipeline for future automation
   const pipeline = await mcpServer.callTool('pipelines-create', {
     name: 'customer-data-processing',
@@ -255,7 +255,7 @@ async function runDataPipeline(dataFile: string) {
       }
     ]
   });
-  
+
   return {
     uploadId: uploadResult.data.key,
     processResult: processResult.data,
@@ -274,14 +274,14 @@ async function buildKnowledgeGraph(document: string) {
     text: document,
     model: 'frontal-embed-3-large'
   });
-  
+
   // 2. Extract entities and relationships
   const entities = await mcpServer.callTool('ai-generate-text', {
     model: 'frontal-gpt-4',
     prompt: `Extract entities and relationships from this document: ${document}`,
     maxTokens: 1000
   });
-  
+
   // 3. Create nodes in graph database
   const nodes = await Promise.all(
     entities.data.entities.map(async (entity) => {
@@ -295,7 +295,7 @@ async function buildKnowledgeGraph(document: string) {
       });
     })
   );
-  
+
   // 4. Store document in blob storage
   const documentStorage = await mcpServer.callTool('blob-upload', {
     bucket: 'knowledge-base',
@@ -303,7 +303,7 @@ async function buildKnowledgeGraph(document: string) {
     content: Buffer.from(document).toString('base64'),
     contentType: 'text/plain'
   });
-  
+
   return {
     nodes: nodes.map(n => n.data),
     documentUrl: documentStorage.data.url,
@@ -318,7 +318,7 @@ async function buildKnowledgeGraph(document: string) {
 // Example: Customer support automation
 class CustomerSupportBot {
   constructor(private mcpServer: FrontalMcpServer) {}
-  
+
   async handleCustomerQuery(query: string, customerId: string) {
     // 1. Generate response using AI
     const response = await this.mcpServer.callTool('ai-generate-text', {
@@ -327,7 +327,7 @@ class CustomerSupportBot {
       maxTokens: 500,
       temperature: 0.7
     });
-    
+
     // 2. Check customer history in graph database
     const customerHistory = await this.mcpServer.callTool('graph-query', {
       query: `
@@ -336,7 +336,7 @@ class CustomerSupportBot {
       `,
       variables: { customerId }
     });
-    
+
     // 3. Log interaction
     await this.mcpServer.callTool('functions-invoke', {
       name: 'log-customer-interaction',
@@ -348,7 +348,7 @@ class CustomerSupportBot {
       },
       invokeAsync: true
     });
-    
+
     // 4. Upload conversation transcript
     await this.mcpServer.callTool('blob-upload', {
       bucket: 'support-transcripts',
@@ -360,14 +360,14 @@ class CustomerSupportBot {
       })).toString('base64'),
       contentType: 'application/json'
     });
-    
+
     return {
       response: response.data.text,
       hasHistory: customerHistory.data.nodes.length > 0,
       ticketId: this.generateTicketId()
     };
   }
-  
+
   private generateTicketId(): string {
     return `TKT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
@@ -383,25 +383,25 @@ class CustomerSupportBot {
 async function batchProcessDocuments(documents: string[]) {
   const batchSize = 5;
   const results = [];
-  
+
   for (let i = 0; i < documents.length; i += batchSize) {
     const batch = documents.slice(i, i + batchSize);
-    
+
     const batchResults = await Promise.all(
-      batch.map(doc => 
+      batch.map(doc =>
         this.mcpServer.callTool('ai-embed', {
           text: doc,
           model: 'frontal-embed-3-large'
         })
       )
     );
-    
+
     results.push(...batchResults);
-    
+
     // Rate limiting - small delay between batches
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  
+
   return results;
 }
 ```
@@ -417,11 +417,11 @@ async function robustAPICall(toolName: string, args: any, maxRetries = 3) {
       if (attempt === maxRetries) {
         throw error;
       }
-      
+
       // Exponential backoff
       const delay = Math.pow(2, attempt) * 1000;
       await new Promise(resolve => setTimeout(resolve, delay));
-      
+
       console.log(`Retry ${attempt}/${maxRetries} for ${toolName}`);
     }
   }
@@ -434,7 +434,7 @@ async function robustAPICall(toolName: string, args: any, maxRetries = 3) {
 // Handle long-running operations
 async function* streamTextGeneration(prompt: string) {
   const chunks = [];
-  
+
   // Generate in smaller chunks for streaming effect
   for (let i = 0; i < 5; i++) {
     const chunk = await this.mcpServer.callTool('ai-generate-text', {
@@ -442,11 +442,11 @@ async function* streamTextGeneration(prompt: string) {
       prompt: `${prompt} (part ${i + 1}/5)`,
       maxTokens: 200
     });
-    
+
     yield chunk.data.text;
     chunks.push(chunk.data.text);
   }
-  
+
   return chunks.join('');
 }
 ```
@@ -509,7 +509,7 @@ async function checkServiceHealth() {
       status: 'active'
     })
   ]);
-  
+
   return {
     ai: healthChecks[0].status === 'fulfilled',
     blob: healthChecks[1].status === 'fulfilled',
@@ -575,7 +575,7 @@ const config = {
 async function rotateApiKey() {
   const newKey = await fetchNewApiKey();
   process.env.FRONTAL_API_KEY = newKey;
-  
+
   // Reinitialize server with new key
   await this.mcpServer.reinitialize({ apiKey: newKey });
 }
@@ -603,20 +603,20 @@ function validatePrompt(prompt: string): boolean {
 ```typescript
 class CachedMCPClient {
   private cache = new Map();
-  
+
   async callTool(toolName: string, args: any) {
     const cacheKey = `${toolName}:${JSON.stringify(args)}`;
-    
+
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey);
     }
-    
+
     const result = await this.mcpServer.callTool(toolName, args);
-    
+
     // Cache for 5 minutes
     this.cache.set(cacheKey, result);
     setTimeout(() => this.cache.delete(cacheKey), 5 * 60 * 1000);
-    
+
     return result;
   }
 }
@@ -651,14 +651,14 @@ class UsageTracker {
     callsByTool: new Map(),
     errors: 0
   };
-  
+
   async trackCall(toolName: string, args: any) {
     this.metrics.totalCalls++;
     this.metrics.callsByTool.set(
       toolName,
       (this.metrics.callsByTool.get(toolName) || 0) + 1
     );
-    
+
     try {
       const result = await this.mcpServer.callTool(toolName, args);
       return result;
@@ -667,7 +667,7 @@ class UsageTracker {
       throw error;
     }
   }
-  
+
   getReport() {
     return {
       totalCalls: this.metrics.totalCalls,

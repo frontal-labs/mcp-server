@@ -1,12 +1,16 @@
 {
-  "default": true,
   "MD013": {
-    "line_length": 120,
     "code_blocks": false,
+    "line_length": 120,
     "tables": false
   },
   "MD033": {
-    "allowed_elements": ["br", "sub", "sup"]
+    "allowed_elements": [
+      "br",
+      "sub",
+      "sup"
+    ]
   },
-  "MD034": true
+  "MD034": true,
+  "default": true
 }

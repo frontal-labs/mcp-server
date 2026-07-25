@@ -34,9 +34,9 @@ jobs:
           title: "chore: update dependencies"
           body: |
             Automated dependency update
-            
+
             This PR updates all dependencies to their latest versions.
-            
+
             - Dependencies were updated using `bun update`
             - All tests are passing
             - No breaking changes detected

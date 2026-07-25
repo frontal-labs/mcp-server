@@ -28,7 +28,7 @@ Each Frontal service (AI, Blob, Functions, etc.) has its own adapter:
 // src/adapters/ai-adapter.ts
 export class AIAdapter {
   constructor(private config: AIConfig) {}
-  
+
   async generateText(params: TextGenerationParams): Promise<TextResult> {
     // Implementation
   }
@@ -42,7 +42,7 @@ The main MCP server coordinates all adapters:
 // src/server/mcp-server.ts
 export class FrontalMcpServer {
   private adapters: Map<string, ServiceAdapter>;
-  
+
   async initialize(): Promise<void> {
     // Initialize adapters based on config
   }
@@ -150,7 +150,7 @@ bun run format
 ### Code Conventions
 
 1. **TypeScript**: Strict mode enabled
-2. **Naming**: 
+2. **Naming**:
    - Classes: PascalCase
    - Functions/Variables: camelCase
    - Constants: UPPER_SNAKE_CASE
@@ -166,25 +166,25 @@ bun run format
  */
 export class AIAdapter implements ServiceAdapter {
   private readonly logger: Logger;
-  
+
   constructor(config: AIConfig, logger: Logger) {
     this.logger = logger.child({ service: 'ai' });
   }
-  
+
   /**
    * Generate text using AI models
    */
   async generateText(params: TextGenerationParams): Promise<TextResult> {
     try {
       this.logger.debug('Generating text', { params });
-      
+
       const result = await this.apiClient.generateText(params);
-      
+
       this.logger.info('Text generated successfully', {
         model: result.model,
         tokens: result.usage.totalTokens
       });
-      
+
       return result;
     } catch (error) {
       this.logger.error('Failed to generate text', { error, params });
@@ -235,30 +235,30 @@ import { MockAPIClient } from '../mocks/api-client';
 describe('AIAdapter', () => {
   let adapter: AIAdapter;
   let mockClient: MockAPIClient;
-  
+
   beforeEach(() => {
     mockClient = new MockAPIClient();
     adapter = new AIAdapter(mockConfig, mockLogger);
   });
-  
+
   it('should generate text successfully', async () => {
     const params = {
       model: 'frontal-gpt-4',
       prompt: 'Test prompt',
       maxTokens: 100
     };
-    
+
     mockClient.generateText.mockResolvedValue(mockTextResult);
-    
+
     const result = await adapter.generateText(params);
-    
+
     expect(result).toEqual(mockTextResult);
     expect(mockClient.generateText).toHaveBeenCalledWith(params);
   });
-  
+
   it('should handle API errors', async () => {
     mockClient.generateText.mockRejectedValue(new APIError('Service unavailable'));
-    
+
     await expect(adapter.generateText(params)).rejects.toThrow(AIServiceError);
   });
 });
@@ -273,22 +273,22 @@ import { FrontalMcpServer } from '../../src/server/mcp-server';
 
 describe('FrontalMcpServer Integration', () => {
   let server: FrontalMcpServer;
-  
+
   beforeAll(async () => {
     server = new FrontalMcpServer(testConfig);
     await server.initialize();
   });
-  
+
   afterAll(async () => {
     await server.close();
   });
-  
+
   it('should handle AI tool calls', async () => {
     const result = await server.callTool('ai-generate-text', {
       model: 'frontal-gpt-4',
       prompt: 'Test'
     });
-    
+
     expect(result.success).toBe(true);
     expect(result.data).toHaveProperty('text');
   });
@@ -323,7 +323,7 @@ export const createMockLogger = (): Logger => ({
 // src/adapters/new-service-adapter.ts
 export class NewServiceAdapter implements ServiceAdapter {
   constructor(private config: NewServiceConfig) {}
-  
+
   async performAction(params: ActionParams): Promise<ActionResult> {
     // Implementation
   }
@@ -349,7 +349,7 @@ export const ServerConfigSchema = z.object({
 // src/server/mcp-server.ts
 private async initializeAdapters(): Promise<void> {
   // ... existing adapters
-  
+
   if (this.config.services.newService) {
     this.adapters.set('newService', new NewServiceAdapter(
       this.config.newService,
@@ -381,7 +381,7 @@ export const metrics = {
     name: 'mcp_request_duration_seconds',
     help: 'Duration of MCP requests'
   }),
-  
+
   requestCount: new Counter({
     name: 'mcp_requests_total',
     help: 'Total number of MCP requests',
@@ -398,7 +398,7 @@ Implement caching for frequently accessed data:
 // src/utils/cache.ts
 export class CacheManager {
   private cache = new Map<string, CacheEntry>();
-  
+
   async get<T>(key: string): Promise<T | null> {
     const entry = this.cache.get(key);
     if (!entry || entry.expiresAt < Date.now()) {
@@ -407,7 +407,7 @@ export class CacheManager {
     }
     return entry.value as T;
   }
-  
+
   async set<T>(key: string, value: T, ttl: number): Promise<void> {
     this.cache.set(key, {
       value,
@@ -425,7 +425,7 @@ For HTTP transport, implement connection pooling:
 // src/utils/http-client.ts
 export class HTTPClient {
   private pool: ConnectionPool;
-  
+
   constructor(config: HTTPConfig) {
     this.pool = new ConnectionPool({
       maxConnections: config.maxConnections,
@@ -472,10 +472,10 @@ export function sanitizeError(error: unknown): McpError {
   if (error instanceof McpError) {
     return error;
   }
-  
+
   // Log full error for debugging
   logger.error('Unhandled error', { error });
-  
+
   // Return sanitized error to client
   return new McpError('Internal server error', 'INTERNAL_ERROR');
 }
@@ -489,7 +489,7 @@ Implement rate limiting per client:
 // src/utils/rate-limiter.ts
 export class RateLimiter {
   private limits = new Map<string, TokenBucket>();
-  
+
   isAllowed(clientId: string, limit: number, window: number): boolean {
     const bucket = this.getBucket(clientId);
     return bucket.consume(limit, window);

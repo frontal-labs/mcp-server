@@ -127,7 +127,7 @@ Provides access to Frontal's AI services including text generation, image genera
 ```typescript
 export class AIAdapter implements ServiceAdapter {
   name = "ai";
-  
+
   registerTools(server: McpServer): void {
     server.registerTool(
       "ai-generate-text",
@@ -138,7 +138,7 @@ export class AIAdapter implements ServiceAdapter {
       },
       this.handleGenerateText.bind(this)
     );
-    
+
     server.registerTool(
       "ai-generate-image",
       {
@@ -148,7 +148,7 @@ export class AIAdapter implements ServiceAdapter {
       },
       this.handleGenerateImage.bind(this)
     );
-    
+
     server.registerTool(
       "ai-embed",
       {
@@ -169,7 +169,7 @@ Handles file storage operations including upload, download, and metadata managem
 ```typescript
 export class BlobAdapter implements ServiceAdapter {
   name = "blob";
-  
+
   registerTools(server: McpServer): void {
     server.registerTool(
       "blob-upload",
@@ -180,7 +180,7 @@ export class BlobAdapter implements ServiceAdapter {
       },
       this.handleUpload.bind(this)
     );
-    
+
     server.registerTool(
       "blob-list",
       {
@@ -191,7 +191,7 @@ export class BlobAdapter implements ServiceAdapter {
       this.handleList.bind(this)
     );
   }
-  
+
   registerResources(server: McpServer): void {
     server.registerResource(
       "blob",
@@ -210,7 +210,7 @@ Manages serverless function execution and deployment.
 ```typescript
 export class FunctionsAdapter implements ServiceAdapter {
   name = "functions";
-  
+
   registerTools(server: McpServer): void {
     server.registerTool(
       "functions-invoke",
@@ -221,7 +221,7 @@ export class FunctionsAdapter implements ServiceAdapter {
       },
       this.handleInvoke.bind(this)
     );
-    
+
     server.registerTool(
       "functions-list",
       {
@@ -242,7 +242,7 @@ Provides access to Frontal's graph database for complex data relationships.
 ```typescript
 export class GraphAdapter implements ServiceAdapter {
   name = "graph";
-  
+
   registerTools(server: McpServer): void {
     server.registerTool(
       "graph-query",
@@ -253,7 +253,7 @@ export class GraphAdapter implements ServiceAdapter {
       },
       this.handleQuery.bind(this)
     );
-    
+
     server.registerTool(
       "graph-create-node",
       {
@@ -274,7 +274,7 @@ Orchestrates complex workflows and pipeline execution.
 ```typescript
 export class PipelinesAdapter implements ServiceAdapter {
   name = "pipelines";
-  
+
   registerTools(server: McpServer): void {
     server.registerTool(
       "pipelines-create",
@@ -285,7 +285,7 @@ export class PipelinesAdapter implements ServiceAdapter {
       },
       this.handleCreate.bind(this)
     );
-    
+
     server.registerTool(
       "pipelines-run",
       {
@@ -362,15 +362,15 @@ MCP_VERBOSE=false
 export function createConfig(options: ConfigOptions): ServerConfig {
   // Load from environment variables
   const envConfig = loadFromEnv();
-  
+
   // Load from config file if specified
-  const fileConfig = options.configPath 
+  const fileConfig = options.configPath
     ? loadFromFile(options.configPath)
     : {};
-  
+
   // Apply CLI overrides
   const cliConfig = applyCliOverrides(options);
-  
+
   // Merge and validate
   const mergedConfig = mergeConfigs(envConfig, fileConfig, cliConfig);
   return serverConfigSchema.parse(mergedConfig);
@@ -427,12 +427,12 @@ export interface ErrorResponse {
 export function handleError(error: unknown, requestId?: string): ErrorResponse {
   // Log full error for debugging
   logger.error('MCP Server error', { error, requestId });
-  
+
   // Convert to MCP error
-  const mcpError = error instanceof McpServerError 
-    ? error 
+  const mcpError = error instanceof McpServerError
+    ? error
     : new McpServerError('Internal server error', 'INTERNAL_ERROR');
-  
+
   return {
     error: {
       code: mcpError.code,
@@ -482,13 +482,13 @@ export const metrics = {
     help: 'Total number of MCP requests',
     labelNames: ['service', 'tool', 'status']
   }),
-  
+
   requestDuration: new Histogram({
     name: 'mcp_request_duration_seconds',
     help: 'Duration of MCP requests',
     labelNames: ['service', 'tool']
   }),
-  
+
   // Error metrics
   errorCount: new Counter({
     name: 'mcp_errors_total',
@@ -514,11 +514,11 @@ export function validateApiKey(apiKey: string): boolean {
 // Request authentication
 export function authenticateRequest(request: MCPRequest): void {
   const apiKey = request.headers?.['authorization']?.replace('Bearer ', '');
-  
+
   if (!apiKey) {
     throw new AuthenticationError('Missing API key');
   }
-  
+
   validateApiKey(apiKey);
 }
 ```
@@ -542,12 +542,12 @@ export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown): T {
 // Token bucket rate limiter
 export class RateLimiter {
   private buckets = new Map<string, TokenBucket>();
-  
+
   isAllowed(clientId: string, limit: number, window: number): boolean {
     const bucket = this.getBucket(clientId);
     return bucket.consume(1, window);
   }
-  
+
   private getBucket(clientId: string): TokenBucket {
     if (!this.buckets.has(clientId)) {
       this.buckets.set(clientId, new TokenBucket());
@@ -566,19 +566,19 @@ export class RateLimiter {
 export class ConnectionPool {
   private connections: Array<Connection> = [];
   private maxConnections: number;
-  
+
   async acquire(): Promise<Connection> {
     if (this.connections.length > 0) {
       return this.connections.pop()!;
     }
-    
+
     if (this.activeConnections < this.maxConnections) {
       return this.createConnection();
     }
-    
+
     throw new Error('Connection pool exhausted');
   }
-  
+
   release(connection: Connection): void {
     if (connection.isHealthy()) {
       this.connections.push(connection);
@@ -596,14 +596,14 @@ export class ConnectionPool {
 export class CacheManager {
   private memoryCache = new Map<string, CacheEntry>();
   private redisCache?: Redis;
-  
+
   async get<T>(key: string): Promise<T | null> {
     // Check memory cache first
     const memoryEntry = this.memoryCache.get(key);
     if (memoryEntry && !memoryEntry.isExpired()) {
       return memoryEntry.value;
     }
-    
+
     // Check Redis cache
     if (this.redisCache) {
       const redisValue = await this.redisCache.get(key);
@@ -613,7 +613,7 @@ export class CacheManager {
         return parsed;
       }
     }
-    
+
     return null;
   }
 }
@@ -628,16 +628,16 @@ export class CacheManager {
 describe('AIAdapter', () => {
   let adapter: AIAdapter;
   let mockApiClient: MockAPIClient;
-  
+
   beforeEach(() => {
     mockApiClient = new MockAPIClient();
     adapter = new AIAdapter(mockConfig, mockLogger);
   });
-  
+
   it('should register tools correctly', () => {
     const mockServer = createMockMcpServer();
     adapter.registerTools(mockServer);
-    
+
     expect(mockServer.registerTool).toHaveBeenCalledWith(
       'ai-generate-text',
       expect.any(Object),
@@ -653,18 +653,18 @@ describe('AIAdapter', () => {
 // tests/integration/mcp-server.test.ts
 describe('FrontalMcpServer Integration', () => {
   let server: FrontalMcpServer;
-  
+
   beforeAll(async () => {
     server = new FrontalMcpServer(testConfig, testLogger);
     await server.initialize();
   });
-  
+
   it('should handle tool calls end-to-end', async () => {
     const result = await server.callTool('ai-generate-text', {
       model: 'frontal-gpt-4',
       prompt: 'Test prompt'
     });
-    
+
     expect(result.success).toBe(true);
     expect(result.data).toHaveProperty('text');
   });
