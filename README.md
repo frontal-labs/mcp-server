@@ -1,6 +1,6 @@
 # Frontal MCP Server
 
-![Frontal Banner](./banner.jpg)
+![Frontal Banner](./banner.png)
 
 A standalone Model Context Protocol (MCP) server for the Frontal public API
 (`api.frontal.dev`). It exposes the API as a **hybrid** of curated, typed tools
