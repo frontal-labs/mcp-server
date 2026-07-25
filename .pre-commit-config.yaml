@@ -1,8 +1,9 @@
+# Install with: pre-commit install (wired via the package.json `prepare` script).
+default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
-      - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-json
@@ -15,15 +16,38 @@ repos:
         args: ['--fix=lf']
       - id: check-toml
       - id: check-xml
+      # Do not sort keys (would reorder package.json/tsconfig); skip the
+      # vendored spec and lockfile, which are generated artifacts.
       - id: pretty-format-json
-        args: ['--autofix']
+        args: ['--autofix', '--no-sort-keys']
+        exclude: '^(openapi/public\.v1\.json|bun\.lock)$'
       - id: trailing-whitespace
         args: ['--markdown-linebreak-ext=md']
+  # Local hooks mirror the checks husky enforced (biome, type-check, test,
+  # commitlint) so parity is preserved after the migration.
   - repo: local
     hooks:
+      - id: biome
+        name: biome check (lint + format)
+        entry: bunx biome check src/ tests/
+        language: system
+        files: \.(ts|tsx|js|jsx)$
+        pass_filenames: false
+      - id: type-check
+        name: type-check
+        entry: bun run type-check
+        language: system
+        files: \.ts$
+        pass_filenames: false
       - id: test
         name: test
         entry: bun run test
         language: system
         files: \.(ts|tsx)$
+        pass_filenames: false
+      - id: commitlint
+        name: commitlint
+        entry: bunx --no -- commitlint --edit
+        language: system
+        stages: [commit-msg]
         pass_filenames: false

@@ -92,8 +92,6 @@
     "@commitlint/config-conventional": "^21.2.0",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^4.1.10",
-    "pre-commit": "^2.0.0",
-    "pre-commit-hooks": "^0.9.22",
     "tsup": "^8.0.0",
     "typescript": "^6.0.3",
     "ultracite": "7.9.4",
