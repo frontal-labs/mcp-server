@@ -46,7 +46,7 @@
     "release": "bun run build && changeset publish",
     "check": "ultracite check",
     "fix": "ultracite fix",
-    "prepare": "pre-commit install"
+    "prepare": "git config --unset-all core.hooksPath 2>/dev/null; command -v pre-commit >/dev/null 2>&1 && pre-commit install >/dev/null 2>&1 || true"
   },
   "keywords": [
     "mcp",
