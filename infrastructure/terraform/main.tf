@@ -18,7 +18,7 @@ terraform {
       version = "~> 3.5"
     }
   }
-  
+
   backend "s3" {
     bucket = "frontal-mcp-server-terraform-state"
     key    = "infrastructure/terraform.tfstate"
@@ -30,7 +30,7 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
-  
+
   default_tags {
     tags = {
       Project     = "frontal-mcp-server"

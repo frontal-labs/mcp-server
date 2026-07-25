@@ -41,12 +41,12 @@
     "sync-spec:check": "bun run scripts/sync-spec.ts --check",
     "dev": "bun run src/bin/frontal-mcp-server.ts",
     "prepublishOnly": "bun run build",
-    "prepare": "husky",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "bun run build && changeset publish",
     "check": "ultracite check",
-    "fix": "ultracite fix"
+    "fix": "ultracite fix",
+    "prepare": "pre-commit install"
   },
   "keywords": [
     "mcp",
@@ -61,7 +61,7 @@
   ],
   "homepage": "https://github.com/frontal-labs/mcp-server",
   "bugs": "https://github.com/frontal-labs/mcp-server/issues",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "author": "Frontal Labs",
   "repository": {
     "type": "git",
@@ -92,7 +92,8 @@
     "@commitlint/config-conventional": "^21.2.0",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^4.1.10",
-    "husky": "^9.1.7",
+    "pre-commit": "^2.0.0",
+    "pre-commit-hooks": "^0.9.22",
     "tsup": "^8.0.0",
     "typescript": "^6.0.3",
     "ultracite": "7.9.4",

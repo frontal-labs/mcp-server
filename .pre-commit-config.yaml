@@ -1,0 +1,29 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+      - id: debug-statements
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+      - id: check-toml
+      - id: check-xml
+      - id: pretty-format-json
+        args: ['--autofix']
+      - id: trailing-whitespace
+        args: ['--markdown-linebreak-ext=md']
+  - repo: local
+    hooks:
+      - id: test
+        name: test
+        entry: bun test
+        language: system
+        files: \.(ts|tsx)$
+        pass_filenames: false

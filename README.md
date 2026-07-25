@@ -1,10 +1,6 @@
-<picture>
- <source srcset="./banner-dark.png" media="(prefers-color-scheme: dark)">
- <source srcset="./banner.png" media="(prefers-color-scheme: light)">
- <img src="./banner-dark.png" alt="Frontal Banner">
-</picture>
-
 # Frontal MCP Server
+
+![Frontal Banner](./banner.jpg)
 
 A standalone Model Context Protocol (MCP) server for the Frontal public API
 (`api.frontal.dev`). It exposes the API as a **hybrid** of curated, typed tools
@@ -26,7 +22,7 @@ npm install @frontal-labs/mcp-server
 
 ### Basic Setup
 
-1. **Get your API key** from [Frontal Dashboard](https://dashboard.frontal.dev)
+1. **Get your API key** from [Frontal Platform](https://platform.frontal.dev)
 
 2. **Set up environment**:
 
@@ -306,4 +302,4 @@ top -p $(pgrep frontal-mcp-server)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE.md) file for details.
+Apache License 2.0 - see [LICENSE](LICENSE.md) file for details.
