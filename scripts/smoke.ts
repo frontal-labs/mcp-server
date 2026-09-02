@@ -24,7 +24,9 @@ const results: { name: string; ok: boolean; detail: string }[] = [];
 
 function check(name: string, ok: boolean, detail = "") {
   results.push({ name, ok, detail });
-  process.stdout.write(`${ok ? "✓" : "✗"} ${name}${detail ? ` — ${detail}` : ""}\n`);
+  process.stdout.write(
+    `${ok ? "✓" : "✗"} ${name}${detail ? ` — ${detail}` : ""}\n`
+  );
 }
 
 /** Minimal stand-in for the api.frontal.dev edge. */
@@ -45,7 +47,14 @@ function startMockEdge(): Promise<{ server: Server; baseUrl: string }> {
     }
     if (!auth?.startsWith("Bearer frt_")) {
       res.writeHead(401);
-      res.end(JSON.stringify({ error: { code: "unauthorized", message: "Missing or invalid API key" } }));
+      res.end(
+        JSON.stringify({
+          error: {
+            code: "unauthorized",
+            message: "Missing or invalid API key",
+          },
+        })
+      );
       return;
     }
     // Cursor-paginated list: page 1 -> next_cursor, page 2 -> done.
@@ -62,11 +71,19 @@ function startMockEdge(): Promise<{ server: Server; baseUrl: string }> {
     // Backend google.rpc.Status error shape.
     if (url.pathname === "/v1/data/query/query/federated") {
       res.writeHead(400);
-      res.end(JSON.stringify({ code: "INVALID_ARGUMENT", message: "bad query", details: [{ field: "sql" }] }));
+      res.end(
+        JSON.stringify({
+          code: "INVALID_ARGUMENT",
+          message: "bad query",
+          details: [{ field: "sql" }],
+        })
+      );
       return;
     }
     res.writeHead(404);
-    res.end(JSON.stringify({ error: { code: "not_found", message: "no route" } }));
+    res.end(
+      JSON.stringify({ error: { code: "not_found", message: "no route" } })
+    );
   });
   (server as Server & { seenAuth: string[] }).seenAuth = seenAuth;
   return new Promise((resolve) => {
@@ -85,7 +102,15 @@ async function callTool(
 ) {
   const tool = (
     server.mcpServerInstance as unknown as {
-      _registeredTools: Record<string, { handler: (a: unknown, e: unknown) => Promise<{ content: { text: string }[]; isError?: boolean }> }>;
+      _registeredTools: Record<
+        string,
+        {
+          handler: (
+            a: unknown,
+            e: unknown
+          ) => Promise<{ content: { text: string }[]; isError?: boolean }>;
+        }
+      >;
     }
   )._registeredTools[name];
   return await tool.handler(args, {});
@@ -114,9 +139,16 @@ async function main() {
 
   try {
     // 1. Discovery works offline from the vendored spec.
-    const list = await callTool(server, "frontal_list_endpoints", { tag: "data", limit: 1 });
+    const list = await callTool(server, "frontal_list_endpoints", {
+      tag: "data",
+      limit: 1,
+    });
     const listData = JSON.parse(list.content[0].text) as { total: number };
-    check("frontal_list_endpoints returns data ops", listData.total > 0, `${listData.total} ops`);
+    check(
+      "frontal_list_endpoints returns data ops",
+      listData.total > 0,
+      `${listData.total} ops`
+    );
 
     // 2. Real HTTP round-trip through the tool -> client -> socket, with pagination.
     const paged = await callTool(server, "frontal_call_endpoint", {
@@ -124,10 +156,19 @@ async function main() {
       autoPaginate: true,
     });
     if (live) {
-      check("data list round-trip (live)", !paged.isError, paged.content[0].text.slice(0, 80));
+      check(
+        "data list round-trip (live)",
+        !paged.isError,
+        paged.content[0].text.slice(0, 80)
+      );
     } else {
-      const pages = (JSON.parse(paged.content[0].text) as { pages: unknown[] }).pages;
-      check("cursor pagination followed across pages", pages.length === 2, `${pages.length} pages`);
+      const pages = (JSON.parse(paged.content[0].text) as { pages: unknown[] })
+        .pages;
+      check(
+        "cursor pagination followed across pages",
+        pages.length === 2,
+        `${pages.length} pages`
+      );
     }
 
     // 3. Error envelope normalization (mock returns google.rpc.Status).
@@ -136,15 +177,26 @@ async function main() {
       body: { sql: "x" },
     });
     if (live) {
-      check("federated query reachable (live)", typeof err.isError === "boolean", err.content[0].text.slice(0, 80));
+      check(
+        "federated query reachable (live)",
+        typeof err.isError === "boolean",
+        err.content[0].text.slice(0, 80)
+      );
     } else {
       check(
         "backend error normalized to a clear message",
         err.isError === true && err.content[0].text.includes("bad query"),
         err.content[0].text.split("\n")[0]
       );
-      const auths = (mock?.server as Server & { seenAuth: string[] }).seenAuth;
-      check("bearer token sent on every upstream call", auths.every((a) => a.startsWith("Bearer frt_")), `${auths.length} calls`);
+      if (!mock) {
+        throw new Error("mock edge server is required in MOCK mode");
+      }
+      const auths = (mock.server as Server & { seenAuth: string[] }).seenAuth;
+      check(
+        "bearer token sent on every upstream call",
+        auths.every((a) => a.startsWith("Bearer frt_")),
+        `${auths.length} calls`
+      );
     }
   } finally {
     await server.close();
@@ -152,7 +204,9 @@ async function main() {
   }
 
   const failed = results.filter((r) => !r.ok);
-  process.stdout.write(`\n${results.length - failed.length}/${results.length} checks passed\n`);
+  process.stdout.write(
+    `\n${results.length - failed.length}/${results.length} checks passed\n`
+  );
   if (failed.length > 0) {
     process.exit(1);
   }
