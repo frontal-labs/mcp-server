@@ -20,13 +20,14 @@ import ora from "ora";
 import { loadConfig } from "@/lib/server-config.js";
 import { FrontalMcpServer } from "@/server/mcp-server.js";
 import { createLogger } from "@/utils/logger.js";
+import { VERSION } from "@/version.js";
 
 const program = new Command();
 
 program
   .name("frontal-mcp-server")
   .description("Model Context Protocol server for Frontal services")
-  .version("1.0.0")
+  .version(VERSION)
   .option("-t, --transport <type>", "Transport type (stdio|http)", "stdio")
   .option("-p, --port <number>", "HTTP port (for http transport)", "3000")
   .option("--host <address>", "HTTP host (for http transport)", "localhost")

@@ -15,9 +15,7 @@
     "noEmit": true,
     "outDir": "dist",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"]
     },
     "removeComments": false,
     "resolveJsonModule": true,
@@ -26,17 +24,8 @@
     "sourceMap": true,
     "strict": true,
     "target": "ES2022",
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
-  "exclude": [
-    "node_modules",
-    "dist",
-    "tests"
-  ],
-  "include": [
-    "src/**/*",
-    "openapi/public.v1.json"
-  ]
+  "exclude": ["node_modules", "dist", "tests"],
+  "include": ["src/**/*", "openapi/public.v1.json", "package.json"]
 }
