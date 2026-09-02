@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 /*
  * Copyright 2026 Frontal Labs, Inc.
  *
@@ -13,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#!/usr/bin/env bun
 /**
  * Sync the vendored Frontal public OpenAPI spec.
  *
