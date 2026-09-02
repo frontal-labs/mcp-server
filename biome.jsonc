@@ -1,7 +1,15 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!dist", "!openapi", "!bun.lock"]
+    "includes": [
+      "**",
+      "!dist",
+      "!coverage",
+      "!openapi",
+      "!bun.lock",
+      // Per-machine local state, not shared config.
+      "!**/.claude/settings.local.json"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -14,7 +22,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "complexity": {
         "noExcessiveCognitiveComplexity": "warn"
       },
