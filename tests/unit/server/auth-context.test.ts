@@ -43,4 +43,30 @@ describe("auth-context", () => {
       expect(getRequestToken()).toBe("frt_outer");
     });
   });
+
+  it("keeps tokens isolated across interleaved concurrent scopes", async () => {
+    // The HTTP transport is multi-tenant: many callers' requests are in flight
+    // at once, each carrying its own key. A token that leaked between them
+    // would send one tenant's request with another tenant's credentials.
+    const tenants = Array.from({ length: 25 }, (_, i) => `frt_tenant_${i}`);
+
+    const observed = await Promise.all(
+      tenants.map((token, i) =>
+        runWithToken(token, async () => {
+          // Yield repeatedly so the scopes genuinely interleave rather than
+          // running to completion one after another.
+          await new Promise((resolve) => setTimeout(resolve, (i % 5) + 1));
+          const midpoint = getRequestToken();
+          await new Promise((resolve) => setTimeout(resolve, 5 - (i % 5)));
+          return { midpoint, end: getRequestToken() };
+        })
+      )
+    );
+
+    for (const [i, seen] of observed.entries()) {
+      expect(seen.midpoint).toBe(tenants[i]);
+      expect(seen.end).toBe(tenants[i]);
+    }
+    expect(getRequestToken()).toBeUndefined();
+  });
 });
