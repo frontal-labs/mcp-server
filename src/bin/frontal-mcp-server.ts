@@ -64,7 +64,10 @@ async function main() {
         "@/server/enhanced-http-transport.js"
       );
       const httpTransport = new EnhancedHttpTransport(
-        server.mcpServerInstance,
+        // Each MCP session gets its own server instance: an McpServer binds to
+        // a single transport, so sharing one across sessions would let only
+        // the first client connect.
+        () => server.createServer(),
         logger,
         { allowedOrigins: config.transport.http?.allowedOrigins }
       );

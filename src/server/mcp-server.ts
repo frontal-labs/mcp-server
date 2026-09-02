@@ -24,6 +24,7 @@ import { FrontalClient } from "@/clients/frontal-client.js";
 import type { ServerConfig } from "@/lib/server-config.js";
 import { HealthMonitor } from "@/services/health-monitor.js";
 import { loadSpecIndex } from "@/spec/spec-index.js";
+import { VERSION } from "@/version.js";
 import { getRequestToken } from "./auth-context.js";
 
 const ALL_ADAPTERS: ServiceAdapter[] = [
@@ -36,15 +37,19 @@ export class FrontalMcpServer {
   private server: McpServer;
   private config: ServerConfig;
   private logger: Logger;
+  /**
+   * Adapter context shared by every McpServer this instance creates. The spec
+   * index and HTTP client are stateless with respect to the caller — the
+   * per-request bearer token is resolved through `getToken` from async
+   * context — so they are built once and reused across sessions.
+   */
+  private adapterContext: AdapterContext | undefined;
   readonly healthMonitor: HealthMonitor;
 
   constructor(config: ServerConfig, logger: Logger) {
     this.config = config;
     this.logger = logger;
-    this.server = new McpServer({
-      name: "frontal-mcp-server",
-      version: "1.0.0",
-    });
+    this.server = this.buildServer();
     this.healthMonitor = new HealthMonitor(config.incidentio, logger);
   }
 
@@ -63,24 +68,56 @@ export class FrontalMcpServer {
     this.logger.info("Frontal MCP Server initialized successfully");
   }
 
-  private registerAdapters(): void {
-    const spec = loadSpecIndex();
-    const client = new FrontalClient({
-      baseUrl: this.config.baseUrl,
-      apiKey: this.config.apiKey,
-      region: this.config.region,
-      logger: this.logger,
+  private getAdapterContext(): AdapterContext {
+    if (!this.adapterContext) {
+      const client = new FrontalClient({
+        baseUrl: this.config.baseUrl,
+        apiKey: this.config.apiKey,
+        region: this.config.region,
+        logger: this.logger,
+      });
+
+      this.adapterContext = {
+        client,
+        spec: loadSpecIndex(),
+        logger: this.logger,
+        config: this.config,
+        // Per-request token (HTTP) wins; otherwise fall back to the env key.
+        getToken: () => getRequestToken() ?? (this.config.apiKey || undefined),
+      };
+    }
+    return this.adapterContext;
+  }
+
+  /**
+   * Build a fresh McpServer with the enabled tool sets registered.
+   *
+   * An McpServer binds to exactly one transport, so the HTTP transport needs a
+   * separate instance per session. This is quiet by design — `initialize()`
+   * logs the registration summary once rather than on every new session.
+   */
+  createServer(): McpServer {
+    return this.buildServer(this.getAdapterContext());
+  }
+
+  private buildServer(ctx?: AdapterContext): McpServer {
+    const server = new McpServer({
+      name: "frontal-mcp-server",
+      version: VERSION,
     });
+    if (ctx) {
+      const enabled = new Set(this.config.toolsets);
+      for (const adapter of ALL_ADAPTERS) {
+        if (enabled.has(adapter.toolset)) {
+          adapter.register(server, ctx);
+        }
+      }
+    }
+    return server;
+  }
 
-    const ctx: AdapterContext = {
-      client,
-      spec,
-      logger: this.logger,
-      config: this.config,
-      // Per-request token (HTTP) wins; otherwise fall back to the env key.
-      getToken: () => getRequestToken() ?? (this.config.apiKey || undefined),
-    };
-
+  private registerAdapters(): void {
+    const ctx = this.getAdapterContext();
     const enabled = new Set(this.config.toolsets);
     for (const adapter of ALL_ADAPTERS) {
       if (!enabled.has(adapter.toolset)) {
@@ -96,7 +133,7 @@ export class FrontalMcpServer {
       );
     }
     this.logger.info(
-      `Frontal MCP Server ready: ${spec.count} operations available across tool sets [${this.config.toolsets.join(", ")}] (spec ${spec.version})`
+      `Frontal MCP Server ready: ${ctx.spec.count} operations available across tool sets [${this.config.toolsets.join(", ")}] (spec ${ctx.spec.version})`
     );
   }
 

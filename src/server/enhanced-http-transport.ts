@@ -22,6 +22,7 @@ import {
 } from "node:http";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { Logger } from "winston";
 import { runWithToken } from "./auth-context.js";
 
@@ -44,6 +45,11 @@ function extractBearerToken(req: IncomingMessage): string | undefined {
   return token || undefined;
 }
 
+/** Evict sessions after 30 minutes without a request. */
+const DEFAULT_SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+/** Look for idle sessions once a minute. */
+const DEFAULT_SESSION_SWEEP_INTERVAL_MS = 60 * 1000;
+
 export interface EnhancedHttpTransportOptions {
   /**
    * Browser origins allowed by CORS. Empty (the default) trusts no origin:
@@ -51,30 +57,74 @@ export interface EnhancedHttpTransportOptions {
    * sent as `*`.
    */
   allowedOrigins?: string[];
+  /**
+   * How long a session may go without a request before it is closed.
+   * Well-behaved clients send `DELETE` when they disconnect, but a client that
+   * crashes or loses the network never does — without this, those sessions
+   * would accumulate for the life of the process.
+   */
+  sessionIdleTimeoutMs?: number;
+  /** How often to scan for idle sessions. */
+  sessionSweepIntervalMs?: number;
 }
 
 export class EnhancedHttpTransport {
   private server: Server | undefined;
-  private transport: StreamableHTTPServerTransport;
+  /**
+   * Live MCP sessions, keyed by `Mcp-Session-Id`.
+   *
+   * A `StreamableHTTPServerTransport` holds the state of a single session, and
+   * an `McpServer` binds to exactly one transport, so both are created per
+   * session rather than shared across the process.
+   */
+  private readonly sessions = new Map<
+    string,
+    {
+      transport: StreamableHTTPServerTransport;
+      mcpServer: McpServer;
+      lastSeen: number;
+    }
+  >();
   private logger: Logger;
   private readonly allowedOrigins: Set<string>;
+  private readonly sessionIdleTimeoutMs: number;
+  private readonly sessionSweepIntervalMs: number;
+  private sweepTimer: NodeJS.Timeout | undefined;
 
   constructor(
-    private mcpServer: McpServer,
+    private createMcpServer: () => McpServer,
     logger: Logger,
     options: EnhancedHttpTransportOptions = {}
   ) {
     this.logger = logger;
     this.allowedOrigins = new Set(options.allowedOrigins ?? []);
-    this.transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-    });
+    this.sessionIdleTimeoutMs =
+      options.sessionIdleTimeoutMs ?? DEFAULT_SESSION_IDLE_TIMEOUT_MS;
+    this.sessionSweepIntervalMs =
+      options.sessionSweepIntervalMs ?? DEFAULT_SESSION_SWEEP_INTERVAL_MS;
+  }
+
+  /** Close sessions that have gone quiet for longer than the idle timeout. */
+  private sweepIdleSessions(): void {
+    const cutoff = Date.now() - this.sessionIdleTimeoutMs;
+    for (const [id, session] of this.sessions) {
+      if (session.lastSeen <= cutoff) {
+        this.logger.info(`Closing idle MCP session: ${id}`);
+        // `onclose` removes it from the map.
+        void session.transport.close();
+      }
+    }
   }
 
   async start(port = 3000, host = "localhost"): Promise<void> {
-    await this.mcpServer.connect(this.transport);
-
     this.server = createServer((req, res) => this.handle(req, res));
+
+    this.sweepTimer = setInterval(
+      () => this.sweepIdleSessions(),
+      this.sessionSweepIntervalMs
+    );
+    // Never hold the process open just to run the sweeper.
+    this.sweepTimer.unref?.();
 
     return new Promise((resolve, reject) => {
       this.server?.listen(port, host, () => {
@@ -154,6 +204,40 @@ export class EnhancedHttpTransport {
     }
   }
 
+  /** Create, connect and register a transport for a brand-new session. */
+  private async openSession(): Promise<StreamableHTTPServerTransport> {
+    const mcpServer = this.createMcpServer();
+    // Captured on initialize so teardown does not have to read `sessionId`
+    // back off an already-closed transport.
+    let sessionId: string | undefined;
+
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+      onsessioninitialized: (id: string) => {
+        sessionId = id;
+        this.sessions.set(id, { transport, mcpServer, lastSeen: Date.now() });
+        this.logger.debug(
+          `MCP session opened: ${id} (${this.sessions.size} active)`
+        );
+      },
+    });
+
+    // Drop the session when the client disconnects or sends DELETE, so a
+    // long-lived process does not accumulate dead sessions. Connecting the
+    // server chains this handler ahead of the SDK's own teardown, which
+    // closes the McpServer — doing that here too would recurse.
+    transport.onclose = () => {
+      if (sessionId && this.sessions.delete(sessionId)) {
+        this.logger.debug(
+          `MCP session closed: ${sessionId} (${this.sessions.size} active)`
+        );
+      }
+    };
+
+    await mcpServer.connect(transport);
+    return transport;
+  }
+
   private async dispatchMcp(
     req: IncomingMessage,
     res: ServerResponse,
@@ -163,14 +247,53 @@ export class EnhancedHttpTransport {
       req.method === "GET" ? undefined : await this.getRequestBody(req);
     const parsedBody = body ? JSON.parse(body) : undefined;
 
+    const sessionId = req.headers["mcp-session-id"];
+    const existing =
+      typeof sessionId === "string" ? this.sessions.get(sessionId) : undefined;
+
+    let transport: StreamableHTTPServerTransport;
+    if (existing) {
+      existing.lastSeen = Date.now();
+      transport = existing.transport;
+    } else if (!sessionId && isInitializeRequest(parsedBody)) {
+      transport = await this.openSession();
+    } else {
+      // Unknown or expired session: let the client know it must re-initialize
+      // rather than silently handing it a fresh, empty session.
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          error: {
+            code: -32001,
+            message:
+              "Unknown or expired Mcp-Session-Id. Send an initialize request to start a new session.",
+          },
+          id: null,
+        })
+      );
+      return;
+    }
+
     // Bind the caller's bearer token to this request's async context so tool
     // handlers use it (multi-tenant hosting).
     await runWithToken(token, () =>
-      this.transport.handleRequest(req, res, parsedBody)
+      transport.handleRequest(req, res, parsedBody)
     );
   }
 
   async stop(): Promise<void> {
+    if (this.sweepTimer) {
+      clearInterval(this.sweepTimer);
+      this.sweepTimer = undefined;
+    }
+
+    // Tear down live sessions before closing the listener so in-flight SSE
+    // streams are ended cleanly.
+    const open = [...this.sessions.values()];
+    this.sessions.clear();
+    await Promise.allSettled(open.map(({ transport }) => transport.close()));
+
     return new Promise((resolve) => {
       if (this.server) {
         this.server.close(() => {
