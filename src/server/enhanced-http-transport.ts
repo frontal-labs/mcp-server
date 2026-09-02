@@ -167,7 +167,14 @@ export class EnhancedHttpTransport {
       return;
     }
 
-    if (req.method === "GET" && req.url === "/health") {
+    // HEAD is accepted alongside GET: container and load-balancer probes
+    // commonly send HEAD (`wget --spider` does), and falling through to the
+    // MCP path would answer an unauthenticated probe with 401 and mark an
+    // otherwise healthy server as failing. Node omits the body for HEAD.
+    if (
+      (req.method === "GET" || req.method === "HEAD") &&
+      req.url === "/health"
+    ) {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ status: "ok" }));
       return;

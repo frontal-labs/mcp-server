@@ -159,6 +159,23 @@ describe("EnhancedHttpTransport", () => {
     }
   });
 
+  it("should serve HEAD /health without authentication", async () => {
+    // Container and load-balancer probes send HEAD (`wget --spider` does).
+    // If this falls through to the MCP path it answers 401 and the
+    // orchestrator restarts a perfectly healthy server.
+    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/health`, {
+        method: "HEAD",
+      });
+      expect(response.status).toBe(200);
+    } finally {
+      await transport.stop();
+    }
+  });
+
   it("should dispatch a GET request carrying a bearer token", async () => {
     const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
