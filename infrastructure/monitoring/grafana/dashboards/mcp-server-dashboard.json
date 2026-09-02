@@ -222,10 +222,7 @@
       }
     ],
     "refresh": "30s",
-    "tags": [
-      "frontal",
-      "mcp-server"
-    ],
+    "tags": ["frontal", "mcp-server"],
     "time": {
       "from": "now-1h",
       "to": "now"

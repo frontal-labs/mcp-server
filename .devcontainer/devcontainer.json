@@ -1,8 +1,6 @@
 {
   "name": "MCP Server Development Container",
-  "dockerComposeFile": [
-    "../infrastructure/docker/docker-compose.dev.yml"
-  ],
+  "dockerComposeFile": ["../infrastructure/docker/docker-compose.dev.yml"],
   "service": "mcp-server",
   "workspaceFolder": "/workspace",
   "serviceUser": "node",
@@ -18,12 +16,7 @@
     "dbaeumer.vscode-eslint",
     "bradlc.vscode-tailwindcss"
   ],
-  "forwardPorts": [
-    3000,
-    6379,
-    9090,
-    3001
-  ],
+  "forwardPorts": [3000, 6379, 9090, 3001],
   "postCreateCommand": "bun install",
   "remoteEnv": {
     "NODE_ENV": "development",

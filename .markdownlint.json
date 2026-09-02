@@ -5,11 +5,7 @@
     "tables": false
   },
   "MD033": {
-    "allowed_elements": [
-      "br",
-      "sub",
-      "sup"
-    ]
+    "allowed_elements": ["br", "sub", "sup"]
   },
   "MD034": true,
   "default": true
