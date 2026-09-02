@@ -16,11 +16,11 @@ repos:
         args: ['--fix=lf']
       - id: check-toml
       - id: check-xml
-      # Do not sort keys (would reorder package.json/tsconfig); skip the
-      # vendored spec and lockfile, which are generated artifacts.
-      - id: pretty-format-json
-        args: ['--autofix', '--no-sort-keys']
-        exclude: '^(openapi/public\.v1\.json|bun\.lock)$'
+      # NOTE: no pretty-format-json here. Biome (via ultracite) owns JSON
+      # formatting, and the two disagree — pretty-format-json expands arrays
+      # one item per line while Biome collapses them that fit. Running both
+      # made `bun run check` and `git commit` reformat the same files back
+      # and forth forever. `check-json` above still validates syntax.
       - id: trailing-whitespace
         args: ['--markdown-linebreak-ext=md']
   # Local hooks mirror the checks husky enforced (biome, type-check, test,
