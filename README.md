@@ -6,7 +6,7 @@ A standalone Model Context Protocol (MCP) server for the Frontal public API
 (`api.frontal.dev`). It exposes the API as a **hybrid** of curated, typed tools
 for the highest-value surfaces (ontology / knowledge graph and the data
 platform) plus spec-driven generic meta-tools that can reach any of the API's
-~430 operations — all driven by the vendored OpenAPI spec.
+~450 operations — all driven by the vendored OpenAPI spec.
 
 ## Quick Start
 
@@ -64,7 +64,7 @@ Add to your Claude Desktop configuration:
 ## Features
 
 - **Full API coverage**: Generic meta-tools drive any endpoint from the
-  vendored OpenAPI spec (`api.frontal.dev`, ~430 operations).
+  vendored OpenAPI spec (`api.frontal.dev`, ~450 operations).
 - **Curated tools**: First-class, typed tools for the ontology /
   knowledge-graph and data-platform surfaces.
 - **Edge-aware client**: Bearer `frt_` auth, cursor pagination,
