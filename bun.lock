@@ -9,7 +9,7 @@
         "@t3-oss/env-core": "^0.13.11",
         "@upstash/ratelimit": "^2.0.8",
         "@upstash/redis": "^1.38.3",
-        "chalk": "^5.4.0",
+        "chalk": "^6.0.0",
         "commander": "^14.0.3",
         "ora": "^9.4.1",
         "tslib": "^2.8.1",
@@ -409,7 +409,7 @@
 
     "chai": ["chai@6.2.2", "", {}, "sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg=="],
 
-    "chalk": ["chalk@5.6.2", "", {}, ""],
+    "chalk": ["chalk@6.0.0", "", {}, "sha512-2uNTXIuTTxk7ciZgAU1BQcgnchcG0xXnrs6jzkQfj9SsRa9M2s5zE8WT96hS6KmG4MzWHSrvH43DF1m4XRkrFg=="],
 
     "chardet": ["chardet@2.1.1", "", {}, ""],
 
@@ -1040,6 +1040,8 @@
     "micromatch/picomatch": ["picomatch@2.3.2", "", {}, ""],
 
     "npm-run-path/path-key": ["path-key@4.0.0", "", {}, "sha512-haREypq7xkM7ErfgIyA0z+Bj4AGKlMSdlQE2jvJo6huWD1EdkKYV+G/T4nq0YEF2vgTT8kqMFKo1uHn950r4SQ=="],
+
+    "ora/chalk": ["chalk@5.6.2", "", {}, ""],
 
     "read-yaml-file/js-yaml": ["js-yaml@3.14.2", "", { "dependencies": { "argparse": "^1.0.7", "esprima": "^4.0.0" }, "bin": "bin/js-yaml.js" }, ""],
 
