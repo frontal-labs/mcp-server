@@ -6,11 +6,13 @@ This document describes the automated release pipeline for `@frontal-labs/mcp-se
 
 Releases are fully automated via GitHub Actions. When changes are merged to `main`, the pipeline:
 
-1. Publishes the package to npm with provenance
-2. Creates a GitHub Release with changelog
-3. Builds and pushes multi-arch Docker images to GitHub Container Registry (GHCR)
-4. Signs images with cosign (keyless/OIDC)
-5. Attaches SBOM attestations
+1. Creates a GitHub Release with changelog
+2. Builds and pushes multi-arch Docker images to GitHub Container Registry (GHCR)
+3. Signs images with cosign (keyless/OIDC)
+4. Attaches SBOM attestations
+
+The package is not published to npm — see [Version Management](#version-management)
+for how `@frontal-labs/mcp-server` versions are tracked without a registry publish.
 
 The project uses [Changesets](https://github.com/changesets/changesets) for version management and follows [Semantic Versioning](https://semver.org/) via conventional commits.
 
@@ -37,7 +39,7 @@ CI must pass before any release can proceed.
 Triggered on push to `main` (when `package.json` changes) or via `workflow_dispatch`. This is the unified release pipeline with four sequential stages:
 
 1. **Validate** — Runs linting, formatting check, type check, test suite with coverage (uploaded to Codecov), and Snyk security scan
-2. **npm Publish** — Extracts version from `package.json`, checks if already published (idempotent via git tag), builds with tsup, publishes to npm with OIDC provenance
+2. **Prepare Release** — Extracts version from `package.json`, checks whether it already has a release tag (idempotent), builds with tsup
 3. **GitHub Release** — Extracts the version's changelog section from `CHANGELOG.md`, creates a git tag, and publishes a GitHub Release with the CLI binary attached
 4. **Docker Publish** — Builds multi-arch image (linux/amd64, linux/arm64), pushes to GHCR with semver/SHA/latest tags, signs with cosign (keyless/OIDC), and attests SBOM
 
@@ -85,9 +87,13 @@ bun run changeset
 # Version packages based on accumulated changesets
 bun run version-packages
 
-# Manually build and publish (not typically needed — CI handles this)
+# Manually build and publish to npm (CI no longer does this — see note below)
 bun run release
 ```
+
+`bun run release` still runs `changeset publish`, which pushes to npm.
+Nothing in CI calls it, so it only runs if invoked by hand; see the
+[Overview](#overview) note on why the pipeline itself does not publish.
 
 When `changeset version` runs, it:
 
@@ -104,7 +110,7 @@ When `changeset version` runs, it:
 Pushing to `main` triggers:
 
 1. **CI workflow** — validates the code
-2. **Release workflow** — validates, publishes to npm, creates GitHub Release, and pushes Docker images to GHCR
+2. **Release workflow** — validates, creates GitHub Release, and pushes Docker images to GHCR
 3. **Docker Publish workflow** — standalone Docker image publishing (also triggered by relevant file changes)
 
 ### Manual (workflow_dispatch)
@@ -128,7 +134,6 @@ Each release produces:
 
 | Artifact | Location | Notes |
 |---|---|---|
-| npm package | `@frontal-labs/mcp-server` on npmjs.com | Published with provenance |
 | GitHub Release | github.com/frontal-labs/mcp-server/releases | Tagged `v<version>` |
 | Docker images | ghcr.io/frontal-labs/mcp-server | Multi-arch, signed, with SBOM |
 | SBOM attestation | Attached to Docker image | Generated during build |
@@ -203,19 +208,14 @@ docker run -e FRONTAL_API_KEY=your_key ghcr.io/frontal-labs/mcp-server:latest
 
 ### latest (stable)
 
-- Published to npm as `@frontal-labs/mcp-server` with the `latest` tag
 - Docker image tagged `latest`
 - Corresponds to the most recent stable release
 
-### next (pre-release)
+### Pre-release
 
-Pre-release versions (alpha, beta, rc) are published to npm with the `next` tag:
-
-```bash
-npm install @frontal-labs/mcp-server@next
-```
-
-Pre-release versions are identified by semver pre-release labels (e.g., `1.1.0-alpha.1`, `1.1.0-beta.0`). When the version contains `alpha`, `beta`, or `rc`, the GitHub Release is marked as a pre-release.
+Pre-release versions are identified by semver pre-release labels (e.g.,
+`1.1.0-alpha.1`, `1.1.0-beta.0`). When the version contains `alpha`,
+`beta`, or `rc`, the GitHub Release is marked as a pre-release.
 
 Changesets can create pre-release versions using:
 
@@ -230,19 +230,6 @@ bun x changeset pre exit
 ## Post-Release Verification
 
 After a release completes, verify the following:
-
-### npm Package
-
-```bash
-# Install the latest version
-npm install -g @frontal-labs/mcp-server@latest
-
-# Check the installed version
-frontal-mcp-server --version
-
-# Verify provenance (npm 9+)
-npm audit signatures
-```
 
 ### Docker Image
 
@@ -270,13 +257,7 @@ cosign verify ghcr.io/frontal-labs/mcp-server:latest \
 
 If a critical issue is discovered in a release:
 
-### 1. Deprecate the npm Package
-
-```bash
-npm deprecate @frontal-labs/mcp-server@<bad-version> "Critical issue — use <previous-version> instead"
-```
-
-### 2. Revert Docker Image
+### 1. Revert Docker Image
 
 Docker images are immutable. To revert:
 
@@ -287,14 +268,14 @@ Docker images are immutable. To revert:
 docker pull ghcr.io/frontal-labs/mcp-server:v<previous-version>
 ```
 
-### 3. Fix and Release a Patch
+### 2. Fix and Release a Patch
 
 1. Create a fix branch from the last stable tag
 2. Apply the fix
 3. Add a changeset with `patch` bump
-4. Merge to `main` — the pipeline publishes a new patch version
+4. Merge to `main` — the pipeline creates a new tagged release
 
-### 4. Communicate
+### 3. Communicate
 
 - Update the GitHub Release to note the deprecation
 - Notify users via the repository's communication channels
@@ -314,14 +295,6 @@ cosign verify ghcr.io/frontal-labs/mcp-server:latest \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
 ```
 
-### npm Provenance
-
-npm packages are published with `--provenance`, which uses GitHub's OIDC token to link the package to its source repository and build pipeline. Verify with:
-
-```bash
-npm audit signatures
-```
-
 ### SBOM
 
 Each Docker image includes a Software Bill of Materials (SBOM) generated by Docker BuildKit during the build. The SBOM is attested to the image and lists all dependencies.
@@ -338,7 +311,6 @@ Each Docker image includes a Software Bill of Materials (SBOM) generated by Dock
 - [ ] CI workflow passes on `main` (lint, type-check, test, build, security)
 - [ ] Release workflow completes successfully
 - [ ] Docker Publish workflow completes successfully
-- [ ] npm package is published and installable: `npm install -g @frontal-labs/mcp-server@latest`
 - [ ] Docker image is pullable: `docker pull ghcr.io/frontal-labs/mcp-server:latest`
 - [ ] GitHub Release created with correct version tag
 - [ ] Image signature verified with cosign
@@ -358,10 +330,7 @@ git status
 bun install --frozen-lockfile
 bun run build
 
-# 3. Publish to npm
-npm publish --access public --provenance
-
-# 4. Tag the release
+# 3. Tag the release
 git tag v$(node -e "console.log(require('./package.json').version)")
 git push origin v$(node -e "console.log(require('./package.json').version)")
 ```
