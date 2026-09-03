@@ -70,6 +70,30 @@ export const env = createEnv({
       .default("")
       .describe("Comma-separated CORS allowlist for the HTTP transport"),
 
+    /**
+     * Largest MCP request body accepted by the HTTP transport, in bytes.
+     * Bodies are buffered before the session is resolved, so this bounds
+     * what a single caller can make the process allocate.
+     */
+    FRONTAL_HTTP_MAX_BODY_BYTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Max HTTP request body size in bytes (default 4 MiB)"),
+
+    /**
+     * Largest number of concurrent MCP sessions. Each session holds its own
+     * server instance, so this is the main memory dial: raise it on a larger
+     * VM, lower it on a smaller one.
+     */
+    FRONTAL_HTTP_MAX_SESSIONS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Max concurrent MCP sessions (default 256)"),
+
     /** Log level for the MCP server */
     MCP_LOG_LEVEL: z
       .enum(["error", "warn", "info", "debug"])
@@ -110,6 +134,8 @@ export const env = createEnv({
     FRONTAL_REGION: process.env.FRONTAL_REGION,
     FRONTAL_TOOLSETS: process.env.FRONTAL_TOOLSETS,
     FRONTAL_HTTP_ALLOWED_ORIGINS: process.env.FRONTAL_HTTP_ALLOWED_ORIGINS,
+    FRONTAL_HTTP_MAX_BODY_BYTES: process.env.FRONTAL_HTTP_MAX_BODY_BYTES,
+    FRONTAL_HTTP_MAX_SESSIONS: process.env.FRONTAL_HTTP_MAX_SESSIONS,
     MCP_LOG_LEVEL: process.env.MCP_LOG_LEVEL,
     INCIDENTIO_API_KEY: process.env.INCIDENTIO_API_KEY,
     INCIDENTIO_STATUS_PAGE_ID: process.env.INCIDENTIO_STATUS_PAGE_ID,

@@ -117,7 +117,11 @@ async function main() {
         // the first client connect.
         () => server.createServer(),
         logger,
-        { allowedOrigins: config.transport.http?.allowedOrigins }
+        {
+          allowedOrigins: config.transport.http?.allowedOrigins,
+          maxRequestBodyBytes: config.transport.http?.maxRequestBodyBytes,
+          maxSessions: config.transport.http?.maxSessions,
+        }
       );
       await httpTransport.start(
         config.transport.http?.port || 3000,

@@ -25,6 +25,10 @@ export const transportConfigSchema = z.object({
       host: z.string().default("localhost"),
       /** Browser origins allowed by CORS; empty means no cross-origin trust. */
       allowedOrigins: z.array(z.string()).default([]),
+      /** Max request body in bytes; undefined uses the transport default. */
+      maxRequestBodyBytes: z.number().int().positive().optional(),
+      /** Max concurrent sessions; undefined uses the transport default. */
+      maxSessions: z.number().int().positive().optional(),
     })
     .optional(),
 });
@@ -136,6 +140,8 @@ export async function loadConfig(
             port: options.port,
             host: options.host || "localhost",
             allowedOrigins: parseOrigins(env.FRONTAL_HTTP_ALLOWED_ORIGINS),
+            maxRequestBodyBytes: env.FRONTAL_HTTP_MAX_BODY_BYTES,
+            maxSessions: env.FRONTAL_HTTP_MAX_SESSIONS,
           }
         : undefined,
     },
