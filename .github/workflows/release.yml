@@ -28,7 +28,6 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   BUN_VERSION: "1.3.8"
-  NODE_VERSION: "18"
 
 jobs:
   validate:
@@ -74,14 +73,14 @@ jobs:
         with:
           args: --severity-threshold=high
 
-  npm-publish:
-    name: Publish to npm
+  prepare-release:
+    name: Prepare Release
     runs-on: ubuntu-latest
     needs: [validate]
     if: ${{ always() && !cancelled() && (inputs.skip-validation || needs.validate.result == 'success') }}
     outputs:
       version: ${{ steps.set-version.outputs.version }}
-      already-published: ${{ steps.check-published.outputs.already-published }}
+      already-released: ${{ steps.check-released.outputs.already-released }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -107,35 +106,22 @@ jobs:
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Check if version is already published
-        id: check-published
+      - name: Check if version already has a release tag
+        id: check-released
         run: |
           VERSION="${{ steps.set-version.outputs.version }}"
           if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-            echo "already-published=true" >> "$GITHUB_OUTPUT"
+            echo "already-released=true" >> "$GITHUB_OUTPUT"
           else
-            echo "already-published=false" >> "$GITHUB_OUTPUT"
+            echo "already-released=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build
-        if: steps.check-published.outputs.already-published != 'true'
+        if: steps.check-released.outputs.already-released != 'true'
         run: bun run build
 
-      - name: Setup Node.js for npm
-        if: steps.check-published.outputs.already-published != 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          registry-url: https://registry.npmjs.org
-
-      - name: Publish to npm
-        if: steps.check-published.outputs.already-published != 'true'
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Upload dist artifact
-        if: steps.check-published.outputs.already-published != 'true'
+        if: steps.check-released.outputs.already-released != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -145,8 +131,8 @@ jobs:
   github-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [npm-publish]
-    if: ${{ always() && needs.npm-publish.result == 'success' && needs.npm-publish.outputs.already-published != 'true' }}
+    needs: [prepare-release]
+    if: ${{ always() && needs.prepare-release.result == 'success' && needs.prepare-release.outputs.already-released != 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -163,7 +149,7 @@ jobs:
       - name: Extract changelog for version
         id: changelog
         env:
-          VERSION: ${{ needs.npm-publish.outputs.version }}
+          VERSION: ${{ needs.prepare-release.outputs.version }}
         run: |
           node -e "
           const fs = require('fs');
@@ -197,25 +183,25 @@ jobs:
 
       - name: Create git tag
         run: |
-          VERSION="${{ needs.npm-publish.outputs.version }}"
+          VERSION="${{ needs.prepare-release.outputs.version }}"
           git tag "v${VERSION}"
           git push origin "v${VERSION}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.npm-publish.outputs.version }}
-          name: v${{ needs.npm-publish.outputs.version }}
+          tag_name: v${{ needs.prepare-release.outputs.version }}
+          name: v${{ needs.prepare-release.outputs.version }}
           body_path: /tmp/changelog.md
           draft: false
-          prerelease: ${{ contains(needs.npm-publish.outputs.version, 'alpha') || contains(needs.npm-publish.outputs.version, 'beta') || contains(needs.npm-publish.outputs.version, 'rc') }}
+          prerelease: ${{ contains(needs.prepare-release.outputs.version, 'alpha') || contains(needs.prepare-release.outputs.version, 'beta') || contains(needs.prepare-release.outputs.version, 'rc') }}
           files: dist/bin/frontal-mcp-server.js
 
   docker-publish:
     name: Publish Docker Image
     runs-on: ubuntu-latest
-    needs: [npm-publish]
-    if: ${{ always() && needs.npm-publish.result == 'success' && needs.npm-publish.outputs.already-published != 'true' }}
+    needs: [prepare-release]
+    if: ${{ always() && needs.prepare-release.result == 'success' && needs.prepare-release.outputs.already-released != 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -239,9 +225,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}},value=${{ needs.npm-publish.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.npm-publish.outputs.version }}
-            type=semver,pattern={{major}},value=${{ needs.npm-publish.outputs.version }}
+            type=semver,pattern={{version}},value=${{ needs.prepare-release.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.prepare-release.outputs.version }}
+            type=semver,pattern={{major}},value=${{ needs.prepare-release.outputs.version }}
             type=sha,prefix=sha-
             type=raw,value=latest
           labels: |
@@ -261,7 +247,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VERSION=${{ needs.npm-publish.outputs.version }}
+            VERSION=${{ needs.prepare-release.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: true
@@ -286,7 +272,7 @@ jobs:
           CREATED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           jq -n \
             --arg repo "${{ github.repository }}" \
-            --arg version "${{ needs.npm-publish.outputs.version }}" \
+            --arg version "${{ needs.prepare-release.outputs.version }}" \
             --arg created "$CREATED" \
             '{
               "spdxVersion": "SPDX-2.3",
