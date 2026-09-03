@@ -30,8 +30,6 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
-    assignees:
-      - "frontal-cloud/maintainers"
     commit-message:
       prefix: "chore"
       include: "scope"
