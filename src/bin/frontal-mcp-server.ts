@@ -108,11 +108,9 @@ async function main() {
       await server.connectStdio();
       installSignalHandlers(logger, () => server.close());
     } else if (config.transport.transport === "http") {
-      const { EnhancedHttpTransport } = await import(
-        "@/server/enhanced-http-transport.js"
-      );
+      const { HttpTransport } = await import("@/server/http-transport.js");
       const { createRateLimiter } = await import("@/server/rate-limit.js");
-      const httpTransport = new EnhancedHttpTransport(
+      const httpTransport = new HttpTransport(
         // Each MCP session gets its own server instance: an McpServer binds to
         // a single transport, so sharing one across sessions would let only
         // the first client connect.

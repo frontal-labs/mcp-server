@@ -98,7 +98,7 @@ The HTTP transport provides a REST API interface for remote integration.
 ```typescript
 // Implementation
 async connectHttp(): Promise<void> {
-  const transport = new EnhancedHttpTransport(
+  const transport = new HttpTransport(
     this.config.http.port,
     this.config.http.host
   );

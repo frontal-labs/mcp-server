@@ -77,7 +77,7 @@ class PayloadTooLargeError extends Error {
   }
 }
 
-export interface EnhancedHttpTransportOptions {
+export interface HttpTransportOptions {
   /**
    * Browser origins allowed by CORS. Empty (the default) trusts no origin:
    * `Access-Control-Allow-Origin` is only echoed for a listed origin, never
@@ -119,7 +119,7 @@ export interface EnhancedHttpTransportOptions {
   rateLimiter?: RateLimiter;
 }
 
-export class EnhancedHttpTransport {
+export class HttpTransport {
   private server: Server | undefined;
   /**
    * Live MCP sessions, keyed by `Mcp-Session-Id`.
@@ -149,7 +149,7 @@ export class EnhancedHttpTransport {
   constructor(
     private createMcpServer: () => McpServer,
     logger: Logger,
-    options: EnhancedHttpTransportOptions = {}
+    options: HttpTransportOptions = {}
   ) {
     this.logger = logger;
     this.allowedOrigins = new Set(options.allowedOrigins ?? []);
@@ -288,7 +288,7 @@ export class EnhancedHttpTransport {
       return true;
     }
 
-    EnhancedHttpTransport.setRateLimitHeaders(res, decision);
+    HttpTransport.setRateLimitHeaders(res, decision);
     if (decision.success) {
       return true;
     }
@@ -340,7 +340,7 @@ export class EnhancedHttpTransport {
     // adapters and borrow the server's stdio-only FRONTAL_API_KEY fallback.
     const token = extractBearerToken(req);
     if (!token) {
-      EnhancedHttpTransport.fail(
+      HttpTransport.fail(
         res,
         401,
         {
@@ -370,7 +370,7 @@ export class EnhancedHttpTransport {
     if (error instanceof PayloadTooLargeError) {
       this.logger.warn(`Rejected oversized request body: ${error.message}`);
       if (!res.headersSent) {
-        EnhancedHttpTransport.fail(res, 413, {
+        HttpTransport.fail(res, 413, {
           error: "payload_too_large",
           message: error.message,
         });
@@ -382,7 +382,7 @@ export class EnhancedHttpTransport {
 
     this.logger.error("Error handling MCP request:", error);
     if (!res.headersSent) {
-      EnhancedHttpTransport.fail(res, 500, {
+      HttpTransport.fail(res, 500, {
         error: "Internal server error",
         message: error instanceof Error ? error.message : "Unknown error",
       });
@@ -409,7 +409,7 @@ export class EnhancedHttpTransport {
       this.logger.warn(
         `Rejected request with untrusted Host header: ${req.headers.host ?? "(none)"}`
       );
-      EnhancedHttpTransport.fail(res, 403, {
+      HttpTransport.fail(res, 403, {
         error: "forbidden",
         message: "Host header is not allowed.",
       });

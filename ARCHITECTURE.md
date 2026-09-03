@@ -142,7 +142,7 @@ Multiple transport protocols for different use cases:
 - **Protocol**: HTTP/HTTPS
 - **Features**: RESTful interface, CORS support
 
-#### Enhanced HTTP Transport
+#### HTTP Transport
 - **Use Case**: Advanced web integration
 - **Features**: WebSocket support, streaming, authentication
 - **Authentication**: every MCP request must carry an `Authorization: Bearer

@@ -28,7 +28,7 @@ Fly Machine (iad - primary region)
     |  + Scaling: auto stop/start              |
     |                                          |
     |  Frontal MCP Server                      |
-    |  + Enhanced HTTP Transport (port 3000)   |
+    |  + HTTP Transport (port 3000)            |
     |  + /health endpoint                      |
     |  + Adapters: AI, Blob, Functions,        |
     |    Graph, Pipelines                      |
@@ -48,7 +48,7 @@ Fly Machine (iad - primary region)
 | `.dockerignore` | Docker build context exclusions |
 | `.github/workflows/fly-deploy.yml` | CI/CD pipeline |
 | `infrastructure/fly/DEPLOYMENT.md` | Deployment guide |
-| `src/server/enhanced-http-transport.ts` | Added `/health` endpoint |
+| `src/server/http-transport.ts` | Added `/health` endpoint |
 
 ## Configuration Summary
 

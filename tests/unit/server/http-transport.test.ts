@@ -17,7 +17,7 @@ import { request } from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "winston";
-import { EnhancedHttpTransport } from "@/server/enhanced-http-transport.js";
+import { HttpTransport } from "@/server/http-transport.js";
 import { createLogger } from "@/utils/logger.js";
 
 /**
@@ -68,7 +68,7 @@ function createMockMcpServer() {
   } as unknown as McpServer;
 }
 
-describe("EnhancedHttpTransport", () => {
+describe("HttpTransport", () => {
   let logger: Logger;
   let mockMcpServer: McpServer;
   let mcpServerFactory: () => McpServer;
@@ -80,12 +80,12 @@ describe("EnhancedHttpTransport", () => {
   });
 
   it("should construct without error", () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport = new HttpTransport(mcpServerFactory, logger);
     expect(transport).toBeDefined();
   });
 
   it("should start and listen on specified port", async () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport = new HttpTransport(mcpServerFactory, logger);
 
     // Use a random high port to avoid conflicts
     const port = 30000 + Math.floor(Math.random() * 10000);
@@ -106,7 +106,7 @@ describe("EnhancedHttpTransport", () => {
   });
 
   it("should stop gracefully when server is running", async () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
 
     await transport.start(port, "127.0.0.1");
@@ -114,13 +114,13 @@ describe("EnhancedHttpTransport", () => {
   });
 
   it("should stop gracefully when server was never started", async () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport = new HttpTransport(mcpServerFactory, logger);
     // stop() without start() should resolve without error
     await expect(transport.stop()).resolves.toBeUndefined();
   });
 
   it("should not send a wildcard CORS origin for untrusted origins", async () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
 
@@ -146,7 +146,7 @@ describe("EnhancedHttpTransport", () => {
   });
 
   it("should echo a configured trusted CORS origin", async () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+    const transport = new HttpTransport(mcpServerFactory, logger, {
       allowedOrigins: ["https://trusted.example"],
     });
     const port = 30000 + Math.floor(Math.random() * 10000);
@@ -168,7 +168,7 @@ describe("EnhancedHttpTransport", () => {
   });
 
   it("should reject MCP requests without a bearer token with 401", async () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
 
@@ -189,7 +189,7 @@ describe("EnhancedHttpTransport", () => {
   });
 
   it("should serve GET /health", async () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
     try {
@@ -206,7 +206,7 @@ describe("EnhancedHttpTransport", () => {
     // Container and load-balancer probes send HEAD (`wget --spider` does).
     // If this falls through to the MCP path it answers 401 and the
     // orchestrator restarts a perfectly healthy server.
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
     try {
@@ -220,7 +220,7 @@ describe("EnhancedHttpTransport", () => {
   });
 
   it("should dispatch a GET request carrying a bearer token", async () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
     try {
@@ -236,7 +236,7 @@ describe("EnhancedHttpTransport", () => {
   });
 
   it("should handle malformed JSON with 500 error", async () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
 
@@ -260,15 +260,12 @@ describe("EnhancedHttpTransport", () => {
   });
 
   it("should reject starting on an already-used port", async () => {
-    const transport1 = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport1 = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport1.start(port, "127.0.0.1");
 
     try {
-      const transport2 = new EnhancedHttpTransport(
-        () => createMockMcpServer(),
-        logger
-      );
+      const transport2 = new HttpTransport(() => createMockMcpServer(), logger);
       await expect(transport2.start(port, "127.0.0.1")).rejects.toThrow();
     } finally {
       await transport1.stop();
@@ -280,7 +277,7 @@ describe("EnhancedHttpTransport", () => {
     // second and every later client fail with "Server already initialized",
     // so only one tenant could ever use an HTTP deployment.
     const created: McpServer[] = [];
-    const transport = new EnhancedHttpTransport(() => {
+    const transport = new HttpTransport(() => {
       const server = new McpServer({ name: "test", version: "0.0.0" });
       created.push(server);
       return server;
@@ -330,7 +327,7 @@ describe("EnhancedHttpTransport", () => {
   it("closes sessions that go idle past the timeout", async () => {
     // A client that crashes or drops off the network never sends DELETE, so
     // sessions must also expire on their own or they accumulate forever.
-    const transport = new EnhancedHttpTransport(
+    const transport = new HttpTransport(
       () => new McpServer({ name: "test", version: "0.0.0" }),
       logger,
       { sessionIdleTimeoutMs: 1, sessionSweepIntervalMs: 10 }
@@ -390,7 +387,7 @@ describe("EnhancedHttpTransport", () => {
     // DNS rebinding: an attacker resolves a hostname they control to this
     // server, so the victim's browser treats the response as same-origin and
     // CORS never applies. The requested Host is what gives it away.
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+    const transport = new HttpTransport(mcpServerFactory, logger, {
       allowedHosts: ["mcp.example.com"],
     });
     const port = 30000 + Math.floor(Math.random() * 10000);
@@ -421,7 +418,7 @@ describe("EnhancedHttpTransport", () => {
   });
 
   it("allows any Host when no allowlist is configured", async () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
 
@@ -447,7 +444,7 @@ describe("EnhancedHttpTransport", () => {
         });
       }),
     };
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+    const transport = new HttpTransport(mcpServerFactory, logger, {
       rateLimiter,
     });
     const port = 30000 + Math.floor(Math.random() * 10000);
@@ -486,7 +483,7 @@ describe("EnhancedHttpTransport", () => {
     const rateLimiter = {
       limit: vi.fn(() => Promise.reject(new Error("redis unreachable"))),
     };
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+    const transport = new HttpTransport(mcpServerFactory, logger, {
       rateLimiter,
     });
     const port = 30000 + Math.floor(Math.random() * 10000);
@@ -522,7 +519,7 @@ describe("EnhancedHttpTransport", () => {
         });
       },
     };
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+    const transport = new HttpTransport(mcpServerFactory, logger, {
       rateLimiter,
     });
     const port = 30000 + Math.floor(Math.random() * 10000);
@@ -558,7 +555,7 @@ describe("EnhancedHttpTransport", () => {
     // Each session holds its own McpServer, so unbounded session creation is
     // a memory-exhaustion vector; the process should degrade with 503 rather
     // than run out of memory.
-    const transport = new EnhancedHttpTransport(
+    const transport = new HttpTransport(
       () => new McpServer({ name: "test", version: "0.0.0" }),
       logger,
       { maxSessions: 2 }
@@ -611,7 +608,7 @@ describe("EnhancedHttpTransport", () => {
   it("rejects an oversized body declared by content-length", async () => {
     // The body is buffered before the session is resolved, so an unbounded
     // read lets one caller exhaust the process.
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+    const transport = new HttpTransport(mcpServerFactory, logger, {
       maxRequestBodyBytes: 1024,
     });
     const port = 30000 + Math.floor(Math.random() * 10000);
@@ -636,7 +633,7 @@ describe("EnhancedHttpTransport", () => {
   });
 
   it("accepts a body within the size limit", async () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+    const transport = new HttpTransport(mcpServerFactory, logger, {
       maxRequestBodyBytes: 1024,
     });
     const port = 30000 + Math.floor(Math.random() * 10000);
@@ -660,7 +657,7 @@ describe("EnhancedHttpTransport", () => {
   });
 
   it("rejects a request carrying an unknown session id", async () => {
-    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
 
