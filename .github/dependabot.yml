@@ -1,7 +1,9 @@
 version: 2
 updates:
-  # Enable version updates for npm
-  - package-ecosystem: "npm"
+  # This project resolves dependencies with Bun and commits bun.lock; the
+  # npm ecosystem only rewrites package.json, which left every dependency
+  # PR failing `bun install --frozen-lockfile`.
+  - package-ecosystem: "bun"
     directory: "/"
     schedule:
       interval: "weekly"
