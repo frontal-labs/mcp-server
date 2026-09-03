@@ -343,6 +343,57 @@ describe("EnhancedHttpTransport", () => {
     }
   });
 
+  it("rejects an oversized body declared by content-length", async () => {
+    // The body is buffered before the session is resolved, so an unbounded
+    // read lets one caller exhaust the process.
+    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+      maxRequestBodyBytes: 1024,
+    });
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer frt_test",
+        },
+        body: JSON.stringify({ pad: "A".repeat(4096) }),
+      });
+
+      expect(response.status).toBe(413);
+      const data = (await response.json()) as { error: string };
+      expect(data.error).toBe("payload_too_large");
+    } finally {
+      await transport.stop();
+    }
+  });
+
+  it("accepts a body within the size limit", async () => {
+    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+      maxRequestBodyBytes: 1024,
+    });
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer frt_test",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+      });
+
+      // Reaches session routing rather than being rejected on size.
+      expect(response.status).not.toBe(413);
+    } finally {
+      await transport.stop();
+    }
+  });
+
   it("rejects a request carrying an unknown session id", async () => {
     const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);

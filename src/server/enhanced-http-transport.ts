@@ -49,6 +49,22 @@ function extractBearerToken(req: IncomingMessage): string | undefined {
 const DEFAULT_SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 /** Look for idle sessions once a minute. */
 const DEFAULT_SESSION_SWEEP_INTERVAL_MS = 60 * 1000;
+/**
+ * Refuse request bodies larger than 4 MiB.
+ *
+ * MCP requests are JSON-RPC frames; legitimate ones are far smaller. The
+ * body is buffered in memory before the session is even known, so without a
+ * cap a single request can exhaust the process.
+ */
+const DEFAULT_MAX_REQUEST_BODY_BYTES = 4 * 1024 * 1024;
+
+/** Raised when a request body exceeds the configured limit. */
+class PayloadTooLargeError extends Error {
+  constructor(limit: number) {
+    super(`Request body exceeds the ${limit} byte limit`);
+    this.name = "PayloadTooLargeError";
+  }
+}
 
 export interface EnhancedHttpTransportOptions {
   /**
@@ -66,6 +82,12 @@ export interface EnhancedHttpTransportOptions {
   sessionIdleTimeoutMs?: number;
   /** How often to scan for idle sessions. */
   sessionSweepIntervalMs?: number;
+  /**
+   * Largest request body accepted, in bytes. Bodies are buffered in memory
+   * before the session is resolved, so this bounds what a single caller can
+   * make the process allocate.
+   */
+  maxRequestBodyBytes?: number;
 }
 
 export class EnhancedHttpTransport {
@@ -89,6 +111,7 @@ export class EnhancedHttpTransport {
   private readonly allowedOrigins: Set<string>;
   private readonly sessionIdleTimeoutMs: number;
   private readonly sessionSweepIntervalMs: number;
+  private readonly maxRequestBodyBytes: number;
   private sweepTimer: NodeJS.Timeout | undefined;
 
   constructor(
@@ -102,6 +125,8 @@ export class EnhancedHttpTransport {
       options.sessionIdleTimeoutMs ?? DEFAULT_SESSION_IDLE_TIMEOUT_MS;
     this.sessionSweepIntervalMs =
       options.sessionSweepIntervalMs ?? DEFAULT_SESSION_SWEEP_INTERVAL_MS;
+    this.maxRequestBodyBytes =
+      options.maxRequestBodyBytes ?? DEFAULT_MAX_REQUEST_BODY_BYTES;
   }
 
   /** Close sessions that have gone quiet for longer than the idle timeout. */
@@ -202,6 +227,21 @@ export class EnhancedHttpTransport {
     try {
       await this.dispatchMcp(req, res, token);
     } catch (error: unknown) {
+      if (error instanceof PayloadTooLargeError) {
+        this.logger.warn(`Rejected oversized request body: ${error.message}`);
+        if (!res.headersSent) {
+          res.writeHead(413, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              error: "payload_too_large",
+              message: error.message,
+            })
+          );
+        }
+        // Hang up on a sender still streaming a body we refused to read.
+        req.destroy();
+        return;
+      }
       const message = error instanceof Error ? error.message : "Unknown error";
       this.logger.error("Error handling MCP request:", error);
       if (!res.headersSent) {
@@ -313,14 +353,41 @@ export class EnhancedHttpTransport {
     });
   }
 
-  private async getRequestBody(req: IncomingMessage): Promise<string> {
+  private getRequestBody(req: IncomingMessage): Promise<string> {
+    const limit = this.maxRequestBodyBytes;
+
+    // Reject on the declared length before reading a single byte when the
+    // client is honest about the size.
+    const declared = Number(req.headers["content-length"]);
+    if (Number.isFinite(declared) && declared > limit) {
+      return Promise.reject(new PayloadTooLargeError(limit));
+    }
+
     return new Promise((resolve, reject) => {
-      let body = "";
+      const chunks: Buffer[] = [];
+      let size = 0;
+      let aborted = false;
+
       req.on("data", (chunk: Buffer) => {
-        body += chunk.toString();
+        if (aborted) {
+          return;
+        }
+        size += chunk.length;
+        if (size > limit) {
+          // Stop buffering: a chunked sender can otherwise ignore the
+          // content-length check above and stream without bound. Pause
+          // rather than destroy so the 413 can still be written; the
+          // handler destroys the request once the response is out.
+          aborted = true;
+          chunks.length = 0;
+          req.pause();
+          reject(new PayloadTooLargeError(limit));
+          return;
+        }
+        chunks.push(chunk);
       });
       req.on("end", () => {
-        resolve(body);
+        resolve(Buffer.concat(chunks).toString("utf8"));
       });
       req.on("error", (error: Error) => {
         reject(error);
