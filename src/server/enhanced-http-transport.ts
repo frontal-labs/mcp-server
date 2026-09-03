@@ -57,6 +57,16 @@ const DEFAULT_SESSION_SWEEP_INTERVAL_MS = 60 * 1000;
  * cap a single request can exhaust the process.
  */
 const DEFAULT_MAX_REQUEST_BODY_BYTES = 4 * 1024 * 1024;
+/**
+ * Cap concurrent sessions.
+ *
+ * Each session holds its own McpServer with every tool registered, which
+ * measures at roughly 0.6 MB. Left unbounded, a caller that opens sessions
+ * and walks away exhausts the process well before the idle sweeper reclaims
+ * them. 256 sessions is about 160 MB, which fits the documented 512 MB
+ * deployment with room to spare.
+ */
+const DEFAULT_MAX_SESSIONS = 256;
 
 /** Raised when a request body exceeds the configured limit. */
 class PayloadTooLargeError extends Error {
@@ -88,6 +98,12 @@ export interface EnhancedHttpTransportOptions {
    * make the process allocate.
    */
   maxRequestBodyBytes?: number;
+  /**
+   * Largest number of concurrent sessions. Once reached, new initialize
+   * requests are refused with 503 rather than letting the process run out
+   * of memory; existing sessions keep working.
+   */
+  maxSessions?: number;
 }
 
 export class EnhancedHttpTransport {
@@ -112,6 +128,7 @@ export class EnhancedHttpTransport {
   private readonly sessionIdleTimeoutMs: number;
   private readonly sessionSweepIntervalMs: number;
   private readonly maxRequestBodyBytes: number;
+  private readonly maxSessions: number;
   private sweepTimer: NodeJS.Timeout | undefined;
 
   constructor(
@@ -127,6 +144,7 @@ export class EnhancedHttpTransport {
       options.sessionSweepIntervalMs ?? DEFAULT_SESSION_SWEEP_INTERVAL_MS;
     this.maxRequestBodyBytes =
       options.maxRequestBodyBytes ?? DEFAULT_MAX_REQUEST_BODY_BYTES;
+    this.maxSessions = options.maxSessions ?? DEFAULT_MAX_SESSIONS;
   }
 
   /** Close sessions that have gone quiet for longer than the idle timeout. */
@@ -303,6 +321,27 @@ export class EnhancedHttpTransport {
       existing.lastSeen = Date.now();
       transport = existing.transport;
     } else if (!sessionId && isInitializeRequest(parsedBody)) {
+      if (this.sessions.size >= this.maxSessions) {
+        this.logger.warn(
+          `Refusing new MCP session: ${this.sessions.size} sessions open (limit ${this.maxSessions})`
+        );
+        res.writeHead(503, {
+          "Content-Type": "application/json",
+          "Retry-After": "60",
+        });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            error: {
+              code: -32002,
+              message:
+                "Server is at its session limit. Retry shortly or close idle sessions with DELETE.",
+            },
+            id: null,
+          })
+        );
+        return;
+      }
       transport = await this.openSession();
     } else {
       // Unknown or expired session: let the client know it must re-initialize

@@ -343,6 +343,60 @@ describe("EnhancedHttpTransport", () => {
     }
   });
 
+  it("refuses new sessions once the session limit is reached", async () => {
+    // Each session holds its own McpServer, so unbounded session creation is
+    // a memory-exhaustion vector; the process should degrade with 503 rather
+    // than run out of memory.
+    const transport = new EnhancedHttpTransport(
+      () => new McpServer({ name: "test", version: "0.0.0" }),
+      logger,
+      { maxSessions: 2 }
+    );
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    const initialize = () =>
+      fetch(`http://127.0.0.1:${port}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          Authorization: "Bearer frt_test",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "probe", version: "0.0.0" },
+          },
+        }),
+      });
+
+    try {
+      const first = await initialize();
+      const second = await initialize();
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      await first.body?.cancel();
+      await second.body?.cancel();
+
+      const third = await initialize();
+      expect(third.status).toBe(503);
+      expect(third.headers.get("retry-after")).toBe("60");
+      const data = (await third.json()) as { error: { message: string } };
+      expect(data.error.message).toContain("session limit");
+
+      // The server is still healthy for everyone else.
+      const health = await fetch(`http://127.0.0.1:${port}/health`);
+      expect(health.status).toBe(200);
+    } finally {
+      await transport.stop();
+    }
+  });
+
   it("rejects an oversized body declared by content-length", async () => {
     // The body is buffered before the session is resolved, so an unbounded
     // read lets one caller exhaust the process.
