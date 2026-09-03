@@ -38,6 +38,53 @@ program
 
 program.parse();
 
+/** Give in-flight work this long to finish before exiting anyway. */
+const SHUTDOWN_GRACE_MS = 10_000;
+
+/**
+ * Close the server on SIGTERM/SIGINT.
+ *
+ * Rolling deploys send SIGTERM. Without a handler Node exits immediately and
+ * drops in-flight requests and open SSE streams instead of letting them
+ * finish.
+ */
+function installSignalHandlers(
+  logger: ReturnType<typeof createLogger>,
+  stop: () => Promise<void>
+): void {
+  let shuttingDown = false;
+
+  const shutdown = async (signal: NodeJS.Signals) => {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+    logger.info(`Received ${signal}, shutting down...`);
+
+    // Never let a stuck connection block the exit indefinitely.
+    const timer = setTimeout(() => {
+      logger.warn(
+        `Shutdown still pending after ${SHUTDOWN_GRACE_MS}ms, exiting anyway`
+      );
+      process.exit(0);
+    }, SHUTDOWN_GRACE_MS);
+    timer.unref?.();
+
+    try {
+      await stop();
+      logger.info("Shutdown complete");
+      process.exit(0);
+    } catch (error) {
+      logger.error("Error during shutdown:", error);
+      process.exit(1);
+    }
+  };
+
+  for (const signal of ["SIGTERM", "SIGINT"] as const) {
+    process.once(signal, () => void shutdown(signal));
+  }
+}
+
 async function main() {
   const options = program.opts();
   const logger = createLogger({ level: options.logLevel });
@@ -59,6 +106,7 @@ async function main() {
 
     if (config.transport.transport === "stdio") {
       await server.connectStdio();
+      installSignalHandlers(logger, () => server.close());
     } else if (config.transport.transport === "http") {
       const { EnhancedHttpTransport } = await import(
         "@/server/enhanced-http-transport.js"
@@ -75,6 +123,12 @@ async function main() {
         config.transport.http?.port || 3000,
         config.transport.http?.host || "localhost"
       );
+      installSignalHandlers(logger, async () => {
+        // Stop the listener and close live sessions first, then the server
+        // that backs them.
+        await httpTransport.stop();
+        await server.close();
+      });
     } else {
       throw new Error(`Unsupported transport: ${config.transport.transport}`);
     }
