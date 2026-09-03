@@ -13,11 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { request } from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "winston";
 import { EnhancedHttpTransport } from "@/server/enhanced-http-transport.js";
 import { createLogger } from "@/utils/logger.js";
+
+/**
+ * Issue a request with an explicit Host header.
+ *
+ * `fetch` (undici) overrides Host with the connection target, so it cannot be
+ * used to exercise host validation.
+ */
+function requestWithHost(
+  port: number,
+  path: string,
+  host: string,
+  method = "POST"
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        host: "127.0.0.1",
+        port,
+        path,
+        method,
+        headers: {
+          Host: host,
+          "Content-Type": "application/json",
+          Authorization: "Bearer frt_test",
+        },
+      },
+      (res) => {
+        let body = "";
+        res.on("data", (chunk) => {
+          body += chunk;
+        });
+        res.on("end", () => resolve({ status: res.statusCode ?? 0, body }));
+      }
+    );
+    req.on("error", reject);
+    req.end(
+      method === "POST"
+        ? JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" })
+        : undefined
+    );
+  });
+}
 
 function createMockMcpServer() {
   return {
@@ -338,6 +381,53 @@ describe("EnhancedHttpTransport", () => {
         },
         { timeout: 3000, interval: 50 }
       );
+    } finally {
+      await transport.stop();
+    }
+  });
+
+  it("rejects an untrusted Host header when a host allowlist is set", async () => {
+    // DNS rebinding: an attacker resolves a hostname they control to this
+    // server, so the victim's browser treats the response as same-origin and
+    // CORS never applies. The requested Host is what gives it away.
+    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+      allowedHosts: ["mcp.example.com"],
+    });
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    try {
+      const rejected = await requestWithHost(port, "/", "attacker.example");
+      expect(rejected.status).toBe(403);
+      expect(JSON.parse(rejected.body).error).toBe("forbidden");
+
+      // An allowed host passes the check, with or without a port.
+      for (const host of ["mcp.example.com", "mcp.example.com:8443"]) {
+        const allowed = await requestWithHost(port, "/", host);
+        expect(allowed.status).not.toBe(403);
+      }
+
+      // Probes address the container directly, so /health stays reachable.
+      const health = await requestWithHost(
+        port,
+        "/health",
+        "attacker.example",
+        "GET"
+      );
+      expect(health.status).toBe(200);
+    } finally {
+      await transport.stop();
+    }
+  });
+
+  it("allows any Host when no allowlist is configured", async () => {
+    const transport = new EnhancedHttpTransport(mcpServerFactory, logger);
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    try {
+      const response = await requestWithHost(port, "/", "anything.example");
+      expect(response.status).not.toBe(403);
     } finally {
       await transport.stop();
     }

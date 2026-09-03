@@ -29,6 +29,8 @@ export const transportConfigSchema = z.object({
       maxRequestBodyBytes: z.number().int().positive().optional(),
       /** Max concurrent sessions; undefined uses the transport default. */
       maxSessions: z.number().int().positive().optional(),
+      /** Hosts accepted in the Host header; empty disables the check. */
+      allowedHosts: z.array(z.string()).default([]),
     })
     .optional(),
 });
@@ -83,8 +85,8 @@ export function parseToolsets(raw: string): Toolset[] {
   return [...seen];
 }
 
-/** Parse a comma-separated CORS origin allowlist into a de-duped array. */
-export function parseOrigins(raw: string): string[] {
+/** Parse a comma-separated allowlist into a trimmed, de-duped array. */
+export function parseCsvList(raw: string): string[] {
   return [
     ...new Set(
       raw
@@ -139,9 +141,10 @@ export async function loadConfig(
         ? {
             port: options.port,
             host: options.host || "localhost",
-            allowedOrigins: parseOrigins(env.FRONTAL_HTTP_ALLOWED_ORIGINS),
+            allowedOrigins: parseCsvList(env.FRONTAL_HTTP_ALLOWED_ORIGINS),
             maxRequestBodyBytes: env.FRONTAL_HTTP_MAX_BODY_BYTES,
             maxSessions: env.FRONTAL_HTTP_MAX_SESSIONS,
+            allowedHosts: parseCsvList(env.FRONTAL_HTTP_ALLOWED_HOSTS),
           }
         : undefined,
     },

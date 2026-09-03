@@ -94,6 +94,19 @@ export const env = createEnv({
       .optional()
       .describe("Max concurrent MCP sessions (default 256)"),
 
+    /**
+     * Comma-separated hosts accepted in the `Host` header of MCP requests.
+     * Empty by default, which disables host checking. Set it for any
+     * deployment reachable from a browser: it is what blocks DNS rebinding,
+     * where an attacker resolves a hostname they control to this server so a
+     * victim's browser treats the response as same-origin.
+     */
+    FRONTAL_HTTP_ALLOWED_HOSTS: z
+      .string()
+      .optional()
+      .default("")
+      .describe("Comma-separated Host allowlist for the HTTP transport"),
+
     /** Log level for the MCP server */
     MCP_LOG_LEVEL: z
       .enum(["error", "warn", "info", "debug"])
@@ -136,6 +149,7 @@ export const env = createEnv({
     FRONTAL_HTTP_ALLOWED_ORIGINS: process.env.FRONTAL_HTTP_ALLOWED_ORIGINS,
     FRONTAL_HTTP_MAX_BODY_BYTES: process.env.FRONTAL_HTTP_MAX_BODY_BYTES,
     FRONTAL_HTTP_MAX_SESSIONS: process.env.FRONTAL_HTTP_MAX_SESSIONS,
+    FRONTAL_HTTP_ALLOWED_HOSTS: process.env.FRONTAL_HTTP_ALLOWED_HOSTS,
     MCP_LOG_LEVEL: process.env.MCP_LOG_LEVEL,
     INCIDENTIO_API_KEY: process.env.INCIDENTIO_API_KEY,
     INCIDENTIO_STATUS_PAGE_ID: process.env.INCIDENTIO_STATUS_PAGE_ID,

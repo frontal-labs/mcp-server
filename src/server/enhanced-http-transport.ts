@@ -104,6 +104,14 @@ export interface EnhancedHttpTransportOptions {
    * of memory; existing sessions keep working.
    */
   maxSessions?: number;
+  /**
+   * Hosts accepted in the `Host` header. When empty, host checking is off.
+   *
+   * Set this for any deployment reachable from a browser: it is what stops
+   * DNS rebinding, where an attacker points a hostname they control at this
+   * server so a victim's browser treats it as same-origin.
+   */
+  allowedHosts?: string[];
 }
 
 export class EnhancedHttpTransport {
@@ -129,6 +137,7 @@ export class EnhancedHttpTransport {
   private readonly sessionSweepIntervalMs: number;
   private readonly maxRequestBodyBytes: number;
   private readonly maxSessions: number;
+  private readonly allowedHosts: Set<string>;
   private sweepTimer: NodeJS.Timeout | undefined;
 
   constructor(
@@ -145,6 +154,9 @@ export class EnhancedHttpTransport {
     this.maxRequestBodyBytes =
       options.maxRequestBodyBytes ?? DEFAULT_MAX_REQUEST_BODY_BYTES;
     this.maxSessions = options.maxSessions ?? DEFAULT_MAX_SESSIONS;
+    this.allowedHosts = new Set(
+      (options.allowedHosts ?? []).map((host) => host.toLowerCase())
+    );
   }
 
   /** Close sessions that have gone quiet for longer than the idle timeout. */
@@ -198,6 +210,28 @@ export class EnhancedHttpTransport {
     );
   }
 
+  /**
+   * Check the `Host` header against the allowlist.
+   *
+   * DNS rebinding works by resolving a hostname the attacker controls to this
+   * server's address, so the victim's browser believes the response is
+   * same-origin and CORS never applies. The Origin header cannot be trusted
+   * to catch that; the Host the client asked for can.
+   */
+  private isAllowedHost(req: IncomingMessage): boolean {
+    if (this.allowedHosts.size === 0) {
+      return true;
+    }
+    const host = req.headers.host?.toLowerCase();
+    if (!host) {
+      // HTTP/1.1 requires Host; treat its absence as untrusted.
+      return false;
+    }
+    // Accept both "example.com" and "example.com:3000" against either form.
+    const withoutPort = host.replace(/:\d+$/, "");
+    return this.allowedHosts.has(host) || this.allowedHosts.has(withoutPort);
+  }
+
   private async handle(
     req: IncomingMessage,
     res: ServerResponse
@@ -207,6 +241,25 @@ export class EnhancedHttpTransport {
     if (req.method === "OPTIONS") {
       res.writeHead(200);
       res.end();
+      return;
+    }
+
+    // Host check runs before anything that touches session state, but after
+    // the CORS preflight so browsers still get a usable error. /health is
+    // exempt: probes address the container directly (127.0.0.1, or whatever
+    // the orchestrator uses) and the endpoint exposes nothing worth
+    // rebinding for.
+    if (req.url !== "/health" && !this.isAllowedHost(req)) {
+      this.logger.warn(
+        `Rejected request with untrusted Host header: ${req.headers.host ?? "(none)"}`
+      );
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          error: "forbidden",
+          message: "Host header is not allowed.",
+        })
+      );
       return;
     }
 

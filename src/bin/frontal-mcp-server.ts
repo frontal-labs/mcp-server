@@ -121,6 +121,7 @@ async function main() {
           allowedOrigins: config.transport.http?.allowedOrigins,
           maxRequestBodyBytes: config.transport.http?.maxRequestBodyBytes,
           maxSessions: config.transport.http?.maxSessions,
+          allowedHosts: config.transport.http?.allowedHosts,
         }
       );
       await httpTransport.start(
