@@ -15,17 +15,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: "18"
-
-      - name: Install markdownlint-cli
-        run: npm install -g markdownlint-cli
+          bun-version: "1.3.8"
 
       - name: Run markdownlint
         run: |
-          markdownlint "**/*.md" \
+          bunx markdownlint-cli "**/*.md" \
             --ignore node_modules \
             --ignore .github \
             --config .markdownlint.json || true
