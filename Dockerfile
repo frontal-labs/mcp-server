@@ -1,20 +1,22 @@
-FROM node:22-alpine AS base
+# Build stages run on the official Bun image. Installing Bun through npm
+# pulled a second package manager into the build for no reason; the
+# runtime stage below still runs the CLI on Node, which is what we ship.
+ARG BUN_VERSION=1.3.8
+FROM oven/bun:${BUN_VERSION}-alpine AS base
 RUN apk add --no-cache libc6-compat
 
 FROM base AS deps
-ARG BUN_VERSION=1.3.8
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    npm install -g bun@${BUN_VERSION} && bun install --frozen-lockfile
+    bun install --frozen-lockfile
 
 FROM base AS builder
-ARG BUN_VERSION=1.3.8
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    npm install -g bun@${BUN_VERSION} && bun run build
+    bun run build
 
 FROM node:22-alpine AS runner
 ARG VERSION=unknown
