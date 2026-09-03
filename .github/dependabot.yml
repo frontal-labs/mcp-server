@@ -8,14 +8,19 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
-    assignees:
-      - "frontal-cloud/maintainers"
     commit-message:
       prefix: "chore"
       include: "scope"
     labels:
       - "dependencies"
       - "chore"
+    ignore:
+      # @types/node must track the runtime floor in engines.node (>=22).
+      # A newer major types against APIs that do not exist on Node 22, so
+      # code would type-check here and fail at runtime in production.
+      # Patch and minor updates within v22 still come through.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
