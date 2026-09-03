@@ -433,6 +433,127 @@ describe("EnhancedHttpTransport", () => {
     }
   });
 
+  it("returns 429 with retry headers once the rate limit is exhausted", async () => {
+    const reset = Date.now() + 30_000;
+    let calls = 0;
+    const rateLimiter = {
+      limit: vi.fn(() => {
+        calls++;
+        return Promise.resolve({
+          success: calls <= 2,
+          limit: 2,
+          remaining: Math.max(0, 2 - calls),
+          reset,
+        });
+      }),
+    };
+    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+      rateLimiter,
+    });
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    const send = () =>
+      fetch(`http://127.0.0.1:${port}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer frt_test",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+      });
+
+    try {
+      const first = await send();
+      expect(first.status).not.toBe(429);
+      expect(first.headers.get("ratelimit-limit")).toBe("2");
+
+      await send();
+      const limited = await send();
+
+      expect(limited.status).toBe(429);
+      expect(limited.headers.get("ratelimit-remaining")).toBe("0");
+      expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
+      const body = (await limited.json()) as { error: { message: string } };
+      expect(body.error.message).toContain("Rate limit exceeded");
+    } finally {
+      await transport.stop();
+    }
+  });
+
+  it("keeps serving when the rate limiter throws", async () => {
+    // A rate-limiter outage must not become an outage of the whole server.
+    const rateLimiter = {
+      limit: vi.fn(() => Promise.reject(new Error("redis unreachable"))),
+    };
+    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+      rateLimiter,
+    });
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer frt_test",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+      });
+      expect(response.status).not.toBe(429);
+      expect(response.status).not.toBe(500);
+      expect(rateLimiter.limit).toHaveBeenCalled();
+    } finally {
+      await transport.stop();
+    }
+  });
+
+  it("rate limits each caller separately", async () => {
+    const seen: string[] = [];
+    const rateLimiter = {
+      limit: (identifier: string) => {
+        seen.push(identifier);
+        return Promise.resolve({
+          success: true,
+          limit: 10,
+          remaining: 9,
+          reset: Date.now() + 1000,
+        });
+      },
+    };
+    const transport = new EnhancedHttpTransport(mcpServerFactory, logger, {
+      rateLimiter,
+    });
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    const send = (token: string) =>
+      fetch(`http://127.0.0.1:${port}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+      });
+
+    try {
+      await send("frt_tenant_a");
+      await send("frt_tenant_b");
+      await send("frt_tenant_a");
+
+      expect(seen).toHaveLength(3);
+      // Same caller maps to one bucket, different callers to different ones.
+      expect(seen[0]).toBe(seen[2]);
+      expect(seen[0]).not.toBe(seen[1]);
+      // The raw bearer token is never used as the key.
+      expect(seen[0]).not.toContain("frt_tenant_a");
+    } finally {
+      await transport.stop();
+    }
+  });
+
   it("refuses new sessions once the session limit is reached", async () => {
     // Each session holds its own McpServer, so unbounded session creation is
     // a memory-exhaustion vector; the process should degrade with 503 rather

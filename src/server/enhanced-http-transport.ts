@@ -25,6 +25,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { Logger } from "winston";
 import { runWithToken } from "./auth-context.js";
+import { type RateLimiter, rateLimitIdentifier } from "./rate-limit.js";
 
 /** Pull a bearer token out of the inbound Authorization header, if present. */
 function extractBearerToken(req: IncomingMessage): string | undefined {
@@ -112,6 +113,10 @@ export interface EnhancedHttpTransportOptions {
    * server so a victim's browser treats it as same-origin.
    */
   allowedHosts?: string[];
+  /**
+   * Per-caller rate limiter. Omitted means unlimited.
+   */
+  rateLimiter?: RateLimiter;
 }
 
 export class EnhancedHttpTransport {
@@ -138,6 +143,7 @@ export class EnhancedHttpTransport {
   private readonly maxRequestBodyBytes: number;
   private readonly maxSessions: number;
   private readonly allowedHosts: Set<string>;
+  private readonly rateLimiter: RateLimiter | undefined;
   private sweepTimer: NodeJS.Timeout | undefined;
 
   constructor(
@@ -157,6 +163,7 @@ export class EnhancedHttpTransport {
     this.allowedHosts = new Set(
       (options.allowedHosts ?? []).map((host) => host.toLowerCase())
     );
+    this.rateLimiter = options.rateLimiter;
   }
 
   /** Close sessions that have gone quiet for longer than the idle timeout. */
@@ -208,6 +215,10 @@ export class EnhancedHttpTransport {
       "Access-Control-Allow-Headers",
       "Content-Type, Authorization, Mcp-Session-Id"
     );
+    res.setHeader(
+      "Access-Control-Expose-Headers",
+      "Mcp-Session-Id, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After"
+    );
   }
 
   /**
@@ -232,16 +243,161 @@ export class EnhancedHttpTransport {
     return this.allowedHosts.has(host) || this.allowedHosts.has(withoutPort);
   }
 
-  private async handle(
+  /** Attach the standard rate-limit headers to a response. */
+  private static setRateLimitHeaders(
+    res: ServerResponse,
+    decision: { limit: number; remaining: number; reset: number }
+  ): void {
+    const resetSeconds = Math.max(
+      0,
+      Math.ceil((decision.reset - Date.now()) / 1000)
+    );
+    res.setHeader("RateLimit-Limit", String(decision.limit));
+    res.setHeader(
+      "RateLimit-Remaining",
+      String(Math.max(0, decision.remaining))
+    );
+    res.setHeader("RateLimit-Reset", String(resetSeconds));
+  }
+
+  /**
+   * Apply the per-caller rate limit.
+   *
+   * Returns true when the request may continue. A Redis failure allows the
+   * request through: a rate limiter outage should not become an outage of the
+   * whole server, and the session and body caps still bound resource use.
+   */
+  private async enforceRateLimit(
+    res: ServerResponse,
+    token: string
+  ): Promise<boolean> {
+    if (!this.rateLimiter) {
+      return true;
+    }
+
+    let decision: {
+      success: boolean;
+      limit: number;
+      remaining: number;
+      reset: number;
+    };
+    try {
+      decision = await this.rateLimiter.limit(rateLimitIdentifier(token));
+    } catch (error) {
+      this.logger.error("Rate limit check failed, allowing request:", error);
+      return true;
+    }
+
+    EnhancedHttpTransport.setRateLimitHeaders(res, decision);
+    if (decision.success) {
+      return true;
+    }
+
+    const retryAfter = Math.max(
+      1,
+      Math.ceil((decision.reset - Date.now()) / 1000)
+    );
+    res.writeHead(429, {
+      "Content-Type": "application/json",
+      "Retry-After": String(retryAfter),
+    });
+    res.end(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        error: {
+          code: -32029,
+          message: `Rate limit exceeded. Retry in ${retryAfter}s.`,
+        },
+        id: null,
+      })
+    );
+    return false;
+  }
+
+  /** Send a JSON error body with the given status. */
+  private static fail(
+    res: ServerResponse,
+    status: number,
+    body: Record<string, unknown>,
+    headers: Record<string, string> = {}
+  ): void {
+    res.writeHead(status, { "Content-Type": "application/json", ...headers });
+    res.end(JSON.stringify(body));
+  }
+
+  /**
+   * Run the checks every MCP request must pass.
+   *
+   * Returns the caller's bearer token when the request may proceed, or
+   * undefined once a response has already been written.
+   */
+  private async authorize(
     req: IncomingMessage,
     res: ServerResponse
-  ): Promise<void> {
-    this.setCorsHeaders(req, res);
+  ): Promise<string | undefined> {
+    // HTTP is multi-tenant: every MCP request must carry its own bearer token.
+    // Reject unauthenticated requests up front so they can never reach the
+    // adapters and borrow the server's stdio-only FRONTAL_API_KEY fallback.
+    const token = extractBearerToken(req);
+    if (!token) {
+      EnhancedHttpTransport.fail(
+        res,
+        401,
+        {
+          error: "unauthorized",
+          message:
+            "Missing bearer token. Send Authorization: Bearer <frt_...> with every HTTP request.",
+        },
+        { "WWW-Authenticate": "Bearer" }
+      );
+      return;
+    }
 
+    // Rate limit after authentication so the limiter is keyed on the caller
+    // rather than shared across every anonymous request.
+    if (!(await this.enforceRateLimit(res, token))) {
+      return;
+    }
+    return token;
+  }
+
+  /** Translate a dispatch failure into a response. */
+  private onDispatchError(
+    error: unknown,
+    req: IncomingMessage,
+    res: ServerResponse
+  ): void {
+    if (error instanceof PayloadTooLargeError) {
+      this.logger.warn(`Rejected oversized request body: ${error.message}`);
+      if (!res.headersSent) {
+        EnhancedHttpTransport.fail(res, 413, {
+          error: "payload_too_large",
+          message: error.message,
+        });
+      }
+      // Hang up on a sender still streaming a body we refused to read.
+      req.destroy();
+      return;
+    }
+
+    this.logger.error("Error handling MCP request:", error);
+    if (!res.headersSent) {
+      EnhancedHttpTransport.fail(res, 500, {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * Answer the requests that never reach the MCP layer: CORS preflight, the
+   * host check and the health probe. Returns true when the response is done.
+   */
+  private handlePreMcp(req: IncomingMessage, res: ServerResponse): boolean {
     if (req.method === "OPTIONS") {
       res.writeHead(200);
       res.end();
-      return;
+      return true;
     }
 
     // Host check runs before anything that touches session state, but after
@@ -253,14 +409,11 @@ export class EnhancedHttpTransport {
       this.logger.warn(
         `Rejected request with untrusted Host header: ${req.headers.host ?? "(none)"}`
       );
-      res.writeHead(403, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          error: "forbidden",
-          message: "Host header is not allowed.",
-        })
-      );
-      return;
+      EnhancedHttpTransport.fail(res, 403, {
+        error: "forbidden",
+        message: "Host header is not allowed.",
+      });
+      return true;
     }
 
     // HEAD is accepted alongside GET: container and load-balancer probes
@@ -273,52 +426,31 @@ export class EnhancedHttpTransport {
     ) {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ status: "ok" }));
+      return true;
+    }
+
+    return false;
+  }
+
+  private async handle(
+    req: IncomingMessage,
+    res: ServerResponse
+  ): Promise<void> {
+    this.setCorsHeaders(req, res);
+
+    if (this.handlePreMcp(req, res)) {
       return;
     }
 
-    // HTTP is multi-tenant: every MCP request must carry its own bearer token.
-    // Reject unauthenticated requests up front so they can never reach the
-    // adapters and borrow the server's stdio-only FRONTAL_API_KEY fallback.
-    const token = extractBearerToken(req);
+    const token = await this.authorize(req, res);
     if (!token) {
-      res.writeHead(401, {
-        "Content-Type": "application/json",
-        "WWW-Authenticate": "Bearer",
-      });
-      res.end(
-        JSON.stringify({
-          error: "unauthorized",
-          message:
-            "Missing bearer token. Send Authorization: Bearer <frt_...> with every HTTP request.",
-        })
-      );
       return;
     }
 
     try {
       await this.dispatchMcp(req, res, token);
     } catch (error: unknown) {
-      if (error instanceof PayloadTooLargeError) {
-        this.logger.warn(`Rejected oversized request body: ${error.message}`);
-        if (!res.headersSent) {
-          res.writeHead(413, { "Content-Type": "application/json" });
-          res.end(
-            JSON.stringify({
-              error: "payload_too_large",
-              message: error.message,
-            })
-          );
-        }
-        // Hang up on a sender still streaming a body we refused to read.
-        req.destroy();
-        return;
-      }
-      const message = error instanceof Error ? error.message : "Unknown error";
-      this.logger.error("Error handling MCP request:", error);
-      if (!res.headersSent) {
-        res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Internal server error", message }));
-      }
+      this.onDispatchError(error, req, res);
     }
   }
 

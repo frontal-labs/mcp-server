@@ -97,6 +97,19 @@ export function parseCsvList(raw: string): string[] {
   ];
 }
 
+/**
+ * Rate limiting settings. Active only when both Upstash fields are present,
+ * mirroring how the incident.io integration opts in.
+ */
+export const rateLimitConfigSchema = z.object({
+  redisUrl: z.string().optional(),
+  redisToken: z.string().optional(),
+  requests: z.number().int().positive().default(100),
+  window: z.string().default("60 s"),
+  prefix: z.string().default("frontal-mcp"),
+  timeoutMs: z.number().int().positive().default(1000),
+});
+
 export const serverConfigSchema = z.object({
   apiKey: z.string().default(env.FRONTAL_API_KEY),
   baseUrl: z.string().default(env.FRONTAL_BASE_URL),
@@ -107,6 +120,7 @@ export const serverConfigSchema = z.object({
   transport: transportConfigSchema,
   auth: authConfigSchema,
   incidentio: incidentioConfigSchema,
+  rateLimit: rateLimitConfigSchema,
   logLevel: z.enum(["error", "warn", "info", "debug"]),
   verbose: z.boolean().default(false),
 });
@@ -115,6 +129,7 @@ export type Toolset = z.infer<typeof toolsetSchema>;
 export type TransportConfig = z.infer<typeof transportConfigSchema>;
 export type AuthConfig = z.infer<typeof authConfigSchema>;
 export type IncidentioConfig = z.infer<typeof incidentioConfigSchema>;
+export type RateLimitConfig = z.infer<typeof rateLimitConfigSchema>;
 export type ServerConfig = z.infer<typeof serverConfigSchema>;
 
 export interface ConfigOptions {
@@ -157,6 +172,14 @@ export async function loadConfig(
       statusPageId: env.INCIDENTIO_STATUS_PAGE_ID,
       statusPageUrl: env.INCIDENTIO_STATUS_PAGE_URL,
       componentId: env.INCIDENTIO_COMPONENT_ID,
+    },
+    rateLimit: {
+      redisUrl: env.UPSTASH_REDIS_REST_URL,
+      redisToken: env.UPSTASH_REDIS_REST_TOKEN,
+      requests: env.FRONTAL_RATE_LIMIT_REQUESTS,
+      window: env.FRONTAL_RATE_LIMIT_WINDOW,
+      prefix: env.FRONTAL_RATE_LIMIT_PREFIX,
+      timeoutMs: env.FRONTAL_RATE_LIMIT_TIMEOUT_MS,
     },
     logLevel:
       (options.logLevel as "error" | "warn" | "info" | "debug") ||

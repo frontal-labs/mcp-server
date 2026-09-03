@@ -111,6 +111,7 @@ async function main() {
       const { EnhancedHttpTransport } = await import(
         "@/server/enhanced-http-transport.js"
       );
+      const { createRateLimiter } = await import("@/server/rate-limit.js");
       const httpTransport = new EnhancedHttpTransport(
         // Each MCP session gets its own server instance: an McpServer binds to
         // a single transport, so sharing one across sessions would let only
@@ -122,6 +123,7 @@ async function main() {
           maxRequestBodyBytes: config.transport.http?.maxRequestBodyBytes,
           maxSessions: config.transport.http?.maxSessions,
           allowedHosts: config.transport.http?.allowedHosts,
+          rateLimiter: createRateLimiter(config.rateLimit, logger),
         }
       );
       await httpTransport.start(

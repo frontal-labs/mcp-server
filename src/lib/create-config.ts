@@ -36,6 +36,14 @@ export function createConfig(
       statusPageUrl: env.INCIDENTIO_STATUS_PAGE_URL,
       componentId: env.INCIDENTIO_COMPONENT_ID,
     },
+    rateLimit: {
+      redisUrl: env.UPSTASH_REDIS_REST_URL,
+      redisToken: env.UPSTASH_REDIS_REST_TOKEN,
+      requests: env.FRONTAL_RATE_LIMIT_REQUESTS,
+      window: env.FRONTAL_RATE_LIMIT_WINDOW,
+      prefix: env.FRONTAL_RATE_LIMIT_PREFIX,
+      timeoutMs: env.FRONTAL_RATE_LIMIT_TIMEOUT_MS,
+    },
     logLevel: env.MCP_LOG_LEVEL,
     verbose: false,
   };

@@ -107,6 +107,54 @@ export const env = createEnv({
       .default("")
       .describe("Comma-separated Host allowlist for the HTTP transport"),
 
+    /**
+     * Upstash Redis REST endpoint backing the rate limiter. Rate limiting
+     * activates only when both this and the token are set.
+     */
+    UPSTASH_REDIS_REST_URL: z
+      .string()
+      .url()
+      .optional()
+      .describe("Upstash Redis REST URL for rate limiting"),
+
+    /** Upstash Redis REST token. */
+    UPSTASH_REDIS_REST_TOKEN: z
+      .string()
+      .optional()
+      .describe("Upstash Redis REST token for rate limiting"),
+
+    /** Requests allowed per window, per caller. */
+    FRONTAL_RATE_LIMIT_REQUESTS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .default(100)
+      .describe("Requests allowed per rate-limit window (default 100)"),
+
+    /** Rate-limit window as an Upstash duration, e.g. "60 s" or "1 m". */
+    FRONTAL_RATE_LIMIT_WINDOW: z
+      .string()
+      .optional()
+      .default("60 s")
+      .describe('Rate-limit window duration (default "60 s")'),
+
+    /** Redis key prefix, so one Redis can be shared across apps. */
+    FRONTAL_RATE_LIMIT_PREFIX: z
+      .string()
+      .optional()
+      .default("frontal-mcp")
+      .describe("Redis key prefix for rate-limit counters"),
+
+    /** How long to wait on Redis before letting the request through. */
+    FRONTAL_RATE_LIMIT_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .default(1000)
+      .describe("Redis timeout in ms before failing open (default 1000)"),
+
     /** Log level for the MCP server */
     MCP_LOG_LEVEL: z
       .enum(["error", "warn", "info", "debug"])
@@ -150,6 +198,12 @@ export const env = createEnv({
     FRONTAL_HTTP_MAX_BODY_BYTES: process.env.FRONTAL_HTTP_MAX_BODY_BYTES,
     FRONTAL_HTTP_MAX_SESSIONS: process.env.FRONTAL_HTTP_MAX_SESSIONS,
     FRONTAL_HTTP_ALLOWED_HOSTS: process.env.FRONTAL_HTTP_ALLOWED_HOSTS,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    FRONTAL_RATE_LIMIT_REQUESTS: process.env.FRONTAL_RATE_LIMIT_REQUESTS,
+    FRONTAL_RATE_LIMIT_WINDOW: process.env.FRONTAL_RATE_LIMIT_WINDOW,
+    FRONTAL_RATE_LIMIT_PREFIX: process.env.FRONTAL_RATE_LIMIT_PREFIX,
+    FRONTAL_RATE_LIMIT_TIMEOUT_MS: process.env.FRONTAL_RATE_LIMIT_TIMEOUT_MS,
     MCP_LOG_LEVEL: process.env.MCP_LOG_LEVEL,
     INCIDENTIO_API_KEY: process.env.INCIDENTIO_API_KEY,
     INCIDENTIO_STATUS_PAGE_ID: process.env.INCIDENTIO_STATUS_PAGE_ID,

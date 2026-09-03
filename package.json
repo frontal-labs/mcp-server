@@ -79,6 +79,8 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.28.0",
     "@t3-oss/env-core": "^0.13.11",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.3",
     "chalk": "^5.4.0",
     "commander": "^14.0.3",
     "ora": "^9.4.1",
