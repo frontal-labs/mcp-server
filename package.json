@@ -98,6 +98,6 @@
     "tsup": "^8.0.0",
     "typescript": "^6.0.3",
     "ultracite": "7.10.8",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.0"
   }
 }
