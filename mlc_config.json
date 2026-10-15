@@ -16,6 +16,12 @@
     },
     {
       "pattern": "^https?://([a-zA-Z0-9-]+\\.)*frontal\\.(dev|cloud)"
+    },
+    {
+      "pattern": "^https://github\\.com/user/repo/compare/"
+    },
+    {
+      "pattern": "references/advanced-strategies\\.md$"
     }
   ],
   "retryCount": 3,
