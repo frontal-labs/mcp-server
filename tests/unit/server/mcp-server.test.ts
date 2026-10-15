@@ -15,7 +15,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { createConfig } from "@/config/index.js";
-import { FrontalMcpServer } from "@/server/mcp-server.js";
+import { FrontalMcpServer } from "@/mcp/index.js";
 import { createLogger } from "@/utils/logger.js";
 
 describe("FrontalMcpServer", () => {

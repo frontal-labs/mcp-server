@@ -15,8 +15,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "winston";
-import { FrontalClient } from "@/clients/frontal-client.js";
-import { FrontalApiError } from "@/lib/error.js";
+import { FrontalClient } from "@/client.js";
+import { FrontalApiError } from "@/types/errors.js";
 import { createLogger } from "@/utils/logger.js";
 
 function jsonResponse(

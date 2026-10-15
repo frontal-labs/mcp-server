@@ -26,7 +26,7 @@ import {
   RETRYABLE_STATUS,
   SpecError,
   ToolInputError,
-} from "@/lib/error.js";
+} from "@/types/errors.js";
 
 describe("error hierarchy", () => {
   it("FrontalApiError carries HTTP metadata and is a FrontalError", () => {

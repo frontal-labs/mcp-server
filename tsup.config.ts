@@ -4,7 +4,7 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: {
     index: "src/index.ts",
-    "bin/frontal-mcp-server": "src/bin/frontal-mcp-server.ts",
+    "bin/index": "bin/index.ts",
   },
   format: ["esm", "cjs"],
   dts: true,

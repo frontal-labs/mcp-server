@@ -14,11 +14,15 @@
  * limitations under the License.
  */
 
+/**
+ * CLI main entry point.
+ */
+
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
-import { loadConfig } from "@/lib/server-config.js";
-import { FrontalMcpServer } from "@/server/mcp-server.js";
+import { loadConfig } from "@/config/index.js";
+import { FrontalMcpServer } from "@/mcp/index.js";
 import { createLogger } from "@/utils/logger.js";
 import { VERSION } from "@/version.js";
 
@@ -38,16 +42,8 @@ program
 
 program.parse();
 
-/** Give in-flight work this long to finish before exiting anyway. */
 const SHUTDOWN_GRACE_MS = 10_000;
 
-/**
- * Close the server on SIGTERM/SIGINT.
- *
- * Rolling deploys send SIGTERM. Without a handler Node exits immediately and
- * drops in-flight requests and open SSE streams instead of letting them
- * finish.
- */
 function installSignalHandlers(
   logger: ReturnType<typeof createLogger>,
   stop: () => Promise<void>
@@ -61,7 +57,6 @@ function installSignalHandlers(
     shuttingDown = true;
     logger.info(`Received ${signal}, shutting down...`);
 
-    // Never let a stuck connection block the exit indefinitely.
     const timer = setTimeout(() => {
       logger.warn(
         `Shutdown still pending after ${SHUTDOWN_GRACE_MS}ms, exiting anyway`
@@ -85,7 +80,7 @@ function installSignalHandlers(
   }
 }
 
-async function main() {
+export async function main(): Promise<void> {
   const options = program.opts();
   const logger = createLogger({ level: options.logLevel });
   const spinner = ora("Initializing Frontal MCP Server...").start();
@@ -108,12 +103,9 @@ async function main() {
       await server.connectStdio();
       installSignalHandlers(logger, () => server.close());
     } else if (config.transport.transport === "http") {
-      const { HttpTransport } = await import("@/server/http-transport.js");
-      const { createRateLimiter } = await import("@/server/rate-limit.js");
+      const { HttpTransport } = await import("@/middlewares/http-transport.js");
+      const { createRateLimiter } = await import("@/middlewares/rate-limit.js");
       const httpTransport = new HttpTransport(
-        // Each MCP session gets its own server instance: an McpServer binds to
-        // a single transport, so sharing one across sessions would let only
-        // the first client connect.
         () => server.createServer(),
         logger,
         {
@@ -129,8 +121,6 @@ async function main() {
         config.transport.http?.host || "localhost"
       );
       installSignalHandlers(logger, async () => {
-        // Stop the listener and close live sessions first, then the server
-        // that backs them.
         await httpTransport.stop();
         await server.close();
       });
@@ -145,9 +135,3 @@ async function main() {
     process.exit(1);
   }
 }
-
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : "Unknown error";
-  console.error(chalk.red("Fatal error:"), message);
-  process.exit(1);
-});

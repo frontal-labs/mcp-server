@@ -40,9 +40,6 @@ export function createLogger(config: LoggerConfig): winston.Logger {
     format: winston.format.combine(...formats),
     transports: [
       new winston.transports.Console({
-        // stdout is reserved for the MCP JSON-RPC frames on the stdio
-        // transport; anything else written there corrupts the protocol
-        // stream. Route every level to stderr.
         stderrLevels: Object.keys(winston.config.npm.levels),
       }),
     ],

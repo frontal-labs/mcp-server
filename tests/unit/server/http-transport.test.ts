@@ -17,7 +17,7 @@ import { request } from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "winston";
-import { HttpTransport } from "@/server/http-transport.js";
+import { HttpTransport } from "@/middlewares/http-transport.js";
 import { createLogger } from "@/utils/logger.js";
 
 /**

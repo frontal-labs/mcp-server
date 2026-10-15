@@ -14,33 +14,29 @@
  * limitations under the License.
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { z } from "zod";
+import type { ZodRawShapeCompat } from "@modelcontextprotocol/sdk/server/zod-compat.js";
 import {
   type CallOperationInput,
   callOperation,
   toToolError,
   toToolResult,
-} from "./tool-helpers.js";
-import type { AdapterContext } from "./types.js";
+} from "@/tools/tool-helpers.js";
+import type { AdapterContext } from "@/tools/types.js";
 
-/** A curated tool: a friendly wrapper bound to one real spec operation. */
 export interface CuratedToolDef {
   name: string;
   title: string;
   description: string;
-  inputSchema: z.ZodRawShape;
+  inputSchema: ZodRawShapeCompat;
   operationId: string;
-  /** Map validated tool args to a spec-operation call. */
   map?: (args: Record<string, unknown>) => CallOperationInput;
 }
 
-/** Register a curated tool that validates against, and calls, a real operation. */
 export function registerCuratedTool(
   server: McpServer,
   ctx: AdapterContext,
   def: CuratedToolDef
 ): void {
-  // Guard against spec drift: refuse to register a tool with no real operation.
   if (!ctx.spec.getByOperationId(def.operationId)) {
     ctx.logger.warn(
       `Skipping curated tool ${def.name}: operationId ${def.operationId} not found in spec`
