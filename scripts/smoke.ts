@@ -16,7 +16,7 @@
  */
 import { createServer, type Server } from "node:http";
 import { createConfig } from "../src/config/index.ts";
-import { FrontalMcpServer } from "../src/server/mcp-server.ts";
+import { FrontalMcpServer } from "../src/mcp/index.ts";
 import { createLogger } from "../src/utils/logger.ts";
 
 const logger = createLogger({ level: "error" });
@@ -162,8 +162,7 @@ async function main() {
         paged.content[0].text.slice(0, 80)
       );
     } else {
-      const pages = (JSON.parse(paged.content[0].text) as { pages: unknown[] })
-        .pages;
+      const pages = JSON.parse(paged.content[0].text) as unknown[];
       check(
         "cursor pagination followed across pages",
         pages.length === 2,
