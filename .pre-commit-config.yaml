@@ -6,6 +6,10 @@ repos:
     hooks:
       - id: end-of-file-fixer
       - id: check-yaml
+        # Vendored k8s-manifest-generator assets are intentional
+        # multi-document templates for `kubectl apply`, which the
+        # single-document check-yaml hook cannot validate.
+        exclude: ^skills/k8s-manifest-generator/assets/
       - id: check-json
       - id: check-added-large-files
       - id: debug-statements
