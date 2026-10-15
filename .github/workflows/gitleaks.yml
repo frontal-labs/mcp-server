@@ -5,10 +5,9 @@
 # secrets:scan` cover the local side; this workflow is the server-side
 # backstop so a secret can never land via a client without the hook.
 #
-# NOTE (org license): frontal-labs is a GitHub organization, and
-# gitleaks-action requires a free license for org-owned repos
-# (https://gitleaks.io). Provision it once as a repository secret named
-# GITLEAKS_LICENSE; personal forks work without it.
+# NOTE: this uses the standalone OSS gitleaks binary directly instead of
+# gitleaks-action, whose wrapper requires a license key for
+# organization-owned repos (https://gitleaks.io). Same rules, no key.
 name: Gitleaks
 
 on:
@@ -38,10 +37,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Scan for secrets
-        uses: gitleaks/gitleaks-action@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
-          GITLEAKS_CONFIG: .gitleaks.toml
-          GITLEAKS_VERSION: ${{ env.GITLEAKS_VERSION }}
+      - name: Install Gitleaks
+        run: |
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Scan git history for secrets
+        run: gitleaks git --config .gitleaks.toml --redact --verbose
