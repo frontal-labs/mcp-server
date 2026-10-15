@@ -5,7 +5,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["tests/**/*.test.ts", "tests/**/*.test.js", "e2e/**/*.test.ts", "e2e/**/*.test.js"],
+    include: [
+      "tests/**/*.test.ts",
+      "tests/**/*.test.js",
+      "e2e/**/*.test.ts",
+      "e2e/**/*.test.js",
+    ],
     exclude: ["node_modules", "dist", "**/*.d.ts"],
     setupFiles: ["tests/setup/index.ts"],
     coverage: {
