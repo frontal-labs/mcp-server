@@ -77,6 +77,15 @@ FRONTAL_API_KEY=your_api_key_here ./frontal-mcp-server.js
 - Automated security scanning in CI/CD
 - Dependency vulnerability scanning
 
+#### Secret Scanning
+
+- Gitleaks scans staged changes on every commit (pre-commit hook) and the
+  full git history on every PR/push plus a weekly scheduled sweep
+  (`.github/workflows/gitleaks.yml`)
+- Scan policy is defined in `.gitleaks.toml`, which allowlists verified dummy
+  values only (test fixtures, placeholders, public-spec examples)
+- Scan locally any time with `bun run secrets:scan`
+
 #### Dependencies
 
 ```bash

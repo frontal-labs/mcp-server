@@ -34,8 +34,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "biome lint src/ tests/",
-    "format": "biome format --write src/ tests/",
+    "lint": "biome lint src/ tests/ e2e/",
+    "format": "biome format --write src/ tests/ e2e/",
     "clean": "rm -rf dist",
     "sync-spec": "bun run scripts/sync-spec.ts",
     "sync-spec:check": "bun run scripts/sync-spec.ts --check",
@@ -47,6 +47,8 @@
     "release": "bun run build && changeset publish",
     "check": "ultracite check",
     "fix": "ultracite fix",
+    "secrets:scan": "gitleaks git --config .gitleaks.toml --redact --verbose && gitleaks dir . --config .gitleaks.toml --redact",
+    "secrets:scan:staged": "gitleaks git --pre-commit --redact --staged --verbose --config .gitleaks.toml",
     "prepare": "git config --unset-all core.hooksPath 2>/dev/null; command -v pre-commit >/dev/null 2>&1 && pre-commit install >/dev/null 2>&1 || true"
   },
   "keywords": [

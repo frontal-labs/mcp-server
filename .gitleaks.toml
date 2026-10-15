@@ -1,20 +1,30 @@
+# Gitleaks secret-scanning policy for mcp-server.
+#
+# Extends the default Gitleaks rule set. Every regex below allowlists a
+# *verified dummy* value (test fixture, placeholder, or public example) —
+# never add a real credential here.
+#
+# Scan locally:   bun run secrets:scan
+# Scan staged:    gitleaks git --pre-commit --redact --staged
 title = "mcp-server"
 
 [extend]
 useDefault = true
 
 [allowlist]
-description = "Ignore test fixtures, example env files, and documentation"
-paths = [
-  '''(^|.*/)fixtures(/.*|$)''',
-  '''(^|.*/)testdata(/.*|$)''',
-  '''\.env\.example$''',
-  '''\.env\.sample$''',
-  '''\.env$''',
-  '''README\.md$''',
-  '''AGENTS\.md$''',
-  '''docs/''',
-  '''\.test\.ts$''',
-  '''\.spec\.ts$''',
-  '''test\.env$''',
+description = "Verified dummy/example values only (see inline comments). Not real credentials."
+regexes = [
+  # Unit-test dummy API key (tests/setup/environment.ts, tests/mocks/data-generators.ts).
+  '''test-api-key-12345''',
+  # Placeholder key in scripts/smoke.ts usage comment and README (FRONTAL_API_KEY=frt_...).
+  '''frt_\.\.\.''',
+  # Placeholder keys in .env.example and README (frt_your_api_key[_here]).
+  '''frt_your_api_key(_here)?''',
+  # Base64 of the literal placeholder 'your_api_key_here' in infrastructure/kubernetes/secrets.yaml.
+  '''eW91cl9hcGlfa2V5X2hlcmU=''',
+  # Dummy dockerconfigjson (base64 of user:user/pass:pass) in infrastructure/kubernetes/secrets.yaml.
+  '''eyJhdXRocyI6eyJyZWdpc3RyeS5mcm9udGFsLmRldiI6eyJ1c2VybmFtZSI6InVzZXIiLCJwYXNzd29yZCI6InBhc3MiLCJhdXRoIjoiZFhObGNqcHdZWE56In19fQ==''',
+  # Example auth_code / refresh_token in the vendored public API spec (openapi/public.v1.json).
+  '''009e5066-fc11-4eca-8c8c-6fd82aa263f2''',
+  '''4nYUCw0wZR_DNOTSDbSGMQ''',
 ]

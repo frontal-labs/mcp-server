@@ -25,11 +25,19 @@ repos:
         args: ['--markdown-linebreak-ext=md']
   # Local hooks mirror the checks husky enforced (biome, type-check, test,
   # commitlint) so parity is preserved after the migration.
+  # The gitleaks hook is new (no husky predecessor): it scans staged changes
+  # for secrets and blocks the commit on a finding. Requires the gitleaks
+  # binary (>= 8.30): `brew install gitleaks`. Policy: .gitleaks.toml.
   - repo: local
     hooks:
+      - id: gitleaks
+        name: gitleaks (staged secret scan)
+        entry: gitleaks git --pre-commit --redact --staged --verbose --config .gitleaks.toml
+        language: system
+        pass_filenames: false
       - id: biome
         name: biome check (lint + format)
-        entry: bunx biome check src/ tests/
+        entry: bunx biome check src/ tests/ e2e/
         language: system
         files: \.(ts|tsx|js|jsx)$
         pass_filenames: false
