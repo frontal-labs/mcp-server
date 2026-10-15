@@ -15,13 +15,14 @@
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { ZodRawShapeCompat } from "@modelcontextprotocol/sdk/server/zod-compat.js";
 import { type CuratedToolDef, registerCuratedTool } from "./curated.js";
 import type { AdapterContext, ServiceAdapter } from "./types.js";
 
 const listQuery = {
   limit: z.number().int().min(1).max(200).optional(),
   cursor: z.string().optional(),
-};
+} as unknown as ZodRawShapeCompat;
 
 const TOOLS: CuratedToolDef[] = [
   {
@@ -29,7 +30,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List ontology object types",
     description: "List the object types defined in the ontology.",
     operationId: "getV1OntologyObjectsObject_types",
-    inputSchema: { ...listQuery },
+    inputSchema: { ...listQuery } as unknown as ZodRawShapeCompat,
     map: (a) => ({ query: a }),
   },
   {
@@ -41,7 +42,7 @@ const TOOLS: CuratedToolDef[] = [
     inputSchema: {
       object_type_id: z.string().optional(),
       ...listQuery,
-    },
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ query: a }),
   },
   {
@@ -49,7 +50,9 @@ const TOOLS: CuratedToolDef[] = [
     title: "Get an ontology object",
     description: "Fetch a single ontology object by its id.",
     operationId: "getV1OntologyObjectsObjectsObject_id",
-    inputSchema: { object_id: z.string().describe("The object id") },
+    inputSchema: {
+      object_id: z.string().describe("The object id"),
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ pathParams: { object_id: a.object_id as string } }),
   },
   {
@@ -57,7 +60,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List ontology relationships",
     description: "List relationships in the ontology. Cursor-paginated.",
     operationId: "getV1OntologyRelationshipsRelationships",
-    inputSchema: { ...listQuery },
+    inputSchema: { ...listQuery } as unknown as ZodRawShapeCompat,
     map: (a) => ({ query: a }),
   },
   {
@@ -68,7 +71,7 @@ const TOOLS: CuratedToolDef[] = [
     operationId: "postV1OntologyGraphGraphQuery",
     inputSchema: {
       query: z.record(z.string(), z.unknown()).describe("Graph query body"),
-    },
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ body: a.query }),
   },
   {
@@ -81,7 +84,7 @@ const TOOLS: CuratedToolDef[] = [
       request: z
         .record(z.string(), z.unknown())
         .describe("Neighborhood request body (entity ids, depth, etc.)"),
-    },
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ body: a.request }),
   },
   {
@@ -92,7 +95,7 @@ const TOOLS: CuratedToolDef[] = [
     operationId: "postV1OntologyGraphGraphPath",
     inputSchema: {
       request: z.record(z.string(), z.unknown()).describe("Path request body"),
-    },
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ body: a.request }),
   },
   {
@@ -105,7 +108,7 @@ const TOOLS: CuratedToolDef[] = [
       request: z
         .record(z.string(), z.unknown())
         .describe("Extraction request body (e.g. { text, ... })"),
-    },
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ body: a.request }),
   },
   {
@@ -113,7 +116,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List ontology schemas",
     description: "List ontology schemas.",
     operationId: "getV1OntologySchemasSchemas",
-    inputSchema: { ...listQuery },
+    inputSchema: { ...listQuery } as unknown as ZodRawShapeCompat,
     map: (a) => ({ query: a }),
   },
   {
@@ -121,7 +124,9 @@ const TOOLS: CuratedToolDef[] = [
     title: "Get an ontology schema",
     description: "Fetch a single ontology schema by id.",
     operationId: "getV1OntologySchemasSchemasSchema_id",
-    inputSchema: { schema_id: z.string().describe("The schema id") },
+    inputSchema: {
+      schema_id: z.string().describe("The schema id"),
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ pathParams: { schema_id: a.schema_id as string } }),
   },
 ];

@@ -15,13 +15,14 @@
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { ZodRawShapeCompat } from "@modelcontextprotocol/sdk/server/zod-compat.js";
 import { type CuratedToolDef, registerCuratedTool } from "./curated.js";
 import type { AdapterContext, ServiceAdapter } from "./types.js";
 
 const listQuery = {
   limit: z.number().int().min(1).max(200).optional(),
   cursor: z.string().optional(),
-};
+} as unknown as ZodRawShapeCompat;
 
 const TOOLS: CuratedToolDef[] = [
   {
@@ -32,7 +33,7 @@ const TOOLS: CuratedToolDef[] = [
     operationId: "postV1DataQueryQueryFederated",
     inputSchema: {
       query: z.record(z.string(), z.unknown()).describe("Federated query body"),
-    },
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ body: a.query }),
   },
   {
@@ -40,7 +41,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List catalog datasets",
     description: "List datasets in the data catalog. Cursor-paginated.",
     operationId: "getV1DataCatalogCatalogDatasets",
-    inputSchema: { ...listQuery },
+    inputSchema: { ...listQuery } as unknown as ZodRawShapeCompat,
     map: (a) => ({ query: a }),
   },
   {
@@ -48,7 +49,9 @@ const TOOLS: CuratedToolDef[] = [
     title: "Get a catalog dataset",
     description: "Fetch a single catalog dataset by id.",
     operationId: "getV1DataCatalogCatalogDatasetsDataset_id",
-    inputSchema: { dataset_id: z.string().describe("The dataset id") },
+    inputSchema: {
+      dataset_id: z.string().describe("The dataset id"),
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ pathParams: { dataset_id: a.dataset_id as string } }),
   },
   {
@@ -56,7 +59,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List data pipelines",
     description: "List pipeline definitions. Cursor-paginated.",
     operationId: "getV1DataPipelinesPipelines",
-    inputSchema: { ...listQuery },
+    inputSchema: { ...listQuery } as unknown as ZodRawShapeCompat,
     map: (a) => ({ query: a }),
   },
   {
@@ -69,7 +72,7 @@ const TOOLS: CuratedToolDef[] = [
       definition: z
         .record(z.string(), z.unknown())
         .describe("Pipeline definition body"),
-    },
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ body: a.definition }),
   },
   {
@@ -79,7 +82,7 @@ const TOOLS: CuratedToolDef[] = [
     operationId: "getV1DataPipelinesPipelinesDefinition_id",
     inputSchema: {
       definition_id: z.string().describe("The pipeline definition id"),
-    },
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ pathParams: { definition_id: a.definition_id as string } }),
   },
   {
@@ -87,7 +90,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List pipeline runs",
     description: "List pipeline runs. Cursor-paginated.",
     operationId: "getV1DataPipelinesPipeline_runs",
-    inputSchema: { ...listQuery },
+    inputSchema: { ...listQuery } as unknown as ZodRawShapeCompat,
     map: (a) => ({ query: a }),
   },
   {
@@ -95,7 +98,9 @@ const TOOLS: CuratedToolDef[] = [
     title: "Get a pipeline run",
     description: "Fetch a single pipeline run by id.",
     operationId: "getV1DataPipelinesPipeline_runsRun_id",
-    inputSchema: { run_id: z.string().describe("The pipeline run id") },
+    inputSchema: {
+      run_id: z.string().describe("The pipeline run id"),
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ pathParams: { run_id: a.run_id as string } }),
   },
   {
@@ -108,7 +113,7 @@ const TOOLS: CuratedToolDef[] = [
       request: z
         .record(z.string(), z.unknown())
         .describe("Ingest request body"),
-    },
+    } as unknown as ZodRawShapeCompat,
     map: (a) => ({ body: a.request }),
   },
   {
@@ -116,7 +121,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List data streams",
     description: "List data streams. Cursor-paginated.",
     operationId: "getV1DataStreamsStreams",
-    inputSchema: { ...listQuery },
+    inputSchema: { ...listQuery } as unknown as ZodRawShapeCompat,
     map: (a) => ({ query: a }),
   },
   {
@@ -124,7 +129,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List data schemas",
     description: "List data schemas.",
     operationId: "getV1DataSchemasSchemas",
-    inputSchema: { ...listQuery },
+    inputSchema: { ...listQuery } as unknown as ZodRawShapeCompat,
     map: (a) => ({ query: a }),
   },
 ];

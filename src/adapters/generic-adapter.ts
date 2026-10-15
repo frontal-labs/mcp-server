@@ -15,6 +15,7 @@
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { ZodRawShapeCompat } from "@modelcontextprotocol/sdk/server/zod-compat.js";
 import { ERROR_CODE, SpecError, ToolInputError } from "@/lib/error.js";
 import {
   type CallOperationInput,
@@ -44,21 +45,23 @@ export class GenericAdapter implements ServiceAdapter {
   }
 
   private registerListEndpoints(server: McpServer, ctx: AdapterContext): void {
+    const listEndpointsSchema = {
+      tag: z.string().optional().describe("Filter by tag"),
+      search: z
+        .string()
+        .optional()
+        .describe("Free-text match over operationId, path, and summary"),
+      limit: z.number().int().min(1).max(MAX_PAGE).optional(),
+      offset: z.number().int().min(0).optional(),
+    } as unknown as ZodRawShapeCompat;
+
     server.registerTool(
       "frontal_list_endpoints",
       {
         title: "List Frontal API endpoints",
         description:
           "Browse the Frontal public API surface. Filter by tag (e.g. 'ontology', 'data', 'events', 'integrations', 'webhook-endpoints', 'workflows') and/or a free-text search over path/summary/operationId. Returns a compact, paginated list of operations to feed into frontal_describe_endpoint or frontal_call_endpoint.",
-        inputSchema: {
-          tag: z.string().optional().describe("Filter by tag"),
-          search: z
-            .string()
-            .optional()
-            .describe("Free-text match over operationId, path, and summary"),
-          limit: z.number().int().min(1).max(MAX_PAGE).optional(),
-          offset: z.number().int().min(0).optional(),
-        },
+        inputSchema: listEndpointsSchema,
       },
       ({ tag, search, limit, offset }) => {
         try {
@@ -89,15 +92,17 @@ export class GenericAdapter implements ServiceAdapter {
     server: McpServer,
     ctx: AdapterContext
   ): void {
+    const describeEndpointSchema = {
+      operationId: z.string().describe("The operationId to describe"),
+    } as unknown as ZodRawShapeCompat;
+
     server.registerTool(
       "frontal_describe_endpoint",
       {
         title: "Describe a Frontal API endpoint",
         description:
           "Return full detail for one operation (parameters, request body, responses, auth) so you can construct a correct frontal_call_endpoint call. Look up by operationId (from frontal_list_endpoints).",
-        inputSchema: {
-          operationId: z.string().describe("The operationId to describe"),
-        },
+        inputSchema: describeEndpointSchema,
       },
       ({ operationId }) => {
         const op = ctx.spec.getByOperationId(operationId);
@@ -132,40 +137,42 @@ export class GenericAdapter implements ServiceAdapter {
   }
 
   private registerCallEndpoint(server: McpServer, ctx: AdapterContext): void {
+    const callEndpointSchema = {
+      operationId: z
+        .string()
+        .optional()
+        .describe("Operation to call (preferred)"),
+      method: z
+        .enum(["GET", "POST", "PUT", "PATCH", "DELETE"])
+        .optional()
+        .describe("HTTP method (use with path if no operationId)"),
+      path: z
+        .string()
+        .optional()
+        .describe(
+          "Templated path, e.g. /v1/ontology/objects/objects/{object_id}"
+        ),
+      pathParams: z
+        .record(z.string(), z.union([z.string(), z.number()]))
+        .optional(),
+      query: z.record(z.string(), z.unknown()).optional(),
+      body: z.unknown().optional(),
+      autoPaginate: z.boolean().optional(),
+      idempotencyKey: z
+        .string()
+        .optional()
+        .describe(
+          "Stable key for retry-safe writes; reuse across retries of the same logical write so the edge can dedupe"
+        ),
+    } as unknown as ZodRawShapeCompat;
+
     server.registerTool(
       "frontal_call_endpoint",
       {
         title: "Call a Frontal API endpoint",
         description:
           "Invoke any Frontal public API operation. Identify it either by operationId, or by method + templated path. Provide pathParams for `{placeholders}`, query for query-string params, and body for the JSON request body. Set autoPaginate for cursor-paginated GET lists.",
-        inputSchema: {
-          operationId: z
-            .string()
-            .optional()
-            .describe("Operation to call (preferred)"),
-          method: z
-            .enum(["GET", "POST", "PUT", "PATCH", "DELETE"])
-            .optional()
-            .describe("HTTP method (use with path if no operationId)"),
-          path: z
-            .string()
-            .optional()
-            .describe(
-              "Templated path, e.g. /v1/ontology/objects/objects/{object_id}"
-            ),
-          pathParams: z
-            .record(z.string(), z.union([z.string(), z.number()]))
-            .optional(),
-          query: z.record(z.string(), z.unknown()).optional(),
-          body: z.unknown().optional(),
-          autoPaginate: z.boolean().optional(),
-          idempotencyKey: z
-            .string()
-            .optional()
-            .describe(
-              "Stable key for retry-safe writes; reuse across retries of the same logical write so the edge can dedupe"
-            ),
-        },
+        inputSchema: callEndpointSchema,
       },
       async (input) => {
         try {

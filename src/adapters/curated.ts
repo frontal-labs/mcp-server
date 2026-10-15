@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { z } from "zod";
+import type { ZodRawShapeCompat } from "@modelcontextprotocol/sdk/server/zod-compat.js";
 import {
   type CallOperationInput,
   callOperation,
@@ -28,7 +28,7 @@ export interface CuratedToolDef {
   name: string;
   title: string;
   description: string;
-  inputSchema: z.ZodRawShape;
+  inputSchema: ZodRawShapeCompat;
   operationId: string;
   /** Map validated tool args to a spec-operation call. */
   map?: (args: Record<string, unknown>) => CallOperationInput;
