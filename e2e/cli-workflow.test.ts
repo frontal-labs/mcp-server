@@ -18,7 +18,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-const CLI_PATH = resolve(__dirname, "../../dist/bin/frontal-mcp-server.js");
+const CLI_PATH = resolve(__dirname, "../dist/bin/frontal-mcp-server.js");
 const CLI_EXISTS = existsSync(CLI_PATH);
 
 const sleep = (ms: number): Promise<void> =>

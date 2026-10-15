@@ -1,0 +1,48 @@
+# Secret scanning with Gitleaks.
+#
+# Runs the full-history scan from .gitleaks.toml on every PR/push plus a
+# weekly scheduled sweep. Pre-commit (gitleaks hook) and `bun run
+# secrets:scan` cover the local side; this workflow is the server-side
+# backstop so a secret can never land via a client without the hook.
+#
+# NOTE: this uses the standalone OSS gitleaks binary directly instead of
+# gitleaks-action, whose wrapper requires a license key for
+# organization-owned repos (https://gitleaks.io). Same rules, no key.
+name: Gitleaks
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  schedule:
+    # Weekly full-history sweep, Monday 04:00 UTC.
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Keep in sync with the local toolchain (CONTRIBUTING.md) and the
+  # pre-commit hook rev so local and CI scans use identical rules.
+  GITLEAKS_VERSION: "8.30.1"
+
+jobs:
+  scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install Gitleaks
+        run: |
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Scan git history for secrets
+        run: gitleaks git --config .gitleaks.toml --redact --verbose

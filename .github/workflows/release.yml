@@ -50,7 +50,7 @@ jobs:
         run: bun run lint
 
       - name: Check formatting
-        run: bunx biome format src/ tests/
+        run: bunx biome format src/ tests/ e2e/
 
       - name: Type check
         run: bun run type-check

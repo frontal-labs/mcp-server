@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["tests/**/*.test.ts", "tests/**/*.test.js"],
+    include: ["tests/**/*.test.ts", "tests/**/*.test.js", "e2e/**/*.test.ts", "e2e/**/*.test.js"],
     exclude: ["node_modules", "dist", "**/*.d.ts"],
     setupFiles: ["tests/setup/index.ts"],
     coverage: {
@@ -13,6 +13,7 @@ export default defineConfig({
       reporter: ["text", "json", "html"],
       exclude: [
         "tests/**",
+        "e2e/**",
         "node_modules/**",
         "dist/**",
         "**/*.d.ts",
@@ -38,6 +39,7 @@ export default defineConfig({
       "@mocks": resolve(__dirname, "tests/mocks"),
       "@load": resolve(__dirname, "tests/load"),
       "@fixtures": resolve(__dirname, "tests/fixtures"),
+      "@e2e": resolve(__dirname, "e2e"),
     },
   },
 });

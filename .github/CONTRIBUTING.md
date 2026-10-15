@@ -8,6 +8,7 @@ Thank you for your interest in contributing to the Frontal MCP Server! This docu
 - Node.js 18 or higher
 - Bun 1.3.8 or higher
 - Git
+- Gitleaks 8.30.1 or higher (`brew install gitleaks`) — enforced via pre-commit and CI
 
 ### Getting Started
 1. Fork the repository
@@ -49,6 +50,20 @@ bun run format
 
 # Type check
 bun run type-check
+```
+
+### Secret Scanning
+Gitleaks scans staged changes on every commit (pre-commit hook) and the full
+history on every PR/push plus weekly (`.github/workflows/gitleaks.yml`).
+Policy lives in `.gitleaks.toml`, which allowlists verified dummy values only
+(test fixtures, placeholders, public-spec examples) — never add a real
+credential there.
+```bash
+# Full history + working tree scan
+bun run secrets:scan
+
+# Scan staged changes (what the pre-commit hook runs)
+bun run secrets:scan:staged
 ```
 
 ## Code Style
