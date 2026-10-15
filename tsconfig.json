@@ -26,6 +26,6 @@
     "target": "ES2022",
     "types": ["node"]
   },
-  "exclude": ["node_modules", "dist", "tests"],
+  "exclude": ["node_modules", "dist", "tests", "e2e"],
   "include": ["src/**/*", "openapi/public.v1.json", "package.json"]
 }
