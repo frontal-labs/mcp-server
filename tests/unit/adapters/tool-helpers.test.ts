@@ -15,16 +15,16 @@
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { describe, expect, it, vi } from "vitest";
-import { registerCuratedTool } from "@/adapters/curated.js";
+import { loadSpecIndex } from "@/spec/spec-index.js";
+import { registerCuratedTool } from "@/tools/curated.js";
 import {
   callOperation,
   substitutePath,
   toToolError,
   toToolResult,
-} from "@/adapters/tool-helpers.js";
-import type { AdapterContext } from "@/adapters/types.js";
-import { FrontalApiError, SpecError, ToolInputError } from "@/lib/error.js";
-import { loadSpecIndex } from "@/spec/spec-index.js";
+} from "@/tools/tool-helpers.js";
+import type { AdapterContext } from "@/tools/types.js";
+import { FrontalApiError, SpecError, ToolInputError } from "@/types/errors.js";
 import { createLogger } from "@/utils/logger.js";
 
 describe("toToolResult", () => {
@@ -99,7 +99,8 @@ describe("callOperation", () => {
           rateLimit: {},
           requestId: "r",
         }),
-      paginate: () => Promise.resolve([{ p: 1 }]),
+      paginate: (_path: string, _options: Record<string, unknown>) =>
+        Promise.resolve([{ p: 1 }]),
     },
   } as unknown as AdapterContext;
 
@@ -114,8 +115,8 @@ describe("callOperation", () => {
       {
         autoPaginate: true,
       }
-    )) as { pages: unknown[] };
-    expect(result.pages).toHaveLength(1);
+    )) as unknown[];
+    expect(result).toHaveLength(1);
   });
 });
 

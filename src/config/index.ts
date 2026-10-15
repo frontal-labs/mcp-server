@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export { createConfig } from "../lib/create-config.js";
 export {
   type AuthConfig,
   type ConfigOptions,
+  createConfig,
   type IncidentioConfig,
   loadConfig,
   parseToolsets,
@@ -25,5 +25,5 @@ export {
   TOOLSETS,
   type Toolset,
   type TransportConfig,
-} from "../lib/server-config.js";
+} from "@/types/config.js";
 export { env } from "./env.js";

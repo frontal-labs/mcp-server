@@ -32,23 +32,14 @@ export interface SpecParameter {
 export interface OperationInfo {
   operationId: string;
   method: HttpMethod;
-  /** Templated path, e.g. `/v1/ontology/objects/{objectId}`. */
   path: string;
   tags: string[];
   summary?: string;
   description?: string;
   parameters: SpecParameter[];
-  /**
-   * Names of path params declared as catch-all (`{name:path}`) upstream. Their
-   * values may span multiple `/`-separated segments, so `substitutePath` keeps
-   * their slashes intact instead of percent-encoding them.
-   */
   catchAllParams: string[];
-  /** Raw requestBody object from the spec (schemas may contain `$ref`). */
   requestBody?: unknown;
-  /** Raw responses object from the spec. */
   responses?: unknown;
-  /** Whether this operation requires authentication (per-op overrides global). */
   requiresAuth: boolean;
 }
 
@@ -63,10 +54,6 @@ interface RawOperation {
   security?: unknown[];
 }
 
-/**
- * A path item: per-method operations plus path-item-level `parameters` (which
- * apply to every operation in the item, per OpenAPI 3.1) and `x-*` extensions.
- */
 interface RawPathItem {
   get?: RawOperation;
   post?: RawOperation;
@@ -75,7 +62,6 @@ interface RawPathItem {
   delete?: RawOperation;
   parameters?: SpecParameter[];
   "x-any-method-route"?: boolean;
-  /** Original upstream path templates, retaining `{name:path}` catch-all markers. */
   "x-audit-original-paths"?: string[];
 }
 
@@ -88,21 +74,12 @@ interface RawSpec {
   security?: unknown[];
 }
 
-/**
- * Names of path params declared as catch-all (`{name:path}`) upstream. The
- * vendored path template drops the `:path` suffix, but `x-audit-original-paths`
- * retains it, so catch-all identity is recovered from there.
- */
 function catchAllParamNames(item: RawPathItem): string[] {
   const originals = item["x-audit-original-paths"];
-  if (!Array.isArray(originals)) {
-    return [];
-  }
+  if (!Array.isArray(originals)) return [];
   const names = new Set<string>();
   for (const original of originals) {
-    if (typeof original !== "string") {
-      continue;
-    }
+    if (typeof original !== "string") continue;
     for (const match of original.matchAll(/\{([^}:]+):path\}/g)) {
       names.add(match[1]);
     }
@@ -110,17 +87,12 @@ function catchAllParamNames(item: RawPathItem): string[] {
   return [...names];
 }
 
-/** Keep only well-formed parameters (defensive against malformed spec entries). */
 function validParameters(list: SpecParameter[]): SpecParameter[] {
   return list.filter(
     (p): p is SpecParameter => Boolean(p) && typeof p.name === "string"
   );
 }
 
-/**
- * Merge path-item-level parameters with operation-level ones. Operation-level
- * declarations override path-item ones sharing the same (`in`, `name`) identity.
- */
 function mergeParameters(
   itemParams: SpecParameter[],
   opParams: SpecParameter[]
@@ -138,7 +110,6 @@ function mergeParameters(
 const REF_ROOT = "#/";
 const MAX_DEREF_DEPTH = 12;
 
-/** Indexed, queryable view over the vendored public OpenAPI spec. */
 export class SpecIndex {
   private readonly spec: RawSpec;
   private readonly byOperationId = new Map<string, OperationInfo>();
@@ -151,7 +122,6 @@ export class SpecIndex {
       Array.isArray(spec.security) && spec.security.length > 0;
 
     for (const [path, item] of Object.entries(spec.paths ?? {})) {
-      // Path-item-level parameters apply to every operation in the item.
       const itemParams = Array.isArray(item.parameters) ? item.parameters : [];
       const catchAllParams = catchAllParamNames(item);
       let hasOperation = false;
@@ -170,11 +140,6 @@ export class SpecIndex {
         }
       }
 
-      // Catch-all engine routes are vendored as metadata-only path items
-      // (`x-any-method-route`) with no per-method operations. Materialize a
-      // synthetic operation per HTTP method so meta-tool users can discover
-      // them (frontal_list_endpoints / frontal_describe_endpoint) and invoke
-      // them (frontal_call_endpoint by operationId or method+path).
       const anyMethod = item["x-any-method-route"] === true;
       if (!hasOperation && anyMethod) {
         this.indexAnyMethodRoute(
@@ -197,8 +162,6 @@ export class SpecIndex {
   ): void {
     const operationId =
       op.operationId ?? this.syntheticOperationId(method, path);
-    // Per-op `security: []` disables auth; a non-empty array or absence
-    // (falling back to global) means auth is required.
     const requiresAuth = Array.isArray(op.security)
       ? op.security.length > 0
       : globalAuthed;
@@ -225,9 +188,6 @@ export class SpecIndex {
     globalAuthed: boolean
   ): void {
     const tag = path.split("/").filter(Boolean)[1];
-    // Path items with no per-method operations declare any templated segment
-    // via the path-item-level `parameters`, so carry those into each synthetic
-    // operation rather than dropping them.
     const parameters = validParameters(itemParams);
     for (const method of HTTP_METHODS) {
       this.addOperation({
@@ -274,32 +234,24 @@ export class SpecIndex {
     return this.byMethodPath.get(`${method.toUpperCase()} ${path}`);
   }
 
-  /** All operations, optionally filtered by tag and/or free-text search. */
   list(options: { tag?: string; search?: string } = {}): OperationInfo[] {
     const tag = options.tag?.toLowerCase();
     const search = options.search?.toLowerCase();
     return this.operations.filter((op) => {
-      if (tag && !op.tags.some((t) => t.toLowerCase() === tag)) {
-        return false;
-      }
+      if (tag && !op.tags.some((t) => t.toLowerCase() === tag)) return false;
       if (search) {
         const haystack =
           `${op.operationId} ${op.method} ${op.path} ${op.summary ?? ""}`.toLowerCase();
-        if (!haystack.includes(search)) {
-          return false;
-        }
+        if (!haystack.includes(search)) return false;
       }
       return true;
     });
   }
 
-  /** Sorted, de-duplicated list of all tags in the spec. */
   allTags(): string[] {
     const tags = new Set<string>();
     for (const op of this.operations) {
-      for (const tag of op.tags) {
-        tags.add(tag);
-      }
+      for (const tag of op.tags) tags.add(tag);
     }
     return [...tags].sort();
   }
@@ -308,11 +260,8 @@ export class SpecIndex {
     return this.operations.length;
   }
 
-  /** Resolve a single JSON pointer `$ref` (e.g. `#/components/schemas/Foo`). */
   resolveRef(ref: string): unknown {
-    if (!ref.startsWith(REF_ROOT)) {
-      return;
-    }
+    if (!ref.startsWith(REF_ROOT)) return;
     const segments = ref
       .slice(REF_ROOT.length)
       .split("/")
@@ -321,17 +270,11 @@ export class SpecIndex {
     for (const segment of segments) {
       if (node && typeof node === "object" && segment in node) {
         node = (node as Record<string, unknown>)[segment];
-      } else {
-        return;
-      }
+      } else return;
     }
     return node;
   }
 
-  /**
-   * Recursively inline `$ref`s so a schema can be shown to a caller.
-   * Guards against cycles and unbounded depth.
-   */
   dereference(value: unknown, depth = 0, seen = new Set<string>()): unknown {
     if (
       depth > MAX_DEREF_DEPTH ||
@@ -346,15 +289,12 @@ export class SpecIndex {
     const obj = value as Record<string, unknown>;
     const ref = obj.$ref;
     if (typeof ref === "string") {
-      if (seen.has(ref)) {
+      if (seen.has(ref))
         return { $ref: ref, note: "circular reference omitted" };
-      }
       const resolved = this.resolveRef(ref);
-      if (resolved === undefined) {
+      if (resolved === undefined)
         return { $ref: ref, note: "unresolved reference" };
-      }
-      const nextSeen = new Set(seen).add(ref);
-      return this.dereference(resolved, depth + 1, nextSeen);
+      return this.dereference(resolved, depth + 1, new Set(seen).add(ref));
     }
     const out: Record<string, unknown> = {};
     for (const [key, child] of Object.entries(obj)) {
@@ -366,7 +306,6 @@ export class SpecIndex {
 
 let singleton: SpecIndex | undefined;
 
-/** Load (and memoize) the indexed view of the vendored public API spec. */
 export function loadSpecIndex(): SpecIndex {
   if (!singleton) {
     singleton = new SpecIndex(specJson as unknown as RawSpec);

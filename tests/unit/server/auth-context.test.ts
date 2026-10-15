@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { describe, expect, it } from "vitest";
-import { getRequestToken, runWithToken } from "@/server/auth-context.js";
+import { getRequestToken, runWithToken } from "@/middlewares/auth.js";
 
 describe("auth-context", () => {
   it("returns undefined outside any request scope", () => {

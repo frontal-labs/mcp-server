@@ -15,12 +15,12 @@
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { beforeEach, describe, expect, it } from "vitest";
-import { DataAdapter } from "@/adapters/data-adapter.js";
-import { GenericAdapter } from "@/adapters/generic-adapter.js";
-import { OntologyAdapter } from "@/adapters/ontology-adapter.js";
-import type { AdapterContext } from "@/adapters/types.js";
-import type { FrontalClient } from "@/clients/frontal-client.js";
+import type { FrontalClient } from "@/client.js";
 import { loadSpecIndex } from "@/spec/spec-index.js";
+import { DataAdapter } from "@/tools/data-adapter.js";
+import { GenericAdapter } from "@/tools/generic-adapter.js";
+import { OntologyAdapter } from "@/tools/ontology-adapter.js";
+import type { AdapterContext } from "@/tools/types.js";
 import { createLogger } from "@/utils/logger.js";
 
 type Handler = (args: Record<string, unknown>) =>

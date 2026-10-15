@@ -20,26 +20,9 @@ import {
   FrontalApiError,
   parseErrorEnvelope,
   RETRYABLE_STATUS,
-} from "@/lib/error.js";
-
-/**
- * Thin, spec-aware HTTP client for the Frontal public API (api.frontal.dev).
- *
- * Implements the client-facing contract imposed by the production edge
- * (Cloudflare → geo-router → REST gateway → regional backend):
- *   - Bearer `frt_` auth (the edge exchanges the key for an internal JWT).
- *   - Optional region pinning via the `x-frontal-region` header.
- *   - Retry matrix that mirrors the edge (retry 429/502/503/504 + transport
- *     errors; never retry 401/409/501/other 4xx).
- *   - `Retry-After` / `x-ratelimit-*` aware backoff.
- *   - Idempotency keys on retried writes (the edge does NOT dedupe).
- *   - Normalizes the three distinct error envelopes into one error type.
- *
- * Error types and envelope parsing live in `@/lib/error`.
- */
+} from "@/types/errors.js";
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-/** Public edge endpoints that must NOT carry an Authorization header. */
 const UNAUTHENTICATED_PATHS = new Set([
   "/health",
   "/regions",
@@ -47,55 +30,41 @@ const UNAUTHENTICATED_PATHS = new Set([
   "/status",
   "/metrics",
 ]);
-const DEFAULT_TIMEOUT_MS = 35_000; // > the edge's 30s upstream timeout
+const DEFAULT_TIMEOUT_MS = 35_000;
 const DEFAULT_MAX_PAGES = 100;
 const MILLIS_PER_SECOND = 1000;
 
-export interface RetryConfig {
-  maxAttempts: number;
-  baseDelay: number;
-  maxDelay: number;
-  jitter: boolean;
-}
-
-const DEFAULT_RETRY: RetryConfig = {
+const DEFAULT_RETRY = {
   maxAttempts: 3,
   baseDelay: 500,
   maxDelay: 10_000,
   jitter: true,
 };
 
-export interface RateLimitInfo {
-  limit?: number;
-  remaining?: number;
-  reset?: string;
-}
-
 export interface FrontalClientOptions {
   baseUrl: string;
   apiKey?: string;
-  /** Default region pin (`x-frontal-region`). */
   region?: string;
   logger: Logger;
-  retry?: Partial<RetryConfig>;
+  retry?: Partial<typeof DEFAULT_RETRY>;
   timeoutMs?: number;
 }
 
 export interface RequestOptions {
-  /** Query params; arrays are repeated, nullish values omitted. */
   query?: Record<string, unknown>;
   body?: unknown;
   headers?: Record<string, string>;
-  /** Per-call bearer token; overrides the client's configured apiKey. */
   token?: string;
-  /** Per-call region pin; overrides the client default. */
   region?: string;
-  /** Idempotency key for writes; auto-generated for writes if omitted. */
   idempotencyKey?: string;
-  /** Skip auth (for public geo endpoints and `/v1/auth/*`). */
   skipAuth?: boolean;
-  /** Caller-supplied cancellation signal. */
   signal?: AbortSignal;
+}
+
+export interface RateLimitInfo {
+  limit?: number;
+  remaining?: number;
+  reset?: string;
 }
 
 export interface FrontalResponse<T = unknown> {
@@ -105,7 +74,6 @@ export interface FrontalResponse<T = unknown> {
   requestId: string;
 }
 
-/** Result of a single fetch attempt inside the retry loop. */
 type AttemptOutcome<T> =
   | { ok: true; response: FrontalResponse<T> }
   | { ok: false; error: FrontalApiError; retryAfter: string | null };
@@ -115,19 +83,13 @@ export class FrontalClient {
   private readonly apiKey?: string;
   private readonly region?: string;
   private readonly logger: Logger;
-  private readonly retry: RetryConfig;
+  private readonly retry: typeof DEFAULT_RETRY;
   private readonly timeoutMs: number;
 
   constructor(options: FrontalClientOptions) {
-    // Strip a trailing slash and a stray `/v1` suffix — versioned paths already
-    // include `/v1/`, so the base must be the bare host.
     let base = options.baseUrl;
-    while (base.endsWith("/")) {
-      base = base.slice(0, -1);
-    }
-    if (base.endsWith("/v1")) {
-      base = base.slice(0, -3);
-    }
+    while (base.endsWith("/")) base = base.slice(0, -1);
+    if (base.endsWith("/v1")) base = base.slice(0, -3);
     this.baseUrl = base;
     this.apiKey = options.apiKey || undefined;
     this.region = options.region || undefined;
@@ -137,13 +99,9 @@ export class FrontalClient {
   }
 
   private static appendQueryParam(url: URL, key: string, value: unknown): void {
-    if (value === undefined || value === null) {
-      return;
-    }
+    if (value === undefined || value === null) return;
     if (Array.isArray(value)) {
-      for (const item of value) {
-        url.searchParams.append(key, String(item));
-      }
+      for (const item of value) url.searchParams.append(key, String(item));
     } else {
       url.searchParams.set(key, String(value));
     }
@@ -167,9 +125,7 @@ export class FrontalClient {
   }
 
   private resolveToken(options: RequestOptions, path: string): string | null {
-    if (options.skipAuth || this.isPublicPath(path)) {
-      return null;
-    }
+    if (options.skipAuth || this.isPublicPath(path)) return null;
     return options.token || this.apiKey || null;
   }
 
@@ -184,17 +140,12 @@ export class FrontalClient {
       accept: "application/json",
       "x-request-id": requestId,
     });
-    if (options.body !== undefined) {
+    if (options.body !== undefined)
       headers.set("content-type", "application/json");
-    }
     const token = this.resolveToken(options, path);
-    if (token) {
-      headers.set("authorization", `Bearer ${token}`);
-    }
+    if (token) headers.set("authorization", `Bearer ${token}`);
     const region = options.region ?? this.region;
-    if (region) {
-      headers.set("x-frontal-region", region);
-    }
+    if (region) headers.set("x-frontal-region", region);
     if (idempotencyKey && WRITE_METHODS.has(method)) {
       headers.set("x-frontal-idempotency-key", idempotencyKey);
     }
@@ -219,7 +170,6 @@ export class FrontalClient {
     attempt: number,
     retryAfterHeader: string | null
   ): number {
-    // Honor Retry-After (seconds) when the edge provides it.
     if (retryAfterHeader) {
       const seconds = Number(retryAfterHeader);
       if (Number.isFinite(seconds) && seconds >= 0) {
@@ -237,9 +187,7 @@ export class FrontalClient {
 
   private async parseBody(response: Response): Promise<unknown> {
     const text = await response.text();
-    if (!text) {
-      return null;
-    }
+    if (!text) return null;
     const contentType = response.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
       try {
@@ -251,7 +199,6 @@ export class FrontalClient {
     return text;
   }
 
-  /** Perform a single request with retry/backoff and error normalization. */
   async request<T = unknown>(
     method: string,
     path: string,
@@ -260,13 +207,10 @@ export class FrontalClient {
     const upperMethod = method.toUpperCase();
     const requestId = randomUUID();
 
-    // Stable across retries so the edge can dedupe retried writes.
     const idempotencyKey = WRITE_METHODS.has(upperMethod)
       ? (options.idempotencyKey ?? randomUUID())
       : undefined;
 
-    // Fail fast on missing auth rather than making a doomed round-trip, unless
-    // the caller opted out (skipAuth) or the endpoint is public.
     const authRequired = !(options.skipAuth || this.isPublicPath(path));
     if (authRequired && this.resolveToken(options, path) === null) {
       throw new FrontalApiError(
@@ -300,9 +244,7 @@ export class FrontalClient {
         signal: options.signal,
         requestId,
       });
-      if (outcome.ok) {
-        return outcome.response;
-      }
+      if (outcome.ok) return outcome.response;
       lastError = outcome.error;
       if (!outcome.error.retryable || attempt === this.retry.maxAttempts) {
         throw outcome.error;
@@ -327,7 +269,6 @@ export class FrontalClient {
     );
   }
 
-  /** Run one fetch attempt: resolve to a response or a (maybe retryable) error. */
   private async runAttempt<T>(args: {
     url: string;
     method: string;
@@ -388,16 +329,12 @@ export class FrontalClient {
     }
   }
 
-  /** Map a thrown fetch error to a retryable transport error (or rethrow). */
   private mapTransportError<T>(
     error: unknown,
     callerSignal: AbortSignal | undefined,
     requestId: string
   ): AttemptOutcome<T> {
-    if (error instanceof FrontalApiError) {
-      throw error;
-    }
-    // A caller-initiated abort is terminal; our own timeout is retryable.
+    if (error instanceof FrontalApiError) throw error;
     if (callerSignal?.aborted) {
       throw new FrontalApiError(
         "Request aborted by caller",
@@ -425,10 +362,6 @@ export class FrontalClient {
     };
   }
 
-  /**
-   * Auto-paginate a cursor-paginated GET, following `next_cursor` until it is
-   * absent or `maxPages` is reached. Returns the array of raw page bodies.
-   */
   async paginate(
     path: string,
     options: RequestOptions & { cursorParam?: string; maxPages?: number } = {}
@@ -440,15 +373,11 @@ export class FrontalClient {
 
     for (let page = 0; page < maxPages; page++) {
       const query = { ...options.query };
-      if (cursor) {
-        query[cursorParam] = cursor;
-      }
+      if (cursor) query[cursorParam] = cursor;
       const response = await this.request("GET", path, { ...options, query });
       pages.push(response.data);
       const next = this.extractNextCursor(response.data);
-      if (!next) {
-        break;
-      }
+      if (!next) break;
       cursor = next;
     }
     return pages;
@@ -457,10 +386,7 @@ export class FrontalClient {
   private extractNextCursor(data: unknown): string | undefined {
     if (data && typeof data === "object") {
       const next = (data as Record<string, unknown>).next_cursor;
-      if (typeof next === "string" && next.length > 0) {
-        return next;
-      }
+      if (typeof next === "string" && next.length > 0) return next;
     }
-    return;
   }
 }

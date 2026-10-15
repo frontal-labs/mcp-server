@@ -13,16 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
- * Centralized error module for the Frontal MCP server.
+ * Error types and utilities.
  *
- * All custom error classes, the error-code vocabulary, response-envelope
- * parsing, and type guards live here so the rest of the codebase depends on a
- * single, stable error surface (`@/lib/error`). This module has no internal
- * dependencies — it sits at the bottom of the dependency graph.
+ * All custom error classes, error codes, and type guards.
  */
 
-/** Canonical machine-readable error codes surfaced by the server. */
 export const ERROR_CODE = {
   UNAUTHORIZED: "unauthorized",
   FORBIDDEN: "forbidden",
@@ -44,12 +41,10 @@ export const ERROR_CODE = {
 
 export type ErrorCode = (typeof ERROR_CODE)[keyof typeof ERROR_CODE];
 
-/** HTTP statuses the edge treats as retryable (it performs no retries itself). */
 export const RETRYABLE_STATUS: ReadonlySet<number> = new Set([
   429, 502, 503, 504,
 ]);
 
-/** Contextual metadata attached to an error for logging/tracing. */
 export interface ErrorContext {
   operationId?: string;
   method?: string;
@@ -58,17 +53,12 @@ export interface ErrorContext {
   [key: string]: unknown;
 }
 
-/** Normalized error body, produced from any upstream error envelope shape. */
 export interface ErrorEnvelope {
   code?: string;
   message: string;
   details?: unknown;
 }
 
-/**
- * Base class for every error the server raises. Carries a machine-readable
- * `code` and optional structured `context`; subclasses add domain specifics.
- */
 export abstract class FrontalError extends Error {
   abstract readonly kind: string;
 
@@ -82,7 +72,6 @@ export abstract class FrontalError extends Error {
   }
 }
 
-/** An error returned by (or while talking to) the Frontal public API / edge. */
 export class FrontalApiError extends FrontalError {
   readonly kind = "api";
 
@@ -98,7 +87,6 @@ export class FrontalApiError extends FrontalError {
   }
 }
 
-/** Invalid or unusable server configuration. */
 export class ConfigError extends FrontalError {
   readonly kind = "config";
 
@@ -107,7 +95,6 @@ export class ConfigError extends FrontalError {
   }
 }
 
-/** A problem with the vendored OpenAPI spec or an unknown operation. */
 export class SpecError extends FrontalError {
   readonly kind = "spec";
 
@@ -120,7 +107,6 @@ export class SpecError extends FrontalError {
   }
 }
 
-/** Invalid tool input (missing path params, bad argument combinations). */
 export class ToolInputError extends FrontalError {
   readonly kind = "tool_input";
 
@@ -133,8 +119,6 @@ export class ToolInputError extends FrontalError {
   }
 }
 
-// --- Type guards ---------------------------------------------------------
-
 export function isFrontalError(value: unknown): value is FrontalError {
   return value instanceof FrontalError;
 }
@@ -143,7 +127,6 @@ export function isFrontalApiError(value: unknown): value is FrontalApiError {
   return value instanceof FrontalApiError;
 }
 
-/** Whether an error should be retried (API errors carry their own verdict). */
 export function isRetryableError(error: unknown): boolean {
   if (isFrontalApiError(error)) {
     return error.retryable;
@@ -155,18 +138,13 @@ export function isRetryableError(error: unknown): boolean {
   return false;
 }
 
-// --- Error-envelope parsing ---------------------------------------------
-
 type ErrorFields = Record<string, unknown>;
 
-/** Gateway shape: `{ error: { code, message } }`. */
 function gatewayError(
   obj: ErrorFields,
   fallback: string
 ): ErrorEnvelope | undefined {
-  if (!(obj.error && typeof obj.error === "object")) {
-    return;
-  }
+  if (!(obj.error && typeof obj.error === "object")) return;
   const err = obj.error as ErrorFields;
   return {
     code: typeof err.code === "string" ? err.code : undefined,
@@ -174,22 +152,16 @@ function gatewayError(
   };
 }
 
-/** Geo-router shape: `{ error: string, message?: string }`. */
 function geoRouterError(obj: ErrorFields): ErrorEnvelope | undefined {
-  if (typeof obj.error !== "string") {
-    return;
-  }
+  if (typeof obj.error !== "string") return;
   return {
     code: obj.error,
     message: typeof obj.message === "string" ? obj.message : obj.error,
   };
 }
 
-/** Backend google.rpc.Status shape: `{ code, message, details[] }`. */
 function statusError(obj: ErrorFields): ErrorEnvelope | undefined {
-  if (typeof obj.message !== "string") {
-    return;
-  }
+  if (typeof obj.message !== "string") return;
   return {
     code: typeof obj.code === "string" ? obj.code : undefined,
     message: obj.message,
@@ -197,12 +169,6 @@ function statusError(obj: ErrorFields): ErrorEnvelope | undefined {
   };
 }
 
-/**
- * Identity/IAM shape (`iam_ErrorSchema`, governs `/token`, `/user`, `/admin/*`):
- * `{ code, msg, error_code }`, with `error_description` used by OAuth-style
- * token errors. Prefer the machine-readable `error_code`, falling back to a
- * stringified numeric `code`.
- */
 function identityError(
   obj: ErrorFields,
   fallback: string
@@ -221,17 +187,10 @@ function identityError(
   } else if (typeof obj.code === "string") {
     code = obj.code;
   }
-  if (message === undefined && code === undefined) {
-    return;
-  }
+  if (message === undefined && code === undefined) return;
   return { code, message: message ?? fallback };
 }
 
-/**
- * Parse the distinct edge error envelopes (gateway, geo-router, backend
- * google.rpc.Status, identity/IAM) into a single normalized
- * {@link ErrorEnvelope}.
- */
 export function parseErrorEnvelope(
   body: unknown,
   fallbackMessage: string

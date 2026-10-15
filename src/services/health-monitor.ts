@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 import type { Logger } from "winston";
-import type { IncidentioConfig } from "@/lib/server-config.js";
 import {
   IncidentioClient,
   type IncidentioComponent,
-} from "./incidentio-client.js";
+} from "@/services/incidentio-client.js";
+import type { IncidentioConfig } from "@/types/config.js";
 
 export class HealthMonitor {
   private client: IncidentioClient | null = null;

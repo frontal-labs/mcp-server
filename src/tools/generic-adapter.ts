@@ -14,26 +14,21 @@
  * limitations under the License.
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
 import type { ZodRawShapeCompat } from "@modelcontextprotocol/sdk/server/zod-compat.js";
-import { ERROR_CODE, SpecError, ToolInputError } from "@/lib/error.js";
+import { z } from "zod";
 import {
   type CallOperationInput,
   callOperation,
   substitutePath,
   toToolError,
   toToolResult,
-} from "./tool-helpers.js";
-import type { AdapterContext, ServiceAdapter } from "./types.js";
+} from "@/tools/tool-helpers.js";
+import type { AdapterContext, ServiceAdapter } from "@/tools/types.js";
+import { ERROR_CODE, SpecError, ToolInputError } from "@/types/errors.js";
 
 const DEFAULT_PAGE = 50;
 const MAX_PAGE = 200;
 
-/**
- * Spec-driven meta-tools that expose the entire public API surface without a
- * dedicated tool per endpoint. This is the coverage escape hatch behind the
- * curated tools.
- */
 export class GenericAdapter implements ServiceAdapter {
   name = "generic";
   toolset = "generic" as const;
@@ -217,22 +212,26 @@ export class GenericAdapter implements ServiceAdapter {
       );
     }
 
-    // Prefer the spec-matched operation so we validate against a real endpoint.
     const matched = ctx.spec.getByMethodPath(input.method, input.path);
     if (matched) {
       return callOperation(ctx, matched.operationId, callInput);
     }
 
-    // Fall back to a raw call for paths the inventory may not enumerate.
     const resolvedPath = substitutePath(input.path, input.pathParams);
     const token = ctx.getToken();
-    if (input.autoPaginate && input.method.toUpperCase() === "GET") {
+    if (input.autoPaginate && input.method?.toUpperCase() === "GET") {
       return {
         pages: await ctx.client.paginate(resolvedPath, {
           query: input.query,
           token,
         }),
       };
+    }
+    if (!input.method) {
+      throw new ToolInputError(
+        "HTTP method is required when calling by path",
+        "invalid_arguments"
+      );
     }
     const response = await ctx.client.request(input.method, resolvedPath, {
       query: input.query,

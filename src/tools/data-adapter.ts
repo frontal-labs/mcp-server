@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
 import type { ZodRawShapeCompat } from "@modelcontextprotocol/sdk/server/zod-compat.js";
-import { type CuratedToolDef, registerCuratedTool } from "./curated.js";
-import type { AdapterContext, ServiceAdapter } from "./types.js";
+import { z } from "zod";
+import { type CuratedToolDef, registerCuratedTool } from "@/tools/curated.js";
+import type { AdapterContext, ServiceAdapter } from "@/tools/types.js";
 
 const listQuery = {
   limit: z.number().int().min(1).max(200).optional(),
@@ -134,7 +134,6 @@ const TOOLS: CuratedToolDef[] = [
   },
 ];
 
-/** Curated tools for the data platform surface. */
 export class DataAdapter implements ServiceAdapter {
   name = "data";
   toolset = "data" as const;

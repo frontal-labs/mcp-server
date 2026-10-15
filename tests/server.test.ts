@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 import { beforeEach, describe, expect, it } from "vitest";
+import type { ServerConfig } from "@/config/index.js";
 import { createConfig } from "@/config/index.js";
-import type { ServerConfig } from "@/config/server-config.js";
-import { FrontalMcpServer } from "@/server/mcp-server.js";
+import { FrontalMcpServer } from "@/mcp/index.js";
 import { createLogger } from "@/utils/logger.js";
 
 describe("FrontalMcpServer", () => {

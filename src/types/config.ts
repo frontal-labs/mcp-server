@@ -13,9 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/**
+ * Configuration types and functions.
+ */
+
 import { z } from "zod";
 import { env } from "@/config/env.js";
-import { ConfigError } from "./error.js";
+import { ConfigError } from "./errors.js";
 
 export const transportConfigSchema = z.object({
   transport: z.enum(["stdio", "http"]),
@@ -23,13 +28,9 @@ export const transportConfigSchema = z.object({
     .object({
       port: z.number().default(3000),
       host: z.string().default("localhost"),
-      /** Browser origins allowed by CORS; empty means no cross-origin trust. */
       allowedOrigins: z.array(z.string()).default([]),
-      /** Max request body in bytes; undefined uses the transport default. */
       maxRequestBodyBytes: z.number().int().positive().optional(),
-      /** Max concurrent sessions; undefined uses the transport default. */
       maxSessions: z.number().int().positive().optional(),
-      /** Hosts accepted in the Host header; empty disables the check. */
       allowedHosts: z.array(z.string()).default([]),
     })
     .optional(),
@@ -44,63 +45,9 @@ export const incidentioConfigSchema = z.object({
   apiKey: z.string(),
   statusPageId: z.string(),
   statusPageUrl: z.url().default(env.INCIDENTIO_STATUS_PAGE_URL),
-  componentId: z.string().default(env.INCIDENTIO_COMPONENT_ID),
+  componentId: z.string(),
 });
 
-/** Known tool sets that can be registered. */
-export const TOOLSETS = ["generic", "ontology", "data"] as const;
-export const toolsetSchema = z.enum(TOOLSETS);
-
-/**
- * Parse a comma-separated tool set list into a validated, de-duped array.
- *
- * With no nonempty values this defaults to every tool set. Any invalid entry
- * (e.g. a typo like `ontolgy`) is a hard error: this is a gating knob, so we
- * fail fast rather than silently enabling everything.
- */
-export function parseToolsets(raw: string): Toolset[] {
-  const parsed = raw
-    .split(",")
-    .map((entry) => entry.trim().toLowerCase())
-    .filter((entry) => entry.length > 0);
-  // Default to everything only when nothing was provided at all.
-  if (parsed.length === 0) {
-    return [...TOOLSETS];
-  }
-  const seen = new Set<Toolset>();
-  const invalid: string[] = [];
-  for (const entry of parsed) {
-    const result = toolsetSchema.safeParse(entry);
-    if (result.success) {
-      seen.add(result.data);
-    } else {
-      invalid.push(entry);
-    }
-  }
-  if (invalid.length > 0) {
-    throw new ConfigError(
-      `Invalid FRONTAL_TOOLSETS ${invalid.length === 1 ? "entry" : "entries"}: ${invalid.join(", ")}. Valid tool sets are: ${TOOLSETS.join(", ")}.`
-    );
-  }
-  return [...seen];
-}
-
-/** Parse a comma-separated allowlist into a trimmed, de-duped array. */
-export function parseCsvList(raw: string): string[] {
-  return [
-    ...new Set(
-      raw
-        .split(",")
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length > 0)
-    ),
-  ];
-}
-
-/**
- * Rate limiting settings. Active only when both Upstash fields are present,
- * mirroring how the incident.io integration opts in.
- */
 export const rateLimitConfigSchema = z.object({
   redisUrl: z.string().optional(),
   redisToken: z.string().optional(),
@@ -110,12 +57,13 @@ export const rateLimitConfigSchema = z.object({
   timeoutMs: z.number().int().positive().default(1000),
 });
 
+export const TOOLSETS = ["generic", "ontology", "data"] as const;
+export const toolsetSchema = z.enum(TOOLSETS);
+
 export const serverConfigSchema = z.object({
   apiKey: z.string().default(env.FRONTAL_API_KEY),
   baseUrl: z.string().default(env.FRONTAL_BASE_URL),
-  /** Optional region pin sent as the `x-frontal-region` header. */
   region: z.string().default(env.FRONTAL_REGION),
-  /** Tool sets to register on startup. */
   toolsets: z.array(toolsetSchema).default([...TOOLSETS]),
   transport: transportConfigSchema,
   auth: authConfigSchema,
@@ -140,6 +88,43 @@ export interface ConfigOptions {
   configPath?: string;
   verbose?: boolean;
   logLevel?: string;
+}
+
+export function parseToolsets(raw: string): Toolset[] {
+  const parsed = raw
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => entry.length > 0);
+  if (parsed.length === 0) {
+    return [...TOOLSETS];
+  }
+  const seen = new Set<Toolset>();
+  const invalid: string[] = [];
+  for (const entry of parsed) {
+    const result = toolsetSchema.safeParse(entry);
+    if (result.success) {
+      seen.add(result.data);
+    } else {
+      invalid.push(entry);
+    }
+  }
+  if (invalid.length > 0) {
+    throw new ConfigError(
+      `Invalid FRONTAL_TOOLSETS ${invalid.length === 1 ? "entry" : "entries"}: ${invalid.join(", ")}. Valid tool sets are: ${TOOLSETS.join(", ")}.`
+    );
+  }
+  return [...seen];
+}
+
+export function parseCsvList(raw: string): string[] {
+  return [
+    ...new Set(
+      raw
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0)
+    ),
+  ];
 }
 
 export async function loadConfig(
@@ -203,4 +188,34 @@ export async function loadConfig(
   }
 
   return serverConfigSchema.parse(envConfig);
+}
+
+export function createConfig(
+  overrides: Record<string, unknown> = {}
+): ServerConfig {
+  const defaults = {
+    apiKey: env.FRONTAL_API_KEY,
+    baseUrl: env.FRONTAL_BASE_URL,
+    region: env.FRONTAL_REGION,
+    toolsets: parseToolsets(env.FRONTAL_TOOLSETS),
+    transport: { transport: "stdio" as const },
+    auth: { type: "api-key" as const },
+    incidentio: {
+      apiKey: env.INCIDENTIO_API_KEY,
+      statusPageId: env.INCIDENTIO_STATUS_PAGE_ID,
+      statusPageUrl: env.INCIDENTIO_STATUS_PAGE_URL,
+      componentId: env.INCIDENTIO_COMPONENT_ID,
+    },
+    rateLimit: {
+      redisUrl: env.UPSTASH_REDIS_REST_URL,
+      redisToken: env.UPSTASH_REDIS_REST_TOKEN,
+      requests: env.FRONTAL_RATE_LIMIT_REQUESTS,
+      window: env.FRONTAL_RATE_LIMIT_WINDOW,
+      prefix: env.FRONTAL_RATE_LIMIT_PREFIX,
+      timeoutMs: env.FRONTAL_RATE_LIMIT_TIMEOUT_MS,
+    },
+    logLevel: env.MCP_LOG_LEVEL,
+    verbose: false,
+  };
+  return serverConfigSchema.parse({ ...defaults, ...overrides });
 }

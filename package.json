@@ -7,7 +7,7 @@
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "frontal-mcp-server": "dist/bin/frontal-mcp-server.js"
+    "frontal-mcp-server": "bin/index.js"
   },
   "exports": {
     ".": {
@@ -28,7 +28,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup && node -e \"const fs=require('fs');const f='dist/bin/frontal-mcp-server.js';let c=fs.readFileSync(f,'utf8');c=c.startsWith('#!')?c.replace(/^#!.*\\n/,'#!/usr/bin/env node\\n'):'#!/usr/bin/env node\\n'+c;fs.writeFileSync(f,c)\"",
+    "build": "tsup && node -e \"const fs=require('fs');const f='dist/bin/index.js';let c=fs.readFileSync(f,'utf8');c=c.startsWith('#!')?c.replace(/^#!.*\\n/,'#!/usr/bin/env node\\n'):'#!/usr/bin/env node\\n'+c;fs.writeFileSync(f,c)\"",
     "build:watch": "tsup --watch",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
@@ -40,7 +40,7 @@
     "sync-spec": "bun run scripts/sync-spec.ts",
     "sync-spec:check": "bun run scripts/sync-spec.ts --check",
     "smoke": "bun run scripts/smoke.ts",
-    "dev": "bun run src/bin/frontal-mcp-server.ts",
+    "dev": "bun run src/server.ts",
     "prepublishOnly": "bun run build",
     "changeset": "changeset",
     "version-packages": "changeset version",

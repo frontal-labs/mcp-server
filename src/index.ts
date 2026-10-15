@@ -21,52 +21,72 @@
  * spec-driven generic meta-tools that cover the full endpoint surface.
  */
 
-export type { AdapterContext, ServiceAdapter } from "./adapters/types.js";
 export {
-  FrontalClient,
-  type FrontalClientOptions,
-  type FrontalResponse,
-  type RateLimitInfo,
-  type RequestOptions,
-} from "./clients/frontal-client.js";
-export {
+  // Core types
+  type AdapterContext,
   type AuthConfig,
-  type ConfigOptions,
-  createConfig,
-  loadConfig,
-  type ServerConfig,
-  type Toolset,
-  type TransportConfig,
-} from "./config/index.js";
-export {
   ConfigError,
+  type ConfigOptions,
+  // Logger types
+  createLogger,
+  createRateLimiter,
+  // Error types
   ERROR_CODE,
   type ErrorCode,
   type ErrorContext,
   type ErrorEnvelope,
   FrontalApiError,
+  FrontalClient,
+  // Client types
+  type FrontalClientOptions,
   FrontalError,
-  isFrontalApiError,
-  isFrontalError,
-  isRetryableError,
-  parseErrorEnvelope,
-  RETRYABLE_STATUS,
-  SpecError,
-  ToolInputError,
-} from "./lib/error.js";
-export { HttpTransport } from "./server/http-transport.js";
-export { FrontalMcpServer } from "./server/mcp-server.js";
-export { HealthMonitor } from "./services/health-monitor.js";
-export {
+  // MCP server
+  FrontalMcpServer,
+  type FrontalResponse,
+  // Health monitor
+  HealthMonitor,
+  HTTP_METHODS,
+  // Spec types
+  type HttpMethod,
+  // Middlewares
+  HttpTransport,
+  // Incident.io
   IncidentioApiError,
   IncidentioClient,
   type IncidentioComponent,
+  type IncidentioConfig,
   type IncidentioStatusPage,
   type IncidentioStatusPageIncident,
+  isFrontalApiError,
+  isFrontalError,
+  isRetryableError,
+  type LoggerConfig,
+  // Spec
+  loadSpecIndex,
+  type OperationInfo,
+  parseCsvList,
+  parseErrorEnvelope,
+  parseToolsets,
+  type RateLimitConfig,
+  type RateLimitInfo,
+  RETRYABLE_STATUS,
+  type RequestOptions,
+  type RetryConfig,
+  rateLimitIdentifier,
+  type ServerConfig,
+  type ServiceAdapter,
+  SpecError,
+  type SpecIndex,
+  type SpecParameter,
+  TOOLSETS,
+  ToolInputError,
+  type Toolset,
+  type TransportConfig,
+  toolsetSchema,
+  // Version
+  VERSION,
   type WidgetComponent,
   type WidgetIncident,
   type WidgetMaintenance,
   type WidgetSummary,
-} from "./services/incidentio-client.js";
-export { loadSpecIndex, SpecIndex } from "./spec/spec-index.js";
-export { createLogger } from "./utils/logger.js";
+} from "@/types/index.js";
