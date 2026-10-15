@@ -19,31 +19,23 @@
  *
  * All shared types, interfaces, and type definitions live here.
  * Import from "@/types" instead of scattered locations.
+ * This module ONLY exports types - no runtime values to avoid circular imports.
  */
 
 // MCP server types
 export type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 export type { Logger } from "winston";
-// Also export the actual classes/functions from their modules
-export { FrontalClient } from "@/client.js";
-export { FrontalMcpServer } from "@/mcp/index.js";
-export { HttpTransport } from "@/middlewares/http-transport.js";
-export {
-  createRateLimiter,
-  rateLimitIdentifier,
-} from "@/middlewares/rate-limit.js";
-export { HealthMonitor } from "@/services/health-monitor.js";
-export {
-  IncidentioApiError,
-  IncidentioClient,
-  type IncidentioComponent,
-  type IncidentioStatusPage,
-  type IncidentioStatusPageIncident,
-  type WidgetComponent,
-  type WidgetIncident,
-  type WidgetMaintenance,
-  type WidgetSummary,
+// Incident.io types
+export type {
+  IncidentioComponent,
+  IncidentioStatusPage,
+  IncidentioStatusPageIncident,
+  WidgetComponent,
+  WidgetIncident,
+  WidgetMaintenance,
+  WidgetSummary,
 } from "@/services/incidentio-client.js";
+
 // Spec types
 export type {
   HttpMethod,
@@ -51,8 +43,8 @@ export type {
   SpecIndex,
   SpecParameter,
 } from "@/spec/index.js";
+
 export { HTTP_METHODS } from "@/spec/index.js";
-export { loadSpecIndex } from "@/spec/spec-index.js";
 // Tool types (AdapterContext, ServiceAdapter) - exported from tools
 export type { AdapterContext, ServiceAdapter } from "@/tools/index.js";
 // Auth types
@@ -98,10 +90,7 @@ export {
   SpecError,
   ToolInputError,
 } from "@/types/errors.js";
-
 // Logger types
 export type { LoggerConfig } from "@/types/logger.js";
 // Rate limiter types
 export type { RateLimitDecision, RateLimiter } from "@/types/rate-limit.js";
-export { createLogger } from "@/utils/logger.js";
-export { VERSION } from "@/version.js";

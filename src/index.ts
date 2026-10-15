@@ -21,72 +21,85 @@
  * spec-driven generic meta-tools that cover the full endpoint surface.
  */
 
+// Also export the actual classes/functions from their modules
+export { FrontalClient } from "@/client.js";
+export { FrontalMcpServer } from "@/mcp/index.js";
+export { HttpTransport } from "@/middlewares/http-transport.js";
 export {
-  // Core types
-  type AdapterContext,
-  type AuthConfig,
-  ConfigError,
-  type ConfigOptions,
-  // Logger types
-  createLogger,
   createRateLimiter,
-  // Error types
-  ERROR_CODE,
-  type ErrorCode,
-  type ErrorContext,
-  type ErrorEnvelope,
-  FrontalApiError,
-  FrontalClient,
-  // Client types
-  type FrontalClientOptions,
-  FrontalError,
-  // MCP server
-  FrontalMcpServer,
-  type FrontalResponse,
-  // Health monitor
-  HealthMonitor,
-  HTTP_METHODS,
-  // Spec types
-  type HttpMethod,
-  // Middlewares
-  HttpTransport,
-  // Incident.io
+  rateLimitIdentifier,
+} from "@/middlewares/rate-limit.js";
+export { HealthMonitor } from "@/services/health-monitor.js";
+export {
   IncidentioApiError,
   IncidentioClient,
-  type IncidentioComponent,
-  type IncidentioConfig,
-  type IncidentioStatusPage,
-  type IncidentioStatusPageIncident,
+} from "@/services/incidentio-client.js";
+export { HTTP_METHODS } from "@/spec/index.js";
+export { loadSpecIndex } from "@/spec/spec-index.js";
+export {
+  parseCsvList,
+  parseToolsets,
+  TOOLSETS,
+  toolsetSchema,
+} from "@/types/config.js";
+export {
+  ConfigError,
+  ERROR_CODE,
+  FrontalApiError,
+  FrontalError,
   isFrontalApiError,
   isFrontalError,
   isRetryableError,
-  type LoggerConfig,
-  // Spec
-  loadSpecIndex,
-  type OperationInfo,
-  parseCsvList,
   parseErrorEnvelope,
-  parseToolsets,
-  type RateLimitConfig,
-  type RateLimitInfo,
   RETRYABLE_STATUS,
-  type RequestOptions,
-  type RetryConfig,
-  rateLimitIdentifier,
-  type ServerConfig,
-  type ServiceAdapter,
   SpecError,
-  type SpecIndex,
-  type SpecParameter,
-  TOOLSETS,
   ToolInputError,
-  type Toolset,
-  type TransportConfig,
-  toolsetSchema,
-  // Version
-  VERSION,
-  type WidgetComponent,
-  type WidgetIncident,
-  type WidgetMaintenance,
-  type WidgetSummary,
+} from "@/types/errors.js";
+// Re-export all types from the types barrel
+export type {
+  // Tool types
+  AdapterContext,
+  // Core types
+  AuthConfig,
+  // Auth types
+  AuthStore,
+  ConfigOptions,
+  // Error types
+  ErrorCode,
+  ErrorContext,
+  ErrorEnvelope,
+  // Client types
+  FrontalClientOptions,
+  FrontalResponse,
+  // Spec types
+  HttpMethod,
+  // Incident.io types
+  IncidentioComponent,
+  IncidentioConfig,
+  IncidentioStatusPage,
+  IncidentioStatusPageIncident,
+  // Logger types
+  LoggerConfig,
+  // MCP server types
+  McpServer,
+  OperationInfo,
+  RateLimitConfig,
+  // Rate limiter types
+  RateLimitDecision,
+  RateLimiter,
+  RateLimitInfo,
+  RequestOptions,
+  RetryConfig,
+  ServerConfig,
+  ServiceAdapter,
+  SpecIndex,
+  SpecParameter,
+  Toolset,
+  TransportConfig,
+  WidgetComponent,
+  WidgetIncident,
+  WidgetMaintenance,
+  WidgetSummary,
 } from "@/types/index.js";
+export { createLogger } from "@/utils/logger.js";
+export { VERSION } from "@/version.js";

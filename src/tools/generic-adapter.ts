@@ -219,19 +219,13 @@ export class GenericAdapter implements ServiceAdapter {
 
     const resolvedPath = substitutePath(input.path, input.pathParams);
     const token = ctx.getToken();
-    if (input.autoPaginate && input.method?.toUpperCase() === "GET") {
+    if (input.autoPaginate && input.method.toUpperCase() === "GET") {
       return {
         pages: await ctx.client.paginate(resolvedPath, {
           query: input.query,
           token,
         }),
       };
-    }
-    if (!input.method) {
-      throw new ToolInputError(
-        "HTTP method is required when calling by path",
-        "invalid_arguments"
-      );
     }
     const response = await ctx.client.request(input.method, resolvedPath, {
       query: input.query,

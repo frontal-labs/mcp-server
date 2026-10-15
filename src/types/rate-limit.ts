@@ -28,12 +28,3 @@ export interface RateLimitDecision {
 export interface RateLimiter {
   limit(identifier: string): Promise<RateLimitDecision>;
 }
-
-export interface RateLimitConfig {
-  redisUrl?: string;
-  redisToken?: string;
-  requests: number;
-  window: string;
-  prefix: string;
-  timeoutMs: number;
-}

@@ -15,30 +15,13 @@
  */
 
 /**
- * OpenAPI Spec types.
+ * OpenAPI Spec types - re-exported from spec barrel.
  */
 
-export const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
-export type HttpMethod = (typeof HTTP_METHODS)[number];
-
-export interface SpecParameter {
-  name: string;
-  in: "path" | "query" | "header" | "cookie";
-  required: boolean;
-  description?: string;
-  schema?: unknown;
-}
-
-export interface OperationInfo {
-  operationId: string;
-  method: HttpMethod;
-  path: string;
-  tags: string[];
-  summary?: string;
-  description?: string;
-  parameters: SpecParameter[];
-  catchAllParams: string[];
-  requestBody?: unknown;
-  responses?: unknown;
-  requiresAuth: boolean;
-}
+export {
+  HTTP_METHODS,
+  type HttpMethod,
+  type OperationInfo,
+  type SpecIndex,
+  type SpecParameter,
+} from "@/spec/index.js";
