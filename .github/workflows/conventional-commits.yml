@@ -35,7 +35,7 @@ jobs:
           subjectPattern: ^(?![A-Z]).+$
           subjectPatternError: |
             The subject must not start with an uppercase character.
-          headerPattern: ^(\w*)(?:\(([\w$.\-* ]*)\))?: (.*)$
+          headerPattern: '^(\w*)(?:\(([\w$.\-* ]*)\))?: (.*)$'
           headerPatternCorrespondence: type, scope, subject
           validateSingleCommit: false
         env:
