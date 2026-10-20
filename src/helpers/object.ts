@@ -18,6 +18,14 @@
  * Object helpers.
  */
 
+const UNSAFE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+function assertSafeKey(key: string): void {
+  if (UNSAFE_KEYS.has(key)) {
+    throw new Error(`Unsafe object path segment: ${key}`);
+  }
+}
+
 /**
  * Deep clone an object.
  */
@@ -69,6 +77,7 @@ export function deepMerge<T extends Record<string, unknown>>(
 ): T {
   const result = { ...target } as Record<string, unknown>;
   for (const key of Object.keys(source)) {
+    assertSafeKey(key);
     const sourceValue = source[key];
     const targetValue = result[key];
     if (
@@ -119,10 +128,17 @@ export function setNested(
   let current: Record<string, unknown> = obj;
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
-    if (!(key in current) || typeof current[key] !== "object") {
+    assertSafeKey(key);
+    if (
+      !Object.hasOwn(current, key) ||
+      current[key] === null ||
+      typeof current[key] !== "object"
+    ) {
       current[key] = {};
     }
     current = current[key] as Record<string, unknown>;
   }
-  current[keys[keys.length - 1]] = value;
+  const leafKey = keys[keys.length - 1];
+  assertSafeKey(leafKey);
+  current[leafKey] = value;
 }
