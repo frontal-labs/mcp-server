@@ -140,6 +140,15 @@ export function setNested(
   }
   const leafKey = keys[keys.length - 1];
   assertSafeKey(leafKey);
+  // Keep the sink-local check explicit so static analyzers can verify that a
+  // path segment cannot reach an object prototype setter.
+  if (
+    leafKey === "__proto__" ||
+    leafKey === "constructor" ||
+    leafKey === "prototype"
+  ) {
+    throw new Error(`Unsafe object path segment: ${leafKey}`);
+  }
   Object.defineProperty(current, leafKey, {
     configurable: true,
     enumerable: true,
