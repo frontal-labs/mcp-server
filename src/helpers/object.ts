@@ -140,5 +140,10 @@ export function setNested(
   }
   const leafKey = keys[keys.length - 1];
   assertSafeKey(leafKey);
-  current[leafKey] = value;
+  Object.defineProperty(current, leafKey, {
+    configurable: true,
+    enumerable: true,
+    value,
+    writable: true,
+  });
 }
