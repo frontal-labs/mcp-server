@@ -11,7 +11,7 @@
         "@upstash/redis": "^1.38.3",
         "chalk": "^6.0.0",
         "commander": "^15.0.0",
-        "ora": "^9.4.1",
+        "ora": "^10.0.0",
         "tslib": "^2.8.1",
         "winston": "^3.11.0",
         "zod": "^4.3.6",
@@ -700,7 +700,7 @@
 
     "onetime": ["onetime@7.0.0", "", { "dependencies": { "mimic-function": "^5.0.0" } }, ""],
 
-    "ora": ["ora@9.4.1", "", { "dependencies": { "chalk": "^5.6.2", "cli-cursor": "^5.0.0", "cli-spinners": "^3.2.0", "is-interactive": "^2.0.0", "is-unicode-supported": "^2.1.0", "log-symbols": "^7.0.1", "stdin-discarder": "^0.3.2", "string-width": "^8.1.0" } }, "sha512-6VlU9MLXbjVQD04AZCMX28hVtA5bUoadvUqO76MUCVA0ilwJbMiHsITRPfyVm6p/BC0Av/BXMujx39WCe1LEqw=="],
+    "ora": ["ora@10.0.0", "", { "dependencies": { "chalk": "^6.0.1", "cli-cursor": "^5.0.0", "cli-spinners": "^3.4.0", "is-interactive": "^2.0.0", "is-unicode-supported": "^2.1.0", "log-symbols": "^7.0.1", "stdin-discarder": "^0.3.2", "string-width": "^8.3.0" } }, "sha512-jlxvSlLi1aKgPUnRf8NMjwyor1CM4K+faxuycHYTvygjjtkM596tQBXGEp/PQAVqzftrCBMRJlw6+RAJS5nOtQ=="],
 
     "package-manager-detector": ["package-manager-detector@1.9.0", "", {}, "sha512-zAMfbta9nPA8AKkA4WdmNAT8R8s6Dk0/xwPsqNnRidMFcLo1YkLuPDTgs2f64XdzS8vbLNnoJ+uUIkgbz7oRHA=="],
 
@@ -943,10 +943,6 @@
     "magicast/source-map-js": ["source-map-js@1.2.1", "", {}, ""],
 
     "micromatch/picomatch": ["picomatch@2.3.2", "", {}, ""],
-
-    "ora/chalk": ["chalk@5.6.2", "", {}, ""],
-
-    "ora/string-width": ["string-width@8.2.2", "", { "dependencies": { "get-east-asian-width": "^1.5.0", "strip-ansi": "^7.1.2" } }, "sha512-GaPUh5gfdrYzqeVNZvUfT23vYYxXzKYidUcnMtJg/3rxRV63EFZy3k6xfKlmfeJD0176lnUV/Usr3XcwSvFzpg=="],
 
     "sucrase/commander": ["commander@4.1.1", "", {}, ""],
 
