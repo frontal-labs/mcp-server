@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import {
   createServer,
   type IncomingMessage,
@@ -40,6 +41,19 @@ function extractBearerToken(req: IncomingMessage): string | undefined {
 }
 
 const DEFAULT_MAX_REQUEST_BODY_BYTES = 4 * 1024 * 1024;
+
+/**
+ * How an authenticated MCP request was served:
+ *
+ * - `modern`: protocol revision 2026-07-28;
+ * - `legacy`: a 2025-era request, served by the stateless fallback;
+ * - `rejected`: answered before any server was built (for example `GET` or
+ *   `DELETE`, a malformed envelope, or an unsupported protocol version).
+ */
+export type RequestEra = "modern" | "legacy" | "rejected";
+
+/** Carries the era out of the server factory, which the SDK calls per request. */
+const eraStore = new AsyncLocalStorage<{ era?: "modern" | "legacy" }>();
 
 /** The standard MCP request headers of protocol revision 2026-07-28. */
 const MCP_HEADERS = "MCP-Protocol-Version, Mcp-Method, Mcp-Name";
@@ -87,6 +101,11 @@ export class HttpTransport {
   private readonly maxRequestBodyBytes: number;
   private readonly allowedHosts: Set<string>;
   private readonly rateLimiter: RateLimiter | undefined;
+  private readonly eraCounts: Record<RequestEra, number> = {
+    modern: 0,
+    legacy: 0,
+    rejected: 0,
+  };
 
   constructor(
     createMcpServer: McpServerFactory,
@@ -101,11 +120,25 @@ export class HttpTransport {
       (options.allowedHosts ?? []).map((host) => host.toLowerCase())
     );
     this.rateLimiter = options.rateLimiter;
-    this.handler = createMcpHandler(createMcpServer, {
+    const countingFactory: McpServerFactory = (ctx) => {
+      const store = eraStore.getStore();
+      if (store) store.era = ctx.era;
+      return createMcpServer(ctx);
+    };
+    this.handler = createMcpHandler(countingFactory, {
       legacy: "stateless",
       maxRequestBodySize: this.maxRequestBodyBytes,
       onerror: (error) => this.logger.debug(`MCP handler: ${error.message}`),
     });
+  }
+
+  /**
+   * Authenticated MCP requests served since start, by protocol era. This is
+   * what the legacy-retirement policy is measured with: see
+   * docs/MIGRATION-2026-07-28.md.
+   */
+  get requestCounts(): Readonly<Record<RequestEra, number>> {
+    return { ...this.eraCounts };
   }
 
   start(port = 3000, host = "localhost"): Promise<void> {
@@ -340,9 +373,20 @@ export class HttpTransport {
       }
     );
 
-    const response = await runWithToken(token, () =>
-      this.handler.fetch(request)
+    const startedAt = Date.now();
+    const served: { era?: "modern" | "legacy" } = {};
+    const response = await eraStore.run(served, () =>
+      runWithToken(token, () => this.handler.fetch(request))
     );
+
+    // One line per request, so the share of legacy traffic can be measured
+    // from the logs. No token, body or tool arguments are logged.
+    const era: RequestEra = served.era ?? "rejected";
+    this.eraCounts[era]++;
+    this.logger.info(
+      `mcp_request era=${era} status=${response.status} duration_ms=${Date.now() - startedAt}`
+    );
+
     await writeWebResponse(response, res, abort.signal);
   }
 

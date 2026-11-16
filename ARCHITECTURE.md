@@ -53,7 +53,7 @@ uses no roots, sampling or protocol-level logging.
 | `src/index.ts` | Public exports of the npm package. |
 | `src/mcp/index.ts` | `FrontalMcpServer`: builds `McpServer` instances and registers the enabled adapters. |
 | `src/middlewares/` | The HTTP transport (`http-transport.ts`), the per-request token store (`auth.ts`) and the rate limiter (`rate-limit.ts`). |
-| `src/tools/` | Tool adapters (`generic-adapter.ts`, `ontology-adapter.ts`, `data-adapter.ts`), curated-tool registration (`curated.ts`) and shared helpers (`tool-helpers.ts`). |
+| `src/tools/` | Tool adapters (`generic`, `ontology`, `data`, `workflows`, `integrations`, `events`), curated-tool registration (`curated.ts`), the safety policy (`policy.ts`), output-schema derivation (`output-schema.ts`) and shared helpers (`tool-helpers.ts`). |
 | `src/spec/` | `SpecIndex` over the vendored OpenAPI document. |
 | `src/client.ts` | `FrontalClient`, the HTTP client for the Frontal API. |
 | `src/config/` | Environment schema (`env.ts`) and config loading. |
@@ -103,7 +103,7 @@ so it is a local check and does not run in CI.
 ### Tool adapters (`src/tools/`)
 
 Each adapter implements `ServiceAdapter` and is registered only when its
-toolset is listed in `FRONTAL_TOOLSETS` (default: all three).
+toolset is listed in `FRONTAL_TOOLSETS` (default: all six).
 
 ```typescript
 interface AdapterContext {
@@ -116,7 +116,7 @@ interface AdapterContext {
 
 interface ServiceAdapter {
   name: string;
-  toolset: Toolset; // "generic" | "ontology" | "data"
+  toolset: Toolset; // "generic" | "ontology" | "data" | "workflows" | "integrations" | "events"
   register(server: McpServer, ctx: AdapterContext): void;
 }
 ```
@@ -124,9 +124,10 @@ interface ServiceAdapter {
 - **Generic adapter:** `frontal_list_endpoints`, `frontal_describe_endpoint`
   and `frontal_call_endpoint`. These cover every operation in the spec without
   one tool per operation. `frontal_call_endpoint` can call any HTTP method.
-- **Ontology and data adapters:** curated tools with zod input schemas (10
-  ontology tools, 11 data tools). Each is a `CuratedToolDef` that names a real
-  `operationId` and maps the tool arguments to path parameters, query and
+- **Curated adapters:** `ontology` (10 tools), `data` (11), `workflows` (4),
+  `integrations` (7) and `events` (3), with zod input schemas. Each tool is a
+  `CuratedToolDef` that names a real `operationId`, declares its safety
+  annotations, and maps the tool arguments to path parameters, query and
   body. `registerCuratedTool` is the drift guard: if the `operationId` is
   missing from the spec, the tool is skipped with a warning.
 
@@ -135,6 +136,35 @@ resolves the operation, substitutes path parameters, checks that a token is
 present when the operation requires auth, and returns the response as JSON
 text. Errors become MCP tool errors through `toToolError`, which adds hints
 for 401 (API key), 409 (region) and 501 (feature not enabled).
+
+### Tool safety (`src/tools/policy.ts`, `src/tools/curated.ts`)
+
+- **Annotations.** `CuratedToolDef.annotations` is required, so a tool cannot
+  be added without declaring what it does. The presets are `read`, `create`,
+  `destructive`, `externalProbe` and `unrestricted`. `openWorldHint` is `true`
+  only for tools that reach systems outside Frontal.
+- **What counts as read-only.** Not the HTTP method alone. An operation only
+  reads if it is a `GET`, or if it is on `READ_ONLY_POST_OPERATIONS`, an
+  explicit allow-list of `POST` searches, queries and graph traversals.
+  Registration fails if a tool declares `readOnlyHint` on any other operation.
+- **Read-only mode** (`FRONTAL_READ_ONLY=true`). Curated tools that write are
+  not registered. `frontal_call_endpoint` stays, but refuses any operation
+  that the same rule does not classify as read-only; for a path that is not
+  in the spec it allows safe HTTP methods only.
+- **Confirmation.** A tool with a `confirm` question (`data_create_pipeline`,
+  `data_ingest_dataset`) returns an `input_required` elicitation and runs
+  only on an explicit yes. This applies when the client supports elicitation:
+  always checkable on 2026-07-28, and on 2025-era stdio connections. A
+  stateless 2025-era HTTP request cannot be asked, so the tool runs and the
+  host's approval UI covers it. The confirmation is a courtesy to the user,
+  not an access control.
+- **Structured output.** `deriveOutputSchema` builds a tool's `outputSchema`
+  from the operation's 2xx response schema, and the SDK then validates
+  `structuredContent` against it. A schema that says nothing about its fields
+  is skipped. Today every response in the vendored spec is
+  `{ "type": "object", "additionalProperties": true }`, so no tool advertises
+  an `outputSchema` yet; tools still return the response as
+  `structuredContent`, alongside the JSON text.
 
 ### Frontal client (`src/client.ts`)
 
@@ -231,6 +261,11 @@ The request is then converted to a web `Request` and passed to the MCP handler
 inside `runWithToken`, which stores the caller's token in `AsyncLocalStorage`
 so that `ctx.getToken()` returns it for the tool calls of that request only.
 The handler's response is streamed back, so SSE responses work.
+
+Each authenticated MCP request is counted by protocol era and logged as
+`mcp_request era=<modern|legacy|rejected> status=<code> duration_ms=<n>`.
+This is how the share of 2025-era traffic is measured; see
+`docs/MIGRATION-2026-07-28.md` for the retirement policy.
 
 ### Caching and discovery
 

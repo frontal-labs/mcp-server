@@ -49,13 +49,25 @@ export const env = createEnv({
 
     /**
      * Comma-separated list of tool sets to register. `generic` exposes the
-     * spec-driven meta-tools; `ontology` and `data` expose curated tools.
+     * spec-driven meta-tools; `ontology`, `data`, `workflows`, `integrations`
+     * and `events` expose curated tools.
      */
     FRONTAL_TOOLSETS: z
       .string()
       .optional()
-      .default("generic,ontology,data")
+      .default("generic,ontology,data,workflows,integrations,events")
       .describe("Comma-separated tool sets to enable"),
+
+    /**
+     * Read-only mode. When true, tools that write are not registered, and
+     * `frontal_call_endpoint` refuses every operation that is not known to
+     * only read. Accepts true/false, 1/0, yes/no, on/off.
+     */
+    FRONTAL_READ_ONLY: z
+      .stringbool()
+      .optional()
+      .default(false)
+      .describe("Expose only tools and operations that read data"),
 
     /**
      * Comma-separated list of browser origins allowed to make cross-origin
@@ -182,6 +194,7 @@ export const env = createEnv({
     FRONTAL_BASE_URL: process.env.FRONTAL_BASE_URL,
     FRONTAL_REGION: process.env.FRONTAL_REGION,
     FRONTAL_TOOLSETS: process.env.FRONTAL_TOOLSETS,
+    FRONTAL_READ_ONLY: process.env.FRONTAL_READ_ONLY,
     FRONTAL_HTTP_ALLOWED_ORIGINS: process.env.FRONTAL_HTTP_ALLOWED_ORIGINS,
     FRONTAL_HTTP_MAX_BODY_BYTES: process.env.FRONTAL_HTTP_MAX_BODY_BYTES,
     FRONTAL_HTTP_ALLOWED_HOSTS: process.env.FRONTAL_HTTP_ALLOWED_HOSTS,

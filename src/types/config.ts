@@ -56,7 +56,14 @@ export const rateLimitConfigSchema = z.object({
   timeoutMs: z.number().int().positive().default(1000),
 });
 
-export const TOOLSETS = ["generic", "ontology", "data"] as const;
+export const TOOLSETS = [
+  "generic",
+  "ontology",
+  "data",
+  "workflows",
+  "integrations",
+  "events",
+] as const;
 export const toolsetSchema = z.enum(TOOLSETS);
 
 export const serverConfigSchema = z.object({
@@ -64,6 +71,7 @@ export const serverConfigSchema = z.object({
   baseUrl: z.string().default(env.FRONTAL_BASE_URL),
   region: z.string().default(env.FRONTAL_REGION),
   toolsets: z.array(toolsetSchema).default([...TOOLSETS]),
+  readOnly: z.boolean().default(false),
   transport: transportConfigSchema,
   auth: authConfigSchema,
   incidentio: incidentioConfigSchema,
@@ -134,6 +142,7 @@ export async function loadConfig(
     baseUrl: env.FRONTAL_BASE_URL,
     region: env.FRONTAL_REGION,
     toolsets: parseToolsets(env.FRONTAL_TOOLSETS),
+    readOnly: env.FRONTAL_READ_ONLY,
     transport: {
       transport: (options.transport as "stdio" | "http") || "stdio",
       http: options.port
@@ -196,6 +205,7 @@ export function createConfig(
     baseUrl: env.FRONTAL_BASE_URL,
     region: env.FRONTAL_REGION,
     toolsets: parseToolsets(env.FRONTAL_TOOLSETS),
+    readOnly: env.FRONTAL_READ_ONLY,
     transport: { transport: "stdio" as const },
     auth: { type: "api-key" as const },
     incidentio: {

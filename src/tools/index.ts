@@ -20,6 +20,9 @@
 
 export { type CuratedToolDef, registerCuratedTool } from "@/tools/curated.js";
 export { DataAdapter } from "@/tools/data-adapter.js";
+export { EventsAdapter } from "@/tools/events-adapter.js";
 export { GenericAdapter } from "@/tools/generic-adapter.js";
+export { IntegrationsAdapter } from "@/tools/integrations-adapter.js";
 export { OntologyAdapter } from "@/tools/ontology-adapter.js";
 export type { AdapterContext, ServiceAdapter } from "@/tools/types.js";
+export { WorkflowsAdapter } from "@/tools/workflows-adapter.js";

@@ -33,6 +33,7 @@ export const ERROR_CODE = {
   UNKNOWN_OPERATION: "unknown_operation",
   MISSING_PARAMETER: "missing_parameter",
   INVALID_ARGUMENTS: "invalid_arguments",
+  READ_ONLY: "read_only",
   CONFIG_INVALID: "config_invalid",
   SPEC_INVALID: "spec_invalid",
   UPSTREAM: "upstream",

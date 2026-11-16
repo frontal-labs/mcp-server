@@ -16,6 +16,7 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { type CuratedToolDef, registerCuratedTool } from "@/tools/curated.js";
+import { ANNOTATIONS } from "@/tools/policy.js";
 import type { AdapterContext, ServiceAdapter } from "@/tools/types.js";
 
 const listQuery = {
@@ -29,6 +30,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List ontology object types",
     description: "List the object types defined in the ontology.",
     operationId: "getV1OntologyObjectsObject_types",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({ ...listQuery }),
     map: (a) => ({ query: a }),
   },
@@ -38,6 +40,7 @@ const TOOLS: CuratedToolDef[] = [
     description:
       "List ontology objects, optionally filtered by object type. Cursor-paginated.",
     operationId: "getV1OntologyObjectsObjects",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({
       object_type_id: z.string().optional(),
       ...listQuery,
@@ -49,6 +52,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "Get an ontology object",
     description: "Fetch a single ontology object by its id.",
     operationId: "getV1OntologyObjectsObjectsObject_id",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({
       object_id: z.string().describe("The object id"),
     }),
@@ -59,6 +63,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List ontology relationships",
     description: "List relationships in the ontology. Cursor-paginated.",
     operationId: "getV1OntologyRelationshipsRelationships",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({ ...listQuery }),
     map: (a) => ({ query: a }),
   },
@@ -68,6 +73,7 @@ const TOOLS: CuratedToolDef[] = [
     description:
       "Run a graph query against the ontology. Pass the query specification as the body.",
     operationId: "postV1OntologyGraphGraphQuery",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({
       query: z.record(z.string(), z.unknown()).describe("Graph query body"),
     }),
@@ -79,6 +85,7 @@ const TOOLS: CuratedToolDef[] = [
     description:
       "Return the neighborhood around one or more entities in the ontology graph.",
     operationId: "postV1OntologyGraphGraphNeighborhood",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({
       request: z
         .record(z.string(), z.unknown())
@@ -92,6 +99,7 @@ const TOOLS: CuratedToolDef[] = [
     description:
       "Find a path between entities in the ontology graph. Pass source/target and options as the body.",
     operationId: "postV1OntologyGraphGraphPath",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({
       request: z.record(z.string(), z.unknown()).describe("Path request body"),
     }),
@@ -103,6 +111,7 @@ const TOOLS: CuratedToolDef[] = [
     description:
       "Run semantic entity extraction over text using the ontology extract service.",
     operationId: "postV1OntologyExtractExtractEntities",
+    annotations: ANNOTATIONS.create,
     inputSchema: z.object({
       request: z
         .record(z.string(), z.unknown())
@@ -115,6 +124,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List ontology schemas",
     description: "List ontology schemas.",
     operationId: "getV1OntologySchemasSchemas",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({ ...listQuery }),
     map: (a) => ({ query: a }),
   },
@@ -123,6 +133,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "Get an ontology schema",
     description: "Fetch a single ontology schema by id.",
     operationId: "getV1OntologySchemasSchemasSchema_id",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({
       schema_id: z.string().describe("The schema id"),
     }),

@@ -102,7 +102,54 @@ Tools are grouped into **tool sets** selectable via `FRONTAL_TOOLSETS`.
 `data_list_pipeline_runs`, `data_get_pipeline_run`, `data_ingest_dataset`,
 `data_list_streams`, `data_list_schemas`.
 
+### Workflows (curated) — `workflows`
+
+`workflows_search`, `workflows_get_run`, `workflows_get_run_summary`,
+`workflows_get_run_timeline`.
+
+### Integrations (curated) — `integrations`
+
+`integrations_get`, `integrations_list_capabilities`,
+`integrations_list_action_runs`, `action_runs_get`,
+`integrations_test_connection`, `connection_tests_get`, `providers_get`.
+
+The public API has no endpoint that lists integrations, so there is no
+`integrations_list` tool.
+
+### Events (curated, read-only) — `events`
+
+`events_list`, `events_get`, `events_query`.
+
 Everything not covered by a curated tool stays reachable via the generic tools.
+
+### Tool safety
+
+Every tool carries MCP annotations, so a client can tell what it does before
+calling it:
+
+- **Read tools** are marked `readOnlyHint: true`.
+- **Write tools** are `data_create_pipeline`, `data_ingest_dataset`,
+  `ontology_extract_entities` and `integrations_test_connection`.
+  `data_ingest_dataset` is marked destructive, because it can change a
+  dataset's contents.
+- **`frontal_call_endpoint`** can call any operation, so it is marked
+  destructive and open-world.
+- **`openWorldHint`** is `true` only for tools that reach systems outside
+  Frontal: `integrations_test_connection` and `frontal_call_endpoint`.
+
+**Confirmation.** `data_create_pipeline` and `data_ingest_dataset` ask the
+user to confirm before they run, when the client supports elicitation. Other
+clients run them directly and rely on their own approval prompt.
+
+**Read-only mode.** Set `FRONTAL_READ_ONLY=true` to offer only tools that
+read. Write tools are not registered, and `frontal_call_endpoint` refuses any
+operation that is not known to only read. "Read" is not decided by HTTP method
+alone: `GET` operations qualify, and so do the `POST` operations on an explicit
+allow-list of searches, queries and graph traversals
+(`src/tools/policy.ts`).
+
+**Structured output.** Tools return the API response as `structuredContent`
+when it is a JSON object, and always as JSON text in `content`.
 
 ## Configuration
 
@@ -113,7 +160,8 @@ Everything not covered by a curated tool stays reachable via the generic tools.
 | `FRONTAL_API_KEY` | Frontal API key (`frt_...`). Used by stdio only; never a fallback for HTTP | - | For stdio |
 | `FRONTAL_BASE_URL` | API base URL (bare host; `/v1/` is in the paths) | `https://api.frontal.dev` | No |
 | `FRONTAL_REGION` | Region pin (`x-frontal-region`, e.g. `iad`, `lhr`, `fra`, `sin`) | - | No |
-| `FRONTAL_TOOLSETS` | Comma-separated tool sets to register (invalid values are rejected) | `generic,ontology,data` | No |
+| `FRONTAL_TOOLSETS` | Comma-separated tool sets to register (invalid values are rejected) | `generic,ontology,data,workflows,integrations,events` | No |
+| `FRONTAL_READ_ONLY` | Offer only tools and operations that read data (`true`/`false`) | `false` | No |
 | `FRONTAL_HTTP_ALLOWED_ORIGINS` | Comma-separated CORS allowlist for the HTTP transport | - (no origin trusted) | No |
 | `FRONTAL_HTTP_ALLOWED_HOSTS` | Comma-separated `Host` allowlist for the HTTP transport (blocks DNS rebinding) | - (no host check) | No |
 | `FRONTAL_HTTP_MAX_BODY_BYTES` | Largest HTTP request body accepted, in bytes | `4194304` | No |
@@ -131,7 +179,9 @@ applied to HTTP requests. CORS trusts no origin by default: responses only carry
 The HTTP transport keeps no sessions. `GET` and `DELETE` on the MCP endpoint
 return `405`, no `Mcp-Session-Id` is issued, and `FRONTAL_HTTP_MAX_SESSIONS`
 is no longer read. See [docs/MCP_SERVER.md](docs/MCP_SERVER.md) for the
-supported protocol versions.
+supported protocol versions, and
+[docs/MIGRATION-2026-07-28.md](docs/MIGRATION-2026-07-28.md) for what changed
+and when 2025-era HTTP support will be retired.
 
 ### CLI Options
 
@@ -192,7 +242,8 @@ The server is a thin, spec-driven layer over the Frontal public API:
 2. **Frontal client** (`src/client.ts`) — an edge-aware fetch
    client (auth, pagination, retry matrix, idempotency, region pin, errors).
 3. **Tool adapters** — a generic (meta-tool) adapter plus curated
-   ontology/data adapters, gated by `FRONTAL_TOOLSETS`.
+   adapters (ontology, data, workflows, integrations, events), gated by
+   `FRONTAL_TOOLSETS`.
 4. **Transport layer** — stdio and stateless Streamable HTTP on the MCP SDK
    v2, the latter binding a per-request bearer token via AsyncLocalStorage.
 

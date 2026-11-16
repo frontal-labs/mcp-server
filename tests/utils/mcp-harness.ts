@@ -40,6 +40,19 @@ export const HTTP_TOKEN = "frt_smoke_http";
 export const SPAWN_TIMEOUT_MS = 60_000;
 export const MODERN_PROTOCOL_VERSION = "2026-07-28";
 
+/** An answer to a form elicitation, as a user would give it. */
+export type ElicitAnswer =
+  | { action: "accept"; content: Record<string, boolean | number | string> }
+  | { action: "cancel" | "decline" };
+
+export interface ClientBehaviour {
+  /**
+   * When set, the client declares the elicitation capability and answers
+   * each question with this function. When unset, it cannot be asked.
+   */
+  onElicit?: (message: string) => ElicitAnswer;
+}
+
 /** `legacy` is the 2025-era handshake; `modern` is revision 2026-07-28. */
 export type Era = "legacy" | "modern";
 
@@ -53,6 +66,7 @@ export interface Harness {
 
 export interface HttpServerUnderTest {
   stop(): Promise<void>;
+  transport: HttpTransport;
   url: string;
 }
 
@@ -60,20 +74,32 @@ export interface HttpServerUnderTest {
  * A client for one era. `modern` pins the revision, so a server that cannot
  * speak it fails the connection instead of silently falling back.
  */
-export function newClient(era: Era): Client {
-  return new Client(
+export function newClient(era: Era, options: ClientBehaviour = {}): Client {
+  const client = new Client(
     { name: "protocol-smoke", version: "0.0.0" },
     {
+      capabilities: options.onElicit ? { elicitation: {} } : {},
       versionNegotiation: {
         mode: era === "modern" ? { pin: MODERN_PROTOCOL_VERSION } : "legacy",
       },
     }
   );
+  const { onElicit } = options;
+  if (onElicit) {
+    client.setRequestHandler("elicitation/create", (request) =>
+      onElicit(String(request.params.message))
+    );
+  }
+  return client;
 }
 
 /** Spawn the real CLI over stdio; the API key comes from the environment. */
-export async function connectStdio(edge: MockEdge, era: Era): Promise<Harness> {
-  const client = newClient(era);
+export async function connectStdio(
+  edge: MockEdge,
+  era: Era,
+  behaviour: ClientBehaviour = {}
+): Promise<Harness> {
+  const client = newClient(era, behaviour);
   await client.connect(
     new StdioClientTransport({
       command: "bun",
@@ -98,11 +124,12 @@ export async function connectStdio(edge: MockEdge, era: Era): Promise<Harness> {
 /** Start the real HTTP transport; the server holds no API key of its own. */
 export async function startHttpServer(
   edge: MockEdge,
-  options: HttpTransportOptions = {}
+  options: HttpTransportOptions = {},
+  config: Record<string, unknown> = {}
 ): Promise<HttpServerUnderTest> {
   const logger = createLogger({ level: "error" });
   const server = new FrontalMcpServer(
-    createConfig({ apiKey: "", baseUrl: edge.baseUrl }),
+    createConfig({ apiKey: "", baseUrl: edge.baseUrl, ...config }),
     logger
   );
   await server.initialize();
@@ -113,6 +140,7 @@ export async function startHttpServer(
 
   return {
     url: `http://127.0.0.1:${port}`,
+    transport: http,
     stop: async () => {
       await http.stop();
       await server.close();
@@ -123,9 +151,10 @@ export async function startHttpServer(
 export async function connectHttp(
   url: string,
   era: Era,
-  token = HTTP_TOKEN
+  token = HTTP_TOKEN,
+  behaviour: ClientBehaviour = {}
 ): Promise<Harness> {
-  const client = newClient(era);
+  const client = newClient(era, behaviour);
   await client.connect(
     new StreamableHTTPClientTransport(new URL(`${url}/mcp`), {
       requestInit: { headers: { Authorization: `Bearer ${token}` } },

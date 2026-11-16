@@ -24,9 +24,12 @@ import { getRequestToken } from "@/middlewares/auth.js";
 import { HealthMonitor } from "@/services/health-monitor.js";
 import { loadSpecIndex } from "@/spec/spec-index.js";
 import { DataAdapter } from "@/tools/data-adapter.js";
+import { EventsAdapter } from "@/tools/events-adapter.js";
 import { GenericAdapter } from "@/tools/generic-adapter.js";
+import { IntegrationsAdapter } from "@/tools/integrations-adapter.js";
 import { OntologyAdapter } from "@/tools/ontology-adapter.js";
 import type { AdapterContext, ServiceAdapter } from "@/tools/types.js";
+import { WorkflowsAdapter } from "@/tools/workflows-adapter.js";
 import type { ServerConfig } from "@/types/config.js";
 import { VERSION } from "@/version.js";
 
@@ -34,6 +37,9 @@ const ALL_ADAPTERS: ServiceAdapter[] = [
   new GenericAdapter(),
   new OntologyAdapter(),
   new DataAdapter(),
+  new WorkflowsAdapter(),
+  new IntegrationsAdapter(),
+  new EventsAdapter(),
 ];
 
 export const SERVER_NAME = "frontal-mcp-server";
@@ -122,16 +128,19 @@ export class FrontalMcpServer {
 
   private buildServer(ctx?: AdapterContext): McpServer {
     const toolsets = this.config.toolsets.join(", ");
+    const mode = this.config.readOnly
+      ? " Read-only mode: tools that write are not available."
+      : "";
     const server = new McpServer(
       {
         name: SERVER_NAME,
         title: "Frontal",
         version: VERSION,
-        description: `Model Context Protocol server for the Frontal public API. Enabled tool sets: ${toolsets}.`,
+        description: `Model Context Protocol server for the Frontal public API. Enabled tool sets: ${toolsets}.${mode}`,
         websiteUrl: DOCS_URL,
       },
       {
-        instructions: `Tools for the Frontal public API (api.frontal.dev). Enabled tool sets: ${toolsets}. Documentation: ${DOCS_URL}`,
+        instructions: `Tools for the Frontal public API (api.frontal.dev). Enabled tool sets: ${toolsets}.${mode} Documentation: ${DOCS_URL}`,
         cacheHints: {
           "tools/list": LIST_CACHE_HINT,
           "server/discover": LIST_CACHE_HINT,
@@ -164,7 +173,7 @@ export class FrontalMcpServer {
       );
     }
     this.logger.info(
-      `Frontal MCP Server ready: ${ctx.spec.count} operations available across tool sets [${this.config.toolsets.join(", ")}] (spec ${ctx.spec.version})`
+      `Frontal MCP Server ready: ${ctx.spec.count} operations available across tool sets [${this.config.toolsets.join(", ")}] (spec ${ctx.spec.version})${this.config.readOnly ? ", read-only mode" : ""}`
     );
   }
 

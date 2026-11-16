@@ -16,6 +16,7 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { type CuratedToolDef, registerCuratedTool } from "@/tools/curated.js";
+import { ANNOTATIONS } from "@/tools/policy.js";
 import type { AdapterContext, ServiceAdapter } from "@/tools/types.js";
 
 const listQuery = {
@@ -30,6 +31,7 @@ const TOOLS: CuratedToolDef[] = [
     description:
       "Execute a federated query across the data platform. Pass the query specification as the body.",
     operationId: "postV1DataQueryQueryFederated",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({
       query: z.record(z.string(), z.unknown()).describe("Federated query body"),
     }),
@@ -40,6 +42,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List catalog datasets",
     description: "List datasets in the data catalog. Cursor-paginated.",
     operationId: "getV1DataCatalogCatalogDatasets",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({ ...listQuery }),
     map: (a) => ({ query: a }),
   },
@@ -48,6 +51,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "Get a catalog dataset",
     description: "Fetch a single catalog dataset by id.",
     operationId: "getV1DataCatalogCatalogDatasetsDataset_id",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({
       dataset_id: z.string().describe("The dataset id"),
     }),
@@ -58,6 +62,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List data pipelines",
     description: "List pipeline definitions. Cursor-paginated.",
     operationId: "getV1DataPipelinesPipelines",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({ ...listQuery }),
     map: (a) => ({ query: a }),
   },
@@ -67,18 +72,26 @@ const TOOLS: CuratedToolDef[] = [
     description:
       "Create a new pipeline definition. Pass the pipeline definition as the body.",
     operationId: "postV1DataPipelinesPipelines",
+    annotations: ANNOTATIONS.create,
     inputSchema: z.object({
       definition: z
         .record(z.string(), z.unknown())
         .describe("Pipeline definition body"),
     }),
     map: (a) => ({ body: a.definition }),
+    confirm: (a) => {
+      const definition = (a.definition ?? {}) as Record<string, unknown>;
+      const name =
+        typeof definition.name === "string" ? ` \`${definition.name}\`` : "";
+      return `Create data pipeline${name}?`;
+    },
   },
   {
     name: "data_get_pipeline",
     title: "Get a data pipeline",
     description: "Fetch a single pipeline definition by id.",
     operationId: "getV1DataPipelinesPipelinesDefinition_id",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({
       definition_id: z.string().describe("The pipeline definition id"),
     }),
@@ -89,6 +102,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List pipeline runs",
     description: "List pipeline runs. Cursor-paginated.",
     operationId: "getV1DataPipelinesPipeline_runs",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({ ...listQuery }),
     map: (a) => ({ query: a }),
   },
@@ -97,6 +111,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "Get a pipeline run",
     description: "Fetch a single pipeline run by id.",
     operationId: "getV1DataPipelinesPipeline_runsRun_id",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({
       run_id: z.string().describe("The pipeline run id"),
     }),
@@ -108,18 +123,26 @@ const TOOLS: CuratedToolDef[] = [
     description:
       "Ingest data into a dataset. Pass the ingest request as the body.",
     operationId: "postV1DataIngestDatasetsIngest",
+    annotations: ANNOTATIONS.destructive,
     inputSchema: z.object({
       request: z
         .record(z.string(), z.unknown())
         .describe("Ingest request body"),
     }),
     map: (a) => ({ body: a.request }),
+    confirm: (a) => {
+      const request = (a.request ?? {}) as Record<string, unknown>;
+      const target = request.dataset_id ?? request.dataset ?? request.name;
+      const into = typeof target === "string" ? ` into \`${target}\`` : "";
+      return `Ingest data${into}? This can change the dataset's contents.`;
+    },
   },
   {
     name: "data_list_streams",
     title: "List data streams",
     description: "List data streams. Cursor-paginated.",
     operationId: "getV1DataStreamsStreams",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({ ...listQuery }),
     map: (a) => ({ query: a }),
   },
@@ -128,6 +151,7 @@ const TOOLS: CuratedToolDef[] = [
     title: "List data schemas",
     description: "List data schemas.",
     operationId: "getV1DataSchemasSchemas",
+    annotations: ANNOTATIONS.read,
     inputSchema: z.object({ ...listQuery }),
     map: (a) => ({ query: a }),
   },

@@ -38,6 +38,8 @@ export const MOCK_DATASETS = [
 ];
 
 const DATASETS_PATH = "/v1/data/catalog/catalog/datasets";
+export const PIPELINES_PATH = "/v1/data/pipelines/pipelines";
+export const EVENTS_QUERY_PATH = "/v1/events/query";
 
 function send(
   res: import("node:http").ServerResponse,
@@ -46,6 +48,27 @@ function send(
 ): void {
   res.writeHead(status, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
+}
+
+const POST_ROUTES: Record<string, unknown> = {
+  [PIPELINES_PATH]: { id: "pl_1", status: "created" },
+  [EVENTS_QUERY_PATH]: { items: [{ id: "evt_1" }] },
+};
+
+/** The status and body the mock API answers an authenticated request with. */
+function route(method: string, path: string): [number, unknown] {
+  if (method === "POST" && path in POST_ROUTES) {
+    return [201, POST_ROUTES[path]];
+  }
+  if (path === DATASETS_PATH) {
+    return [200, { items: MOCK_DATASETS }];
+  }
+  if (path.startsWith(`${DATASETS_PATH}/`)) {
+    const id = path.slice(DATASETS_PATH.length + 1);
+    const dataset = MOCK_DATASETS.find((entry) => entry.id === id);
+    if (dataset) return [200, dataset];
+  }
+  return [404, { error: { code: "not_found", message: "no route" } }];
 }
 
 /**
@@ -74,21 +97,8 @@ export function startMockEdge(): Promise<MockEdge> {
       return;
     }
 
-    if (url.pathname === DATASETS_PATH) {
-      send(res, 200, { items: MOCK_DATASETS });
-      return;
-    }
-
-    if (url.pathname.startsWith(`${DATASETS_PATH}/`)) {
-      const id = url.pathname.slice(DATASETS_PATH.length + 1);
-      const dataset = MOCK_DATASETS.find((entry) => entry.id === id);
-      if (dataset) {
-        send(res, 200, dataset);
-        return;
-      }
-    }
-
-    send(res, 404, { error: { code: "not_found", message: "no route" } });
+    const [status, body] = route(req.method ?? "GET", url.pathname);
+    send(res, status, body);
   });
 
   return new Promise((resolve, reject) => {

@@ -88,13 +88,28 @@ export function toToolError(error: unknown): {
   };
 }
 
+/**
+ * Build a tool result from an API response.
+ *
+ * `content` always carries the full response as JSON text, which is what
+ * clients that predate structured output read. When the response is a JSON
+ * object it is also returned as `structuredContent`, so newer clients get
+ * the data without parsing text.
+ */
 export function toToolResult<T>(data: T): {
   content: ToolContent[];
+  structuredContent?: Record<string, unknown>;
 } {
   if (typeof data === "string") {
     return { content: [{ type: "text", text: data }] };
   }
-  return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  const content: ToolContent[] = [
+    { type: "text", text: JSON.stringify(data, null, 2) },
+  ];
+  if (typeof data === "object" && data !== null && !Array.isArray(data)) {
+    return { content, structuredContent: data as Record<string, unknown> };
+  }
+  return { content };
 }
 
 export async function callOperation(

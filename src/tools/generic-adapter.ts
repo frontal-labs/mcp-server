@@ -16,6 +16,11 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import {
+  ANNOTATIONS,
+  isReadOnlyOperation,
+  isSafeMethod,
+} from "@/tools/policy.js";
+import {
   type CallOperationInput,
   callOperation,
   substitutePath,
@@ -24,6 +29,9 @@ import {
 } from "@/tools/tool-helpers.js";
 import type { AdapterContext, ServiceAdapter } from "@/tools/types.js";
 import { ERROR_CODE, SpecError, ToolInputError } from "@/types/errors.js";
+
+const CALL_ENDPOINT_DESCRIPTION =
+  "Invoke any Frontal public API operation. Identify it either by operationId, or by method + templated path. Provide pathParams for `{placeholders}`, query for query-string params, and body for the JSON request body. Set autoPaginate for cursor-paginated GET lists.";
 
 const DEFAULT_PAGE = 50;
 const MAX_PAGE = 200;
@@ -56,6 +64,7 @@ export class GenericAdapter implements ServiceAdapter {
         description:
           "Browse the Frontal public API surface. Filter by tag (e.g. 'ontology', 'data', 'events', 'integrations', 'webhook-endpoints', 'workflows') and/or a free-text search over path/summary/operationId. Returns a compact, paginated list of operations to feed into frontal_describe_endpoint or frontal_call_endpoint.",
         inputSchema: listEndpointsSchema,
+        annotations: ANNOTATIONS.read,
       },
       ({ tag, search, limit, offset }) => {
         try {
@@ -97,6 +106,7 @@ export class GenericAdapter implements ServiceAdapter {
         description:
           "Return full detail for one operation (parameters, request body, responses, auth) so you can construct a correct frontal_call_endpoint call. Look up by operationId (from frontal_list_endpoints).",
         inputSchema: describeEndpointSchema,
+        annotations: ANNOTATIONS.read,
       },
       ({ operationId }) => {
         const op = ctx.spec.getByOperationId(operationId);
@@ -164,9 +174,15 @@ export class GenericAdapter implements ServiceAdapter {
       "frontal_call_endpoint",
       {
         title: "Call a Frontal API endpoint",
-        description:
-          "Invoke any Frontal public API operation. Identify it either by operationId, or by method + templated path. Provide pathParams for `{placeholders}`, query for query-string params, and body for the JSON request body. Set autoPaginate for cursor-paginated GET lists.",
+        description: ctx.config.readOnly
+          ? `${CALL_ENDPOINT_DESCRIPTION} This server is in read-only mode: only operations that read data can be called.`
+          : CALL_ENDPOINT_DESCRIPTION,
         inputSchema: callEndpointSchema,
+        // It can call any operation, so it is annotated for the worst case.
+        // In read-only mode it stays registered but refuses writes.
+        annotations: ctx.config.readOnly
+          ? ANNOTATIONS.read
+          : ANNOTATIONS.unrestricted,
       },
       async (input) => {
         try {
@@ -177,6 +193,22 @@ export class GenericAdapter implements ServiceAdapter {
         }
       }
     );
+  }
+
+  /**
+   * In read-only mode, refuse any operation that is not known to only read.
+   * The check uses the operation's entry in the spec index and the explicit
+   * read-only allow-list, not the HTTP method alone.
+   */
+  private assertAllowed(ctx: AdapterContext, operationId: string): void {
+    if (!ctx.config.readOnly) return;
+    const op = ctx.spec.getByOperationId(operationId);
+    // An unknown id is reported as such by callOperation.
+    if (op && !isReadOnlyOperation(op)) {
+      throw readOnlyRefusal(
+        `${operationId} (${op.method.toUpperCase()} ${op.path})`
+      );
+    }
   }
 
   private async dispatchCall(
@@ -201,6 +233,7 @@ export class GenericAdapter implements ServiceAdapter {
     };
 
     if (input.operationId) {
+      this.assertAllowed(ctx, input.operationId);
       return callOperation(ctx, input.operationId, callInput);
     }
 
@@ -213,7 +246,14 @@ export class GenericAdapter implements ServiceAdapter {
 
     const matched = ctx.spec.getByMethodPath(input.method, input.path);
     if (matched) {
+      this.assertAllowed(ctx, matched.operationId);
       return callOperation(ctx, matched.operationId, callInput);
+    }
+
+    // The path is not in the spec, so nothing is known about the operation
+    // beyond its HTTP method. Read-only mode lets through safe methods only.
+    if (ctx.config.readOnly && !isSafeMethod(input.method)) {
+      throw readOnlyRefusal(`${input.method.toUpperCase()} ${input.path}`);
     }
 
     const resolvedPath = substitutePath(input.path, input.pathParams);
@@ -234,4 +274,11 @@ export class GenericAdapter implements ServiceAdapter {
     });
     return response.data;
   }
+}
+
+function readOnlyRefusal(operation: string): ToolInputError {
+  return new ToolInputError(
+    `Refused: this server is in read-only mode (FRONTAL_READ_ONLY=true) and ${operation} is not a read-only operation. Only operations that read data can be called.`,
+    ERROR_CODE.READ_ONLY
+  );
 }
