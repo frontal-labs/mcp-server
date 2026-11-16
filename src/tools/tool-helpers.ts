@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 import type { AdapterContext } from "@/tools/types.js";
-import { SpecError, ToolInputError } from "@/types/errors.js";
+import {
+  FrontalApiError,
+  FrontalError,
+  SpecError,
+  ToolInputError,
+} from "@/types/errors.js";
 
 export interface CallOperationInput {
   pathParams?: Record<string, string | number>;
@@ -57,34 +62,34 @@ interface ToolContent {
   _meta?: Record<string, unknown>;
 }
 
+/**
+ * Turn any thrown value into an MCP tool error.
+ *
+ * The text is the error's message, followed by its `Hint:` (set on API
+ * errors for 401, 409 and 501) and, for API errors, the `Details:` the API
+ * returned.
+ */
 export function toToolError(error: unknown): {
   isError: boolean;
   content: ToolContent[];
 } {
-  if (error instanceof Error) {
-    let message = error.message;
-    if (error.name === "FrontalApiError") {
-      const apiError = error as { httpStatus?: number; details?: unknown };
-      if (apiError.httpStatus === 401) {
-        message +=
-          "\nHint: Check your API key or authentication configuration.";
-      } else if (apiError.httpStatus === 409) {
-        message += "\nHint: The region may be invalid or already in use.";
-      } else if (apiError.httpStatus === 501) {
-        message += "\nHint: This feature is not currently enabled.";
-      }
-      if (apiError.details) {
-        message += `\nDetails: ${JSON.stringify(apiError.details)}`;
-      }
-    }
+  if (!(error instanceof Error)) {
     return {
       isError: true,
-      content: [{ type: "text", text: message }],
+      content: [{ type: "text", text: String(error) }],
     };
+  }
+
+  let message = error.message;
+  if (error instanceof FrontalError && error.hint) {
+    message += `\nHint: ${error.hint}`;
+  }
+  if (error instanceof FrontalApiError && error.details) {
+    message += `\nDetails: ${JSON.stringify(error.details)}`;
   }
   return {
     isError: true,
-    content: [{ type: "text", text: String(error) }],
+    content: [{ type: "text", text: message }],
   };
 }
 
