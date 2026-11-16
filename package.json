@@ -7,7 +7,7 @@
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "frontal-mcp-server": "bin/index.js"
+    "frontal-mcp-server": "dist/bin/frontal-mcp-server.js"
   },
   "exports": {
     ".": {
@@ -28,7 +28,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup && node -e \"const fs=require('fs');const f='dist/bin/index.js';let c=fs.readFileSync(f,'utf8');c=c.startsWith('#!')?c.replace(/^#!.*\\n/,'#!/usr/bin/env node\\n'):'#!/usr/bin/env node\\n'+c;fs.writeFileSync(f,c)\"",
+    "build": "tsup && node -e \"const fs=require('fs');const f='dist/bin/frontal-mcp-server.js';let c=fs.readFileSync(f,'utf8');c=c.startsWith('#!')?c.replace(/^#!.*\\n/,'#!/usr/bin/env node\\n'):'#!/usr/bin/env node\\n'+c;fs.writeFileSync(f,c)\"",
     "build:watch": "tsup --watch",
     "type-check": "tsc --noEmit",
     "test": "vitest run",

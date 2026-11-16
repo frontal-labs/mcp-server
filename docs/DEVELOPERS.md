@@ -628,7 +628,7 @@ bun run dev --validate-config
       "name": "Debug MCP Server",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/src/bin/frontal-mcp-server.ts",
+      "program": "${workspaceFolder}/bin/index.ts",
       "runtimeArgs": ["--loader", "ts-node/esm"],
       "env": {
         "FRONTAL_API_KEY": "test-key"

@@ -16,7 +16,10 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { afterEach, describe, expect, it } from "vitest";
+import packageJson from "../package.json" with { type: "json" };
 
 const CLI_PATH = resolve(__dirname, "../dist/bin/frontal-mcp-server.js");
 const CLI_EXISTS = existsSync(CLI_PATH);
@@ -32,6 +35,32 @@ describe.skipIf(!CLI_EXISTS)("CLI Workflow E2E Tests", () => {
       cliProcess.kill();
     }
     cliProcess = null;
+  });
+
+  it("is the file package.json publishes as the bin", () => {
+    expect(
+      resolve(__dirname, "..", packageJson.bin["frontal-mcp-server"])
+    ).toBe(CLI_PATH);
+  });
+
+  it("answers an MCP client over stdio when run with node", async () => {
+    const client = new Client({ name: "cli-e2e", version: "0.0.0" });
+    await client.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [CLI_PATH, "--transport", "stdio", "--log-level", "error"],
+        env: { FRONTAL_API_KEY: "frt_e2e_key" },
+        stderr: "ignore",
+      })
+    );
+    try {
+      const { tools } = await client.listTools();
+      expect(tools.map((tool) => tool.name)).toContain(
+        "frontal_list_endpoints"
+      );
+    } finally {
+      await client.close();
+    }
   });
 
   it("should start CLI with stdio transport", async () => {
