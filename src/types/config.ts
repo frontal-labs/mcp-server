@@ -30,7 +30,6 @@ export const transportConfigSchema = z.object({
       host: z.string().default("localhost"),
       allowedOrigins: z.array(z.string()).default([]),
       maxRequestBodyBytes: z.number().int().positive().optional(),
-      maxSessions: z.number().int().positive().optional(),
       allowedHosts: z.array(z.string()).default([]),
     })
     .optional(),
@@ -143,7 +142,6 @@ export async function loadConfig(
             host: options.host || "localhost",
             allowedOrigins: parseCsvList(env.FRONTAL_HTTP_ALLOWED_ORIGINS),
             maxRequestBodyBytes: env.FRONTAL_HTTP_MAX_BODY_BYTES,
-            maxSessions: env.FRONTAL_HTTP_MAX_SESSIONS,
             allowedHosts: parseCsvList(env.FRONTAL_HTTP_ALLOWED_HOSTS),
           }
         : undefined,

@@ -72,7 +72,7 @@ export const env = createEnv({
 
     /**
      * Largest MCP request body accepted by the HTTP transport, in bytes.
-     * Bodies are buffered before the session is resolved, so this bounds
+     * Bodies are buffered before the request is dispatched, so this bounds
      * what a single caller can make the process allocate.
      */
     FRONTAL_HTTP_MAX_BODY_BYTES: z.coerce
@@ -81,18 +81,6 @@ export const env = createEnv({
       .positive()
       .optional()
       .describe("Max HTTP request body size in bytes (default 4 MiB)"),
-
-    /**
-     * Largest number of concurrent MCP sessions. Each session holds its own
-     * server instance, so this is the main memory dial: raise it on a larger
-     * VM, lower it on a smaller one.
-     */
-    FRONTAL_HTTP_MAX_SESSIONS: z.coerce
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .describe("Max concurrent MCP sessions (default 256)"),
 
     /**
      * Comma-separated hosts accepted in the `Host` header of MCP requests.
@@ -196,7 +184,6 @@ export const env = createEnv({
     FRONTAL_TOOLSETS: process.env.FRONTAL_TOOLSETS,
     FRONTAL_HTTP_ALLOWED_ORIGINS: process.env.FRONTAL_HTTP_ALLOWED_ORIGINS,
     FRONTAL_HTTP_MAX_BODY_BYTES: process.env.FRONTAL_HTTP_MAX_BODY_BYTES,
-    FRONTAL_HTTP_MAX_SESSIONS: process.env.FRONTAL_HTTP_MAX_SESSIONS,
     FRONTAL_HTTP_ALLOWED_HOSTS: process.env.FRONTAL_HTTP_ALLOWED_HOSTS,
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,

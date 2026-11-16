@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { randomUUID } from "node:crypto";
 import {
   createServer,
   type IncomingMessage,
   type Server,
   type ServerResponse,
 } from "node:http";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import {
+  createMcpHandler,
+  type McpHttpHandler,
+  type McpServerFactory,
+} from "@modelcontextprotocol/server";
 import type { Logger } from "winston";
 import { runWithToken } from "./auth.js";
 import { type RateLimiter, rateLimitIdentifier } from "./rate-limit.js";
@@ -38,10 +39,22 @@ function extractBearerToken(req: IncomingMessage): string | undefined {
   return token || undefined;
 }
 
-const DEFAULT_SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
-const DEFAULT_SESSION_SWEEP_INTERVAL_MS = 60 * 1000;
 const DEFAULT_MAX_REQUEST_BODY_BYTES = 4 * 1024 * 1024;
-const DEFAULT_MAX_SESSIONS = 256;
+
+/** The standard MCP request headers of protocol revision 2026-07-28. */
+const MCP_HEADERS = "MCP-Protocol-Version, Mcp-Method, Mcp-Name";
+
+/**
+ * Response headers this transport owns. The MCP handler never sets them, and
+ * copying them from its response would clobber the values set here.
+ */
+const TRANSPORT_OWNED_HEADERS = new Set([
+  "access-control-allow-origin",
+  "access-control-allow-methods",
+  "access-control-allow-headers",
+  "access-control-expose-headers",
+  "vary",
+]);
 
 class PayloadTooLargeError extends Error {
   constructor(limit: number) {
@@ -51,73 +64,52 @@ class PayloadTooLargeError extends Error {
 }
 
 export interface HttpTransportOptions {
-  allowedOrigins?: string[];
-  sessionIdleTimeoutMs?: number;
-  sessionSweepIntervalMs?: number;
-  maxRequestBodyBytes?: number;
-  maxSessions?: number;
   allowedHosts?: string[];
+  allowedOrigins?: string[];
+  maxRequestBodyBytes?: number;
   rateLimiter?: RateLimiter;
 }
 
+/**
+ * The HTTP front door: a `node:http` server that applies CORS, the host
+ * allow-list, `GET /health`, bearer authentication, rate limiting and the
+ * body-size limit, then hands the request to the SDK's MCP handler.
+ *
+ * It is stateless. The handler builds a fresh MCP server for every request,
+ * for both protocol eras (2026-07-28 and 2025-era), so any instance can
+ * serve any request and nothing is lost when an instance stops.
+ */
 export class HttpTransport {
   private server: Server | undefined;
-  private readonly sessions = new Map<
-    string,
-    {
-      transport: StreamableHTTPServerTransport;
-      mcpServer: McpServer;
-      lastSeen: number;
-    }
-  >();
+  private readonly handler: McpHttpHandler;
   private logger: Logger;
   private readonly allowedOrigins: Set<string>;
-  private readonly sessionIdleTimeoutMs: number;
-  private readonly sessionSweepIntervalMs: number;
   private readonly maxRequestBodyBytes: number;
-  private readonly maxSessions: number;
   private readonly allowedHosts: Set<string>;
   private readonly rateLimiter: RateLimiter | undefined;
-  private sweepTimer: NodeJS.Timeout | undefined;
 
   constructor(
-    private createMcpServer: () => McpServer,
+    createMcpServer: McpServerFactory,
     logger: Logger,
     options: HttpTransportOptions = {}
   ) {
     this.logger = logger;
     this.allowedOrigins = new Set(options.allowedOrigins ?? []);
-    this.sessionIdleTimeoutMs =
-      options.sessionIdleTimeoutMs ?? DEFAULT_SESSION_IDLE_TIMEOUT_MS;
-    this.sessionSweepIntervalMs =
-      options.sessionSweepIntervalMs ?? DEFAULT_SESSION_SWEEP_INTERVAL_MS;
     this.maxRequestBodyBytes =
       options.maxRequestBodyBytes ?? DEFAULT_MAX_REQUEST_BODY_BYTES;
-    this.maxSessions = options.maxSessions ?? DEFAULT_MAX_SESSIONS;
     this.allowedHosts = new Set(
       (options.allowedHosts ?? []).map((host) => host.toLowerCase())
     );
     this.rateLimiter = options.rateLimiter;
+    this.handler = createMcpHandler(createMcpServer, {
+      legacy: "stateless",
+      maxRequestBodySize: this.maxRequestBodyBytes,
+      onerror: (error) => this.logger.debug(`MCP handler: ${error.message}`),
+    });
   }
 
-  private sweepIdleSessions(): void {
-    const cutoff = Date.now() - this.sessionIdleTimeoutMs;
-    for (const [id, session] of this.sessions) {
-      if (session.lastSeen <= cutoff) {
-        this.logger.info(`Closing idle MCP session: ${id}`);
-        void session.transport.close();
-      }
-    }
-  }
-
-  async start(port = 3000, host = "localhost"): Promise<void> {
+  start(port = 3000, host = "localhost"): Promise<void> {
     this.server = createServer((req, res) => this.handle(req, res));
-
-    this.sweepTimer = setInterval(
-      () => this.sweepIdleSessions(),
-      this.sessionSweepIntervalMs
-    );
-    this.sweepTimer.unref?.();
 
     return new Promise((resolve, reject) => {
       this.server?.listen(port, host, () => {
@@ -137,14 +129,14 @@ export class HttpTransport {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Vary", "Origin");
     }
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, Mcp-Session-Id"
+      `Content-Type, Accept, Authorization, ${MCP_HEADERS}`
     );
     res.setHeader(
       "Access-Control-Expose-Headers",
-      "Mcp-Session-Id, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After"
+      `${MCP_HEADERS}, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After`
     );
   }
 
@@ -324,103 +316,38 @@ export class HttpTransport {
     }
   }
 
-  private async openSession(): Promise<StreamableHTTPServerTransport> {
-    const mcpServer = this.createMcpServer();
-    let sessionId: string | undefined;
-
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-      onsessioninitialized: (id: string) => {
-        sessionId = id;
-        this.sessions.set(id, { transport, mcpServer, lastSeen: Date.now() });
-        this.logger.debug(
-          `MCP session opened: ${id} (${this.sessions.size} active)`
-        );
-      },
-    });
-
-    transport.onclose = () => {
-      if (sessionId && this.sessions.delete(sessionId)) {
-        this.logger.debug(
-          `MCP session closed: ${sessionId} (${this.sessions.size} active)`
-        );
-      }
-    };
-
-    await mcpServer.connect(transport);
-    return transport;
-  }
-
   private async dispatchMcp(
     req: IncomingMessage,
     res: ServerResponse,
     token: string
   ): Promise<void> {
-    const body =
-      req.method === "GET" ? undefined : await this.getRequestBody(req);
-    const parsedBody = body ? JSON.parse(body) : undefined;
+    const hasBody = req.method !== "GET" && req.method !== "HEAD";
+    const body = hasBody ? await this.getRequestBody(req) : undefined;
 
-    const sessionId = req.headers["mcp-session-id"];
-    const existing =
-      typeof sessionId === "string" ? this.sessions.get(sessionId) : undefined;
+    // Cancel the exchange when the client goes away before it completes.
+    const abort = new AbortController();
+    res.once("close", () => {
+      if (!res.writableFinished) abort.abort();
+    });
 
-    let transport: StreamableHTTPServerTransport;
-    if (existing) {
-      existing.lastSeen = Date.now();
-      transport = existing.transport;
-    } else if (!sessionId && isInitializeRequest(parsedBody)) {
-      if (this.sessions.size >= this.maxSessions) {
-        this.logger.warn(
-          `Refusing new MCP session: ${this.sessions.size} sessions open (limit ${this.maxSessions})`
-        );
-        res.writeHead(503, {
-          "Content-Type": "application/json",
-          "Retry-After": "60",
-        });
-        res.end(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            error: {
-              code: -32002,
-              message:
-                "Server is at its session limit. Retry shortly or close idle sessions with DELETE.",
-            },
-            id: null,
-          })
-        );
-        return;
+    const request = new Request(
+      new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`),
+      {
+        method: req.method,
+        headers: toWebHeaders(req),
+        body,
+        signal: abort.signal,
       }
-      transport = await this.openSession();
-    } else {
-      res.writeHead(404, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          jsonrpc: "2.0",
-          error: {
-            code: -32001,
-            message:
-              "Unknown or expired Mcp-Session-Id. Send an initialize request to start a new session.",
-          },
-          id: null,
-        })
-      );
-      return;
-    }
-
-    await runWithToken(token, () =>
-      transport.handleRequest(req, res, parsedBody)
     );
+
+    const response = await runWithToken(token, () =>
+      this.handler.fetch(request)
+    );
+    await writeWebResponse(response, res, abort.signal);
   }
 
   async stop(): Promise<void> {
-    if (this.sweepTimer) {
-      clearInterval(this.sweepTimer);
-      this.sweepTimer = undefined;
-    }
-
-    const open = [...this.sessions.values()];
-    this.sessions.clear();
-    await Promise.allSettled(open.map(({ transport }) => transport.close()));
+    await this.handler.close();
 
     return new Promise((resolve) => {
       if (this.server) {
@@ -428,6 +355,7 @@ export class HttpTransport {
           this.logger.info("HTTP Server stopped");
           resolve();
         });
+        this.server.closeAllConnections();
       } else {
         resolve();
       }
@@ -466,5 +394,47 @@ export class HttpTransport {
         reject(error);
       });
     });
+  }
+}
+
+function toWebHeaders(req: IncomingMessage): Headers {
+  const headers = new Headers();
+  for (const [name, value] of Object.entries(req.headers)) {
+    if (value === undefined) continue;
+    for (const entry of Array.isArray(value) ? value : [value]) {
+      headers.append(name, entry);
+    }
+  }
+  return headers;
+}
+
+/** Copy a web `Response` onto a Node response, streaming the body (SSE). */
+async function writeWebResponse(
+  response: Response,
+  res: ServerResponse,
+  signal: AbortSignal
+): Promise<void> {
+  for (const [name, value] of response.headers) {
+    if (!TRANSPORT_OWNED_HEADERS.has(name.toLowerCase())) {
+      res.setHeader(name, value);
+    }
+  }
+  res.writeHead(response.status);
+
+  if (!response.body) {
+    res.end();
+    return;
+  }
+
+  const reader = response.body.getReader();
+  signal.addEventListener("abort", () => void reader.cancel(), { once: true });
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      res.write(value);
+    }
+  } finally {
+    res.end();
   }
 }

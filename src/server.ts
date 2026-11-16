@@ -111,7 +111,6 @@ export async function main(): Promise<void> {
         {
           allowedOrigins: config.transport.http?.allowedOrigins,
           maxRequestBodyBytes: config.transport.http?.maxRequestBodyBytes,
-          maxSessions: config.transport.http?.maxSessions,
           allowedHosts: config.transport.http?.allowedHosts,
           rateLimiter: createRateLimiter(config.rateLimit, logger),
         }

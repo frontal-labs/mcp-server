@@ -308,7 +308,7 @@ targetMemoryUtilizationPercentage: 80
 ```
 
 ### Caching
-- Enable Redis for session storage
+- No session storage is needed: the HTTP transport is stateless
 - Use CDN for static assets
 - Implement application-level caching
 

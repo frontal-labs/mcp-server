@@ -13,8 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { McpServer } from "@modelcontextprotocol/server";
+import {
+  type StdioServerHandle,
+  serveStdio,
+} from "@modelcontextprotocol/server/stdio";
 import type { Logger } from "winston";
 import { FrontalClient } from "@/client.js";
 import { getRequestToken } from "@/middlewares/auth.js";
@@ -33,11 +36,32 @@ const ALL_ADAPTERS: ServiceAdapter[] = [
   new DataAdapter(),
 ];
 
+export const SERVER_NAME = "frontal-mcp-server";
+export const DOCS_URL = "https://docs.frontal.dev/";
+
+/**
+ * How long a client may cache `tools/list` and `server/discover` results.
+ * Both change only when the server is redeployed or reconfigured.
+ */
+const LIST_CACHE_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * The tool list is the same for every caller today, but it stays `private`:
+ * every HTTP request is authenticated, and later phases gate tools by the
+ * caller's scopes, so a shared cache must never serve one caller's list to
+ * another.
+ */
+const LIST_CACHE_HINT = {
+  ttlMs: LIST_CACHE_TTL_MS,
+  cacheScope: "private",
+} as const;
+
 export class FrontalMcpServer {
   private server: McpServer;
   private config: ServerConfig;
   private logger: Logger;
   private adapterContext: AdapterContext | undefined;
+  private stdio: StdioServerHandle | undefined;
   readonly healthMonitor: HealthMonitor;
 
   constructor(config: ServerConfig, logger: Logger) {
@@ -47,6 +71,11 @@ export class FrontalMcpServer {
     this.healthMonitor = new HealthMonitor(config.incidentio, logger);
   }
 
+  /**
+   * A standalone instance with the enabled tools registered, for in-process
+   * use. The transports do not serve this instance: they build a fresh one
+   * per connection (stdio) or per request (HTTP) with {@link createServer}.
+   */
   get mcpServerInstance(): McpServer {
     return this.server;
   }
@@ -82,15 +111,33 @@ export class FrontalMcpServer {
     return this.adapterContext;
   }
 
+  /**
+   * Build a fresh, fully registered server. This is the factory behind both
+   * transports, and it serves both protocol eras (2026-07-28 and 2025-era).
+   * It is cheap: the client, spec index and config are shared.
+   */
   createServer(): McpServer {
     return this.buildServer(this.getAdapterContext());
   }
 
   private buildServer(ctx?: AdapterContext): McpServer {
-    const server = new McpServer({
-      name: "frontal-mcp-server",
-      version: VERSION,
-    });
+    const toolsets = this.config.toolsets.join(", ");
+    const server = new McpServer(
+      {
+        name: SERVER_NAME,
+        title: "Frontal",
+        version: VERSION,
+        description: `Model Context Protocol server for the Frontal public API. Enabled tool sets: ${toolsets}.`,
+        websiteUrl: DOCS_URL,
+      },
+      {
+        instructions: `Tools for the Frontal public API (api.frontal.dev). Enabled tool sets: ${toolsets}. Documentation: ${DOCS_URL}`,
+        cacheHints: {
+          "tools/list": LIST_CACHE_HINT,
+          "server/discover": LIST_CACHE_HINT,
+        },
+      }
+    );
     if (ctx) {
       const enabled = new Set(this.config.toolsets);
       for (const adapter of ALL_ADAPTERS) {
@@ -121,14 +168,22 @@ export class FrontalMcpServer {
     );
   }
 
-  async connectStdio(): Promise<void> {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
+  /**
+   * Serve MCP over this process's stdio. The client's opening message picks
+   * the protocol era, and one server instance then serves the connection.
+   */
+  connectStdio(): Promise<void> {
+    this.stdio = serveStdio(() => this.createServer(), {
+      onerror: (error) => this.logger.error("stdio transport error:", error),
+    });
     this.logger.info("Connected via stdio transport");
+    return Promise.resolve();
   }
 
   async close(): Promise<void> {
     this.logger.info("Shutting down Frontal MCP Server...");
+    await this.stdio?.close();
+    this.stdio = undefined;
     await this.server.close();
     this.logger.info("Frontal MCP Server shut down");
   }

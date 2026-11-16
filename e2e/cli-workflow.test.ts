@@ -16,8 +16,8 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { Client } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { afterEach, describe, expect, it } from "vitest";
 import packageJson from "../package.json" with { type: "json" };
 
@@ -43,25 +43,35 @@ describe.skipIf(!CLI_EXISTS)("CLI Workflow E2E Tests", () => {
     ).toBe(CLI_PATH);
   });
 
-  it("answers an MCP client over stdio when run with node", async () => {
-    const client = new Client({ name: "cli-e2e", version: "0.0.0" });
-    await client.connect(
-      new StdioClientTransport({
-        command: process.execPath,
-        args: [CLI_PATH, "--transport", "stdio", "--log-level", "error"],
-        env: { FRONTAL_API_KEY: "frt_e2e_key" },
-        stderr: "ignore",
-      })
-    );
-    try {
-      const { tools } = await client.listTools();
-      expect(tools.map((tool) => tool.name)).toContain(
-        "frontal_list_endpoints"
+  it.each([
+    ["legacy", "legacy"],
+    ["modern", { pin: "2026-07-28" }],
+  ] as const)(
+    "answers a %s-era MCP client over stdio when run with node, as in examples/claude-desktop.json",
+    async (era, mode) => {
+      const client = new Client(
+        { name: "cli-e2e", version: "0.0.0" },
+        { versionNegotiation: { mode } }
       );
-    } finally {
-      await client.close();
+      await client.connect(
+        new StdioClientTransport({
+          command: process.execPath,
+          args: [CLI_PATH, "--transport", "stdio", "--log-level", "error"],
+          env: { FRONTAL_API_KEY: "frt_e2e_key" },
+          stderr: "ignore",
+        })
+      );
+      try {
+        expect(client.getProtocolEra()).toBe(era);
+        const { tools } = await client.listTools();
+        expect(tools.map((tool) => tool.name)).toContain(
+          "frontal_list_endpoints"
+        );
+      } finally {
+        await client.close();
+      }
     }
-  });
+  );
 
   it("should start CLI with stdio transport", async () => {
     cliProcess = spawn("node", [CLI_PATH, "--transport", "stdio"], {

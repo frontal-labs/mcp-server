@@ -17,36 +17,39 @@
 /**
  * Protocol smoke test: the regression net for the MCP 2026-07-28 migration.
  *
- * It drives the server the way a real client does, over both transports,
- * with a real MCP client and a real socket to a mock Frontal API:
+ * It drives the server the way a real client does, with a real MCP client
+ * and a real socket to a mock Frontal API, over both transports and in both
+ * protocol eras:
  *
  * - stdio: the actual CLI entry point, spawned as a child process, with the
  *   API key taken from the `FRONTAL_API_KEY` environment variable;
- * - HTTP: the actual `HttpTransport`, with a per-request bearer token.
+ * - HTTP: the actual `HttpTransport`, with a per-request bearer token;
+ * - legacy: the 2025-era `initialize` handshake;
+ * - modern: protocol revision 2026-07-28, pinned so that a silent fallback
+ *   to the legacy handshake fails the test.
  *
  * Keep this file green in every phase. When the MCP client API changes,
- * update the two `connect*` helpers and leave the assertions alone.
+ * update the helpers in `tests/utils/mcp-harness.ts` and leave the
+ * assertions alone.
  */
-import { resolve } from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createConfig } from "@/config/index.js";
-import { FrontalMcpServer } from "@/mcp/index.js";
-import { HttpTransport } from "@/middlewares/http-transport.js";
-import { createLogger } from "@/utils/logger.js";
+import { VERSION } from "@/version.js";
 import {
-  getFreePort,
   MOCK_DATASETS,
   type MockEdge,
   startMockEdge,
 } from "../mocks/mock-edge.js";
-
-const REPO_ROOT = resolve(__dirname, "../..");
-const STDIO_TOKEN = "frt_smoke_stdio";
-const HTTP_TOKEN = "frt_smoke_http";
-const SPAWN_TIMEOUT_MS = 30_000;
+import {
+  connectHttp,
+  connectStdio,
+  type Harness,
+  HTTP_TOKEN,
+  type HttpServerUnderTest,
+  MODERN_PROTOCOL_VERSION,
+  SPAWN_TIMEOUT_MS,
+  startHttpServer,
+  textOf,
+} from "../utils/mcp-harness.js";
 
 const GENERIC_TOOLS = [
   "frontal_list_endpoints",
@@ -56,102 +59,58 @@ const GENERIC_TOOLS = [
 const CURATED_READ_TOOL = "data_list_datasets";
 const DESCRIBED_OPERATION = "getV1DataCatalogCatalogDatasets";
 
-interface Harness {
-  client: Client;
-  close(): Promise<void>;
-  /** Token the mock API must see on calls made through this transport. */
-  expectedToken: string;
-}
-
-function newClient(): Client {
-  return new Client({ name: "protocol-smoke", version: "0.0.0" });
-}
-
-/** Spawn the real CLI over stdio; the API key comes from the environment. */
-async function connectStdio(edge: MockEdge): Promise<Harness> {
-  const client = newClient();
-  const transport = new StdioClientTransport({
-    command: "bun",
-    args: ["bin/index.ts", "--transport", "stdio", "--log-level", "error"],
-    cwd: REPO_ROOT,
-    env: {
-      FRONTAL_API_KEY: STDIO_TOKEN,
-      FRONTAL_BASE_URL: edge.baseUrl,
-      MCP_LOG_LEVEL: "error",
-    },
-    stderr: "ignore",
-  });
-  await client.connect(transport);
-  return {
-    client,
-    expectedToken: STDIO_TOKEN,
-    close: () => client.close(),
-  };
-}
-
-/** Start the real HTTP transport; the server holds no API key of its own. */
-async function connectHttp(edge: MockEdge): Promise<Harness & { url: string }> {
-  const logger = createLogger({ level: "error" });
-  const server = new FrontalMcpServer(
-    createConfig({ apiKey: "", baseUrl: edge.baseUrl }),
-    logger
-  );
-  await server.initialize();
-
-  const port = await getFreePort();
-  const http = new HttpTransport(() => server.createServer(), logger);
-  await http.start(port, "127.0.0.1");
-
-  const url = `http://127.0.0.1:${port}`;
-  const client = newClient();
-  await client.connect(
-    new StreamableHTTPClientTransport(new URL(`${url}/mcp`), {
-      requestInit: { headers: { Authorization: `Bearer ${HTTP_TOKEN}` } },
-    })
-  );
-
-  return {
-    client,
-    url,
-    expectedToken: HTTP_TOKEN,
-    close: async () => {
-      await client.close();
-      await http.stop();
-      await server.close();
-    },
-  };
-}
-
-function textOf(result: unknown): string {
-  const { content } = result as { content: { type: string; text: string }[] };
-  expect(content[0]?.type).toBe("text");
-  return content[0].text;
-}
+const CASES = [
+  "stdio legacy",
+  "stdio modern",
+  "http legacy",
+  "http modern",
+] as const;
 
 describe("protocol smoke", () => {
   let edge: MockEdge;
-  let httpUrl: string;
+  let httpServer: HttpServerUnderTest;
   const harnesses: Record<string, Harness> = {};
 
   beforeAll(async () => {
     edge = await startMockEdge();
-    const [stdio, http] = await Promise.all([
-      connectStdio(edge),
-      connectHttp(edge),
-    ]);
-    harnesses.stdio = stdio;
-    harnesses.http = http;
-    httpUrl = http.url;
+    httpServer = await startHttpServer(edge);
+    const [stdioLegacy, stdioModern, httpLegacy, httpModern] =
+      await Promise.all([
+        connectStdio(edge, "legacy"),
+        connectStdio(edge, "modern"),
+        connectHttp(httpServer.url, "legacy"),
+        connectHttp(httpServer.url, "modern"),
+      ]);
+    harnesses["stdio legacy"] = stdioLegacy;
+    harnesses["stdio modern"] = stdioModern;
+    harnesses["http legacy"] = httpLegacy;
+    harnesses["http modern"] = httpModern;
   }, SPAWN_TIMEOUT_MS);
 
   afterAll(async () => {
     await Promise.allSettled(
       Object.values(harnesses).map((harness) => harness.close())
     );
+    await httpServer?.stop();
     await edge?.close();
   });
 
-  describe.each(["stdio", "http"])("%s transport", (name) => {
+  describe.each(CASES)("%s", (name) => {
+    it("negotiates the expected protocol era and identifies the server", () => {
+      const { client, era } = harnesses[name];
+      expect(client.getProtocolEra()).toBe(era);
+      if (era === "modern") {
+        expect(client.getNegotiatedProtocolVersion()).toBe(
+          MODERN_PROTOCOL_VERSION
+        );
+      }
+      expect(client.getServerVersion()).toMatchObject({
+        name: "frontal-mcp-server",
+        version: VERSION,
+      });
+      expect(client.getServerCapabilities()?.tools).toBeDefined();
+    });
+
     it("lists the generic tools and a curated tool", async () => {
       const { tools } = await harnesses[name].client.listTools();
       const names = tools.map((tool) => tool.name);
@@ -214,13 +173,13 @@ describe("protocol smoke", () => {
 
   describe("http transport security posture", () => {
     it("serves GET /health without a token", async () => {
-      const response = await fetch(`${httpUrl}/health`);
+      const response = await fetch(`${httpServer.url}/health`);
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({ status: "ok" });
     });
 
     it("rejects an MCP request without a bearer token", async () => {
-      const response = await fetch(`${httpUrl}/mcp`, {
+      const response = await fetch(`${httpServer.url}/mcp`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -233,11 +192,24 @@ describe("protocol smoke", () => {
     });
 
     it("never answers CORS with a wildcard origin", async () => {
-      const response = await fetch(`${httpUrl}/mcp`, {
+      const response = await fetch(`${httpServer.url}/mcp`, {
         method: "OPTIONS",
         headers: { Origin: "https://evil.example" },
       });
       expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    });
+
+    it("answers the retired session operations with 405", async () => {
+      for (const method of ["GET", "DELETE"]) {
+        const response = await fetch(`${httpServer.url}/mcp`, {
+          method,
+          headers: {
+            Authorization: `Bearer ${HTTP_TOKEN}`,
+            Accept: "text/event-stream",
+          },
+        });
+        expect(response.status).toBe(405);
+      }
     });
   });
 });

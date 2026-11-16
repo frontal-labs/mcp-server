@@ -23,7 +23,7 @@
  */
 
 // MCP server types
-export type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+export type { McpServer } from "@modelcontextprotocol/server";
 export type { Logger } from "winston";
 // Incident.io types
 export type {

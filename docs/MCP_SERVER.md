@@ -57,66 +57,74 @@ export interface ServiceAdapter {
 
 ## Transport Mechanisms
 
+The server is built on the MCP TypeScript SDK v2 (`@modelcontextprotocol/server`)
+and speaks two protocol eras from the same tool definitions:
+
+| Era | Protocol versions | How a connection starts |
+| --- | --- | --- |
+| Modern | `2026-07-28` | No handshake. Each request carries the protocol version and client capabilities in `_meta`; `server/discover` returns the server's capabilities. |
+| Legacy | `2025-11-25` and earlier 2025-era versions | The `initialize` handshake. |
+
 ### Stdio Transport
 
-The stdio transport uses standard input/output for communication, ideal for local AI assistants.
+For local clients such as Claude Desktop. The API key comes from
+`FRONTAL_API_KEY` (or `--api-key`). Logs go to stderr.
 
 ```typescript
-// Implementation
-async connectStdio(): Promise<void> {
-  const transport = new StdioServerTransport();
-  await this.server.connect(transport);
-  this.logger.info("Connected via stdio transport");
+// src/mcp/index.ts
+connectStdio(): Promise<void> {
+  this.stdio = serveStdio(() => this.createServer(), { /* ... */ });
 }
 ```
 
+The client's opening message selects the era, and one server instance then
+serves the connection for its lifetime.
+
 **Usage:**
+
 ```bash
 frontal-mcp-server --transport stdio
 ```
 
-**Message Format:**
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": {
-    "name": "ai-generate-text",
-    "arguments": {
-      "model": "frontal-gpt-4",
-      "prompt": "Hello world"
-    }
-  },
-  "id": 1
-}
-```
-
 ### HTTP Transport
 
-The HTTP transport provides a REST API interface for remote integration.
+For remote, multi-tenant use. The transport is **stateless**: it keeps no
+sessions, builds a fresh server instance for every request, and can run as any
+number of instances behind a load balancer.
 
 ```typescript
-// Implementation
-async connectHttp(): Promise<void> {
-  const transport = new HttpTransport(
-    this.config.http.port,
-    this.config.http.host
-  );
-  await this.server.connect(transport);
-  this.logger.info(`Connected via HTTP transport on ${this.config.http.host}:${this.config.http.port}`);
-}
+// src/middlewares/http-transport.ts
+this.handler = createMcpHandler(createMcpServer, {
+  legacy: "stateless",
+  maxRequestBodySize: this.maxRequestBodyBytes,
+});
 ```
 
 **Usage:**
+
 ```bash
 frontal-mcp-server --transport http --port 3000
 ```
 
 **Endpoints:**
-- `POST /tools/call` - Execute a tool
-- `GET /tools/list` - List available tools
-- `GET /resources/list` - List available resources
-- `POST /resources/read` - Read a resource
+
+- `POST /mcp` (any path other than `/health`): the MCP endpoint. Every request
+  must carry `Authorization: Bearer frt_...`.
+- `GET /health`: returns `200 {"status":"ok"}` without a token.
+- `GET` and `DELETE` on the MCP endpoint return `405`. They were the session
+  operations of the 2025-era transport, and there are no sessions.
+
+**Request headers (modern era):** `MCP-Protocol-Version`, `Mcp-Method` and
+`Mcp-Name` are required by the 2026-07-28 revision. MCP client libraries send
+them for you. They are allowed and exposed over CORS for origins listed in
+`FRONTAL_HTTP_ALLOWED_ORIGINS`.
+
+**Caching (modern era):** `tools/list` and `server/discover` results carry
+`ttlMs: 300000` and `cacheScope: "private"`.
+
+**Legacy clients:** a 2025-era client still works. Each of its requests is
+served independently, no `Mcp-Session-Id` is issued, and one sent by the
+client is ignored.
 
 ## Service Adapters
 

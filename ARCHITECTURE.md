@@ -61,7 +61,7 @@ uses no roots, sampling or protocol-level logging.
 | `src/types/` | Shared types, the zod config schema (`config.ts`) and the error classes (`errors.ts`). |
 | `src/helpers/`, `src/utils/` | Small array / async / object / string helpers and the winston logger. |
 | `openapi/public.v1.json` | The vendored OpenAPI spec. |
-| `scripts/` | `sync-spec.ts` (refresh or check the vendored spec) and `smoke.ts` (tool-stack smoke test against a mock API). |
+| `scripts/` | `sync-spec.ts` (refresh or check the vendored spec), `smoke.ts` (tool-stack smoke test against a mock API) and `conformance.ts` (MCP conformance suite). |
 | `tests/`, `e2e/` | Vitest suites. |
 
 ## Components
@@ -78,11 +78,12 @@ the transport and closes the server, with a 10-second grace period.
 `SpecIndex`, the logger and the config. Together they form the `AdapterContext`
 that every tool receives.
 
-- `initialize()` registers the enabled adapters on the instance used by stdio
-  and starts the `HealthMonitor`.
-- `createServer()` builds a fresh `McpServer` with the same adapters. The HTTP
-  transport calls it once per session.
-- `connectStdio()` connects the stdio transport.
+- `initialize()` builds the shared context and starts the `HealthMonitor`.
+- `createServer()` builds a fresh `McpServer` with the enabled adapters. It is
+  the factory behind both transports: stdio calls it once per connection, HTTP
+  once per request. It also sets the discovery metadata (name, version, the
+  enabled tool sets, the docs URL) and the cache hints.
+- `connectStdio()` serves stdio through the SDK's `serveStdio`.
 
 ### Spec index (`src/spec/spec-index.ts`)
 
@@ -177,35 +178,41 @@ is active only when `INCIDENTIO_API_KEY` is set; otherwise it does nothing.
 
 ## Transports
 
+The server uses the MCP TypeScript SDK v2 (`@modelcontextprotocol/server`). Both
+transports serve two protocol eras from the same factory:
+
+- **Modern:** revision `2026-07-28`. There is no handshake; every request
+  carries the protocol version and client capabilities in `_meta`, and
+  `server/discover` returns the server's capabilities.
+- **Legacy:** `2025-11-25` and earlier 2025-era versions, which start with the
+  `initialize` handshake.
+
 ### stdio
 
-For local clients such as Claude Desktop. One `McpServer` is connected to
-`StdioServerTransport` for the life of the process. The API key comes from
-`FRONTAL_API_KEY` (or `--api-key`). Logs go to stderr, so stdout carries only
-protocol messages.
+For local clients such as Claude Desktop. `serveStdio` reads the client's
+opening message, picks the era, and pins one `McpServer` to the connection.
+The API key comes from `FRONTAL_API_KEY` (or `--api-key`). Logs go to stderr,
+so stdout carries only protocol messages.
 
 ### Streamable HTTP (`src/middlewares/http-transport.ts`)
 
 A `node:http` server for multi-tenant, remote use. Every path other than
 `/health` is treated as the MCP endpoint.
 
-The transport is **session-based**. An `initialize` request without an
-`Mcp-Session-Id` header opens a session: a new `McpServer` and
-`StreamableHTTPServerTransport`, stored in an in-memory map under a random
-session id. Later requests must carry that id. Sessions are closed after 30
-minutes of inactivity, and at most 256 can be open at once
-(`FRONTAL_HTTP_MAX_SESSIONS`); beyond that, new sessions get `503`. A request
-with an unknown session id gets `404`.
+The transport is **stateless**. It holds no sessions and no per-client data:
+the SDK's `createMcpHandler` builds a fresh `McpServer` for every request, in
+both eras (the legacy posture is `'stateless'`). Any instance can serve any
+request, so the server can run as several instances behind a load balancer,
+and nothing is lost when an instance stops. `GET` and `DELETE` on the MCP
+endpoint, the session operations of the 2025-era transport, return `405`.
 
-Because sessions live in process memory, they are lost when the process
-stops, and a client must always reach the instance that holds its session.
-The server therefore cannot run as more than one instance behind a load
-balancer.
-
-Each request passes these checks, in order:
+`http-transport.ts` itself only handles what surrounds the protocol. Each
+request passes these checks, in order:
 
 1. **CORS.** `Access-Control-Allow-Origin` is echoed only for an origin listed
-   in `FRONTAL_HTTP_ALLOWED_ORIGINS`. It is never `*`.
+   in `FRONTAL_HTTP_ALLOWED_ORIGINS`. It is never `*`. The MCP headers
+   `MCP-Protocol-Version`, `Mcp-Method` and `Mcp-Name` are allowed and
+   exposed, along with the `RateLimit-*` headers and `Retry-After`.
 2. **Host allow-list.** When `FRONTAL_HTTP_ALLOWED_HOSTS` is set, requests with
    any other `Host` header get `403`. This blocks DNS rebinding.
 3. **Health.** `GET /health` returns `200 {"status":"ok"}` without a token.
@@ -220,9 +227,17 @@ Each request passes these checks, in order:
 6. **Body size.** Bodies above `FRONTAL_HTTP_MAX_BODY_BYTES` (default 4 MiB)
    get `413`.
 
-The request is then handled inside `runWithToken`, which stores the caller's
-token in `AsyncLocalStorage` so that `ctx.getToken()` returns it for the tool
-calls of that request only.
+The request is then converted to a web `Request` and passed to the MCP handler
+inside `runWithToken`, which stores the caller's token in `AsyncLocalStorage`
+so that `ctx.getToken()` returns it for the tool calls of that request only.
+The handler's response is streamed back, so SSE responses work.
+
+### Caching and discovery
+
+On the modern era, `tools/list` and `server/discover` results carry
+`ttlMs: 300000` and `cacheScope: "private"`. The tool list is the same for
+every caller today, but it is marked private because every request is
+authenticated and later work gates tools by the caller's scopes.
 
 ## Request flow
 
@@ -248,8 +263,13 @@ MCP client
 - `tests/unit/`: unit tests for the client, config, spec index, tool layer,
   transports and services.
 - `tests/integration/protocol-smoke.test.ts`: drives the server with a real
-  MCP client over both stdio (the spawned CLI) and HTTP, against a local mock
-  of the Frontal API.
+  MCP client over both stdio (the spawned CLI) and HTTP, in both protocol
+  eras, against a local mock of the Frontal API.
+- `tests/integration/statelessness.test.ts`: one client whose requests
+  alternate between two server instances, in both eras.
+- `scripts/conformance.ts` (`bun run conformance`): runs the applicable
+  scenarios of the MCP conformance suite against the HTTP transport, in both
+  eras.
 - `scripts/smoke.ts` (`bun run smoke`): calls the tool handlers directly
   against a mock API, or the live API when `FRONTAL_API_KEY` is set.
 - `e2e/`: CLI tests that run against the built `dist/`.

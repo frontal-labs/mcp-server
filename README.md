@@ -72,6 +72,9 @@ Add to your Claude Desktop configuration:
   never 401/409/501), idempotency keys on retried writes, and region pinning.
 - **Multi-transport**: stdio (local / Claude Desktop) and Streamable HTTP,
   with per-request `Authorization` for multi-tenant hosting.
+- **MCP 2026-07-28**: speaks the 2026-07-28 protocol revision and still
+  serves 2025-era clients. The HTTP transport is stateless (no sessions), so
+  it runs as any number of instances behind a load balancer.
 - **Type safe**: TypeScript throughout with Zod-validated tool inputs.
 - **Monitoring**: Optional incident.io status-page integration and structured logging.
 
@@ -112,6 +115,8 @@ Everything not covered by a curated tool stays reachable via the generic tools.
 | `FRONTAL_REGION` | Region pin (`x-frontal-region`, e.g. `iad`, `lhr`, `fra`, `sin`) | - | No |
 | `FRONTAL_TOOLSETS` | Comma-separated tool sets to register (invalid values are rejected) | `generic,ontology,data` | No |
 | `FRONTAL_HTTP_ALLOWED_ORIGINS` | Comma-separated CORS allowlist for the HTTP transport | - (no origin trusted) | No |
+| `FRONTAL_HTTP_ALLOWED_HOSTS` | Comma-separated `Host` allowlist for the HTTP transport (blocks DNS rebinding) | - (no host check) | No |
+| `FRONTAL_HTTP_MAX_BODY_BYTES` | Largest HTTP request body accepted, in bytes | `4194304` | No |
 | `MCP_LOG_LEVEL` | Log level | `info` | No |
 
 Over the HTTP transport, every **MCP request** must send a per-request
@@ -122,6 +127,11 @@ The `FRONTAL_API_KEY` env key is used only by the stdio transport and is never
 applied to HTTP requests. CORS trusts no origin by default: responses only carry
 `Access-Control-Allow-Origin` for origins listed in
 `FRONTAL_HTTP_ALLOWED_ORIGINS` (never `*`).
+
+The HTTP transport keeps no sessions. `GET` and `DELETE` on the MCP endpoint
+return `405`, no `Mcp-Session-Id` is issued, and `FRONTAL_HTTP_MAX_SESSIONS`
+is no longer read. See [docs/MCP_SERVER.md](docs/MCP_SERVER.md) for the
+supported protocol versions.
 
 ### CLI Options
 
@@ -179,12 +189,12 @@ The server is a thin, spec-driven layer over the Frontal public API:
 
 1. **Vendored OpenAPI spec** (`openapi/public.v1.json`) indexed at startup —
    the source of truth for endpoints, params, and auth.
-2. **Frontal client** (`src/clients/frontal-client.ts`) — an edge-aware fetch
+2. **Frontal client** (`src/client.ts`) — an edge-aware fetch
    client (auth, pagination, retry matrix, idempotency, region pin, errors).
 3. **Tool adapters** — a generic (meta-tool) adapter plus curated
    ontology/data adapters, gated by `FRONTAL_TOOLSETS`.
-4. **Transport layer** — stdio and Streamable HTTP, the latter binding a
-   per-request bearer token via AsyncLocalStorage.
+4. **Transport layer** — stdio and stateless Streamable HTTP on the MCP SDK
+   v2, the latter binding a per-request bearer token via AsyncLocalStorage.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
 
@@ -238,7 +248,8 @@ bun run type-check
   (vendored + refreshable via `bun run sync-spec`).
 - Generic meta-tools (full coverage) + curated ontology/data tools.
 - Edge-aware client (auth, pagination, retry matrix, idempotency, region pin).
-- stdio and Streamable HTTP transports, per-request auth over HTTP.
+- stdio and stateless Streamable HTTP transports, per-request auth over HTTP.
+- MCP protocol revision 2026-07-28, with 2025-era clients still served.
 - Test suite and CI (lint, type-check, coverage, build) plus Fly.io deploy.
 
 **Planned:**

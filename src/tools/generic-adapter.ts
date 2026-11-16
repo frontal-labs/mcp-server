@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ZodRawShapeCompat } from "@modelcontextprotocol/sdk/server/zod-compat.js";
+import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import {
   type CallOperationInput,
@@ -40,7 +39,7 @@ export class GenericAdapter implements ServiceAdapter {
   }
 
   private registerListEndpoints(server: McpServer, ctx: AdapterContext): void {
-    const listEndpointsSchema = {
+    const listEndpointsSchema = z.object({
       tag: z.string().optional().describe("Filter by tag"),
       search: z
         .string()
@@ -48,7 +47,7 @@ export class GenericAdapter implements ServiceAdapter {
         .describe("Free-text match over operationId, path, and summary"),
       limit: z.number().int().min(1).max(MAX_PAGE).optional(),
       offset: z.number().int().min(0).optional(),
-    } as unknown as ZodRawShapeCompat;
+    });
 
     server.registerTool(
       "frontal_list_endpoints",
@@ -87,9 +86,9 @@ export class GenericAdapter implements ServiceAdapter {
     server: McpServer,
     ctx: AdapterContext
   ): void {
-    const describeEndpointSchema = {
+    const describeEndpointSchema = z.object({
       operationId: z.string().describe("The operationId to describe"),
-    } as unknown as ZodRawShapeCompat;
+    });
 
     server.registerTool(
       "frontal_describe_endpoint",
@@ -132,7 +131,7 @@ export class GenericAdapter implements ServiceAdapter {
   }
 
   private registerCallEndpoint(server: McpServer, ctx: AdapterContext): void {
-    const callEndpointSchema = {
+    const callEndpointSchema = z.object({
       operationId: z
         .string()
         .optional()
@@ -159,7 +158,7 @@ export class GenericAdapter implements ServiceAdapter {
         .describe(
           "Stable key for retry-safe writes; reuse across retries of the same logical write so the edge can dedupe"
         ),
-    } as unknown as ZodRawShapeCompat;
+    });
 
     server.registerTool(
       "frontal_call_endpoint",

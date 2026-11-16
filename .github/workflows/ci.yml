@@ -125,6 +125,11 @@ jobs:
       - name: Run smoke test
         run: bun run smoke
 
+      # Runs the applicable MCP conformance scenarios against the real HTTP
+      # transport, for both the 2025-era and the 2026-07-28 protocol.
+      - name: Run MCP conformance suite
+        run: bun run conformance
+
   security:
     name: Security Audit
     runs-on: ubuntu-latest
