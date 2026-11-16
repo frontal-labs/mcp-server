@@ -26,10 +26,19 @@ export interface MockEdgeRequest {
   path: string;
 }
 
+/** A run held by the mock API. Only its owner's token can fetch it. */
+export interface MockRun {
+  body: Record<string, unknown>;
+  /** The `Authorization` header of the caller that started the run. */
+  owner: string;
+}
+
 export interface MockEdge {
   baseUrl: string;
   close(): Promise<void>;
   requests: MockEdgeRequest[];
+  /** Ingest runs by id. Tests change `body` to move a run along. */
+  runs: Map<string, MockRun>;
 }
 
 export const MOCK_DATASETS = [
@@ -40,6 +49,8 @@ export const MOCK_DATASETS = [
 const DATASETS_PATH = "/v1/data/catalog/catalog/datasets";
 export const PIPELINES_PATH = "/v1/data/pipelines/pipelines";
 export const EVENTS_QUERY_PATH = "/v1/events/query";
+export const INGEST_PATH = "/v1/data/ingest/datasets/ingest";
+export const INGEST_RUNS_PATH = "/v1/data/ingest/runs";
 
 function send(
   res: import("node:http").ServerResponse,
@@ -54,6 +65,28 @@ const POST_ROUTES: Record<string, unknown> = {
   [PIPELINES_PATH]: { id: "pl_1", status: "created" },
   [EVENTS_QUERY_PATH]: { items: [{ id: "evt_1" }] },
 };
+
+/**
+ * Ingest runs. The payload shape is made up for the tests: the real one is
+ * not described by the OpenAPI document.
+ */
+function routeRun(
+  runs: Map<string, MockRun>,
+  method: string,
+  path: string,
+  owner: string
+): [number, unknown] | undefined {
+  if (method === "POST" && path === INGEST_PATH) {
+    const body = { run_id: `run_${runs.size + 1}`, state: "queued" };
+    runs.set(body.run_id, { owner, body });
+    return [201, body];
+  }
+  if (method === "GET" && path.startsWith(`${INGEST_RUNS_PATH}/`)) {
+    const run = runs.get(path.slice(INGEST_RUNS_PATH.length + 1));
+    // Another tenant's run looks exactly like a run that does not exist.
+    if (run?.owner === owner) return [200, run.body];
+  }
+}
 
 /** The status and body the mock API answers an authenticated request with. */
 function route(method: string, path: string): [number, unknown] {
@@ -80,6 +113,7 @@ function route(method: string, path: string): [number, unknown] {
  */
 export function startMockEdge(): Promise<MockEdge> {
   const requests: MockEdgeRequest[] = [];
+  const runs = new Map<string, MockRun>();
 
   const server: Server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
@@ -97,7 +131,10 @@ export function startMockEdge(): Promise<MockEdge> {
       return;
     }
 
-    const [status, body] = route(req.method ?? "GET", url.pathname);
+    const method = req.method ?? "GET";
+    const [status, body] =
+      routeRun(runs, method, url.pathname, authorization) ??
+      route(method, url.pathname);
     send(res, status, body);
   });
 
@@ -108,6 +145,7 @@ export function startMockEdge(): Promise<MockEdge> {
       resolve({
         baseUrl: `http://127.0.0.1:${port}`,
         requests,
+        runs,
         close: () =>
           new Promise<void>((done) => {
             server.close(() => done());

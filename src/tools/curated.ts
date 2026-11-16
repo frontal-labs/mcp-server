@@ -21,6 +21,7 @@ import {
 } from "@modelcontextprotocol/server";
 import type { z } from "zod";
 import type { OperationInfo } from "@/spec/index.js";
+import { taskForStartedRun } from "@/tasks/handlers.js";
 import { confirmWrite, notConfirmed } from "@/tools/confirmation.js";
 import { deriveOutputSchema } from "@/tools/output-schema.js";
 import { isReadOnlyOperation } from "@/tools/policy.js";
@@ -124,7 +125,12 @@ export function registerCuratedTool(
           }
         }
         const input = def.map ? def.map(args) : {};
-        return toToolResult(await callOperation(ctx, def.operationId, input));
+        const response = await callOperation(ctx, def.operationId, input);
+        // A tool that starts a run answers with a task when the client can
+        // track one. The SDK's tool result type predates the Tasks
+        // extension, hence the cast.
+        const task = taskForStartedRun(ctx, toolCtx, def.operationId, response);
+        return task ? (task as never) : toToolResult(response);
       } catch (error) {
         return toToolError(error);
       }

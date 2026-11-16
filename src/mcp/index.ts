@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { McpServer } from "@modelcontextprotocol/server";
+import {
+  type McpRequestContext,
+  McpServer,
+} from "@modelcontextprotocol/server";
 import {
   type StdioServerHandle,
   serveStdio,
@@ -23,6 +26,8 @@ import { FrontalClient } from "@/client.js";
 import { getRequestToken } from "@/middlewares/auth.js";
 import { HealthMonitor } from "@/services/health-monitor.js";
 import { loadSpecIndex } from "@/spec/spec-index.js";
+import { registerTaskHandlers } from "@/tasks/handlers.js";
+import { enabledRunKinds, RUN_KINDS, type RunKind } from "@/tasks/run-kinds.js";
 import { DataAdapter } from "@/tools/data-adapter.js";
 import { EventsAdapter } from "@/tools/events-adapter.js";
 import { GenericAdapter } from "@/tools/generic-adapter.js";
@@ -68,11 +73,21 @@ export class FrontalMcpServer {
   private logger: Logger;
   private adapterContext: AdapterContext | undefined;
   private stdio: StdioServerHandle | undefined;
+  private readonly runKinds: readonly RunKind[];
   readonly healthMonitor: HealthMonitor;
 
-  constructor(config: ServerConfig, logger: Logger) {
+  /**
+   * @param runKinds The run kinds offered as tasks. Defaults to the
+   * built-in registry; tests pass their own.
+   */
+  constructor(
+    config: ServerConfig,
+    logger: Logger,
+    runKinds: readonly RunKind[] = RUN_KINDS
+  ) {
     this.config = config;
     this.logger = logger;
+    this.runKinds = runKinds;
     this.server = this.buildServer();
     this.healthMonitor = new HealthMonitor(config.incidentio, logger);
   }
@@ -106,12 +121,14 @@ export class FrontalMcpServer {
         logger: this.logger,
       });
 
+      const spec = loadSpecIndex();
       this.adapterContext = {
         client,
-        spec: loadSpecIndex(),
+        spec,
         logger: this.logger,
         config: this.config,
         getToken: () => getRequestToken() ?? (this.config.apiKey || undefined),
+        runKinds: enabledRunKinds(this.runKinds, this.config.toolsets, spec),
       };
     }
     return this.adapterContext;
@@ -122,11 +139,14 @@ export class FrontalMcpServer {
    * transports, and it serves both protocol eras (2026-07-28 and 2025-era).
    * It is cheap: the client, spec index and config are shared.
    */
-  createServer(): McpServer {
-    return this.buildServer(this.getAdapterContext());
+  createServer(request?: Pick<McpRequestContext, "era">): McpServer {
+    return this.buildServer(this.getAdapterContext(), request?.era);
   }
 
-  private buildServer(ctx?: AdapterContext): McpServer {
+  private buildServer(
+    ctx?: AdapterContext,
+    era?: McpRequestContext["era"]
+  ): McpServer {
     const toolsets = this.config.toolsets.join(", ");
     const mode = this.config.readOnly
       ? " Read-only mode: tools that write are not available."
@@ -153,6 +173,11 @@ export class FrontalMcpServer {
         if (enabled.has(adapter.toolset)) {
           adapter.register(server, ctx);
         }
+      }
+      // The Tasks extension exists only on 2026-07-28. A 2025-era client
+      // gets the API response from a tool that starts a run, never a task.
+      if (era === "modern" && ctx.runKinds && ctx.runKinds.size > 0) {
+        registerTaskHandlers(server, ctx);
       }
     }
     return server;
@@ -182,7 +207,7 @@ export class FrontalMcpServer {
    * the protocol era, and one server instance then serves the connection.
    */
   connectStdio(): Promise<void> {
-    this.stdio = serveStdio(() => this.createServer(), {
+    this.stdio = serveStdio((request) => this.createServer(request), {
       onerror: (error) => this.logger.error("stdio transport error:", error),
     });
     this.logger.info("Connected via stdio transport");

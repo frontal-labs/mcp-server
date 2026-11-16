@@ -222,9 +222,13 @@ async function main(): Promise<void> {
   );
   await server.initialize();
 
-  const transport = new HttpTransport(() => server.createServer(), logger, {
-    allowedHosts: ["127.0.0.1", "localhost"],
-  });
+  const transport = new HttpTransport(
+    (request) => server.createServer(request),
+    logger,
+    {
+      allowedHosts: ["127.0.0.1", "localhost"],
+    }
+  );
   const portProbe = createServer();
   const transportPort = await listen(portProbe);
   await new Promise<void>((done) => portProbe.close(() => done()));

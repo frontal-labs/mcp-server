@@ -30,6 +30,7 @@ import {
   HttpTransport,
   type HttpTransportOptions,
 } from "@/middlewares/http-transport.js";
+import type { RunKind } from "@/tasks/run-kinds.js";
 import { createLogger } from "@/utils/logger.js";
 import { getFreePort, type MockEdge } from "../mocks/mock-edge.js";
 
@@ -125,17 +126,23 @@ export async function connectStdio(
 export async function startHttpServer(
   edge: MockEdge,
   options: HttpTransportOptions = {},
-  config: Record<string, unknown> = {}
+  config: Record<string, unknown> = {},
+  runKinds?: readonly RunKind[]
 ): Promise<HttpServerUnderTest> {
   const logger = createLogger({ level: "error" });
   const server = new FrontalMcpServer(
     createConfig({ apiKey: "", baseUrl: edge.baseUrl, ...config }),
-    logger
+    logger,
+    runKinds
   );
   await server.initialize();
 
   const port = await getFreePort();
-  const http = new HttpTransport(() => server.createServer(), logger, options);
+  const http = new HttpTransport(
+    (request) => server.createServer(request),
+    logger,
+    options
+  );
   await http.start(port, "127.0.0.1");
 
   return {

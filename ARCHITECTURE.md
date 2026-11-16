@@ -55,6 +55,7 @@ uses no roots, sampling or protocol-level logging.
 | `src/middlewares/` | The HTTP transport (`http-transport.ts`), the per-request token store (`auth.ts`) and the rate limiter (`rate-limit.ts`). |
 | `src/tools/` | Tool adapters (`generic`, `ontology`, `data`, `workflows`, `integrations`, `events`), curated-tool registration (`curated.ts`), the safety policy (`policy.ts`), output-schema derivation (`output-schema.ts`) and shared helpers (`tool-helpers.ts`). |
 | `src/spec/` | `SpecIndex` over the vendored OpenAPI document. |
+| `src/tasks/` | The MCP Tasks extension: stateless task ids (`task-id.ts`), the run-kind registry (`run-kinds.ts`) and the `tasks/*` handlers (`handlers.ts`). |
 | `src/client.ts` | `FrontalClient`, the HTTP client for the Frontal API. |
 | `src/config/` | Environment schema (`env.ts`) and config loading. |
 | `src/services/` | `HealthMonitor` and the incident.io client it uses. |
@@ -171,6 +172,40 @@ for 401 (API key), 409 (region) and 501 (feature not enabled).
   `{ "type": "object", "additionalProperties": true }`, so no tool advertises
   an `outputSchema` yet; tools still return the response as
   `structuredContent`, alongside the JSON text.
+
+### Tasks (`src/tasks/`)
+
+A tool that starts a long run can answer with an MCP task instead of making
+the agent poll by hand. This is the Tasks extension
+(`io.modelcontextprotocol/tasks`) of protocol revision 2026-07-28. The SDK
+has no server runtime for it, so `handlers.ts` registers `tasks/get`,
+`tasks/cancel` and `tasks/update` as extension methods and uses
+`@modelcontextprotocol/ext-tasks` for the wire types only.
+
+- **No task state.** A task id is `base64url("ft1:<kind>:<runId>")`
+  (`task-id.ts`). It names a run in the Frontal API and holds no token,
+  tenant or URL. Every task request calls the API with the caller's own
+  token, so any instance can answer for any task, and the API decides who
+  may see a run. An id that is malformed, names an unknown kind, or names a
+  run the caller's token cannot see gets the same answer: `-32602`, "Task
+  not found".
+- **Run kinds** (`run-kinds.ts`). A run kind is one entry of data: the start
+  operation, the status operation, an optional cancel operation, where the
+  run id and status are in the payload, and what each status value means.
+  A curated tool whose operation starts a kind becomes task-capable with no
+  further code. `RUN_KINDS` is empty until payloads recorded from the API
+  (`bun run record-run-fixtures`) say what the fields and statuses are.
+- **Who gets a task.** Only a 2026-07-28 request that declares the
+  extension. Any other client, including every 2025-era client, gets the
+  API response from the same tool and can poll with the read tools.
+- **Status mapping.** A working run is `working`; a finished run is
+  `completed` with the run as the tool result; a failed run is `completed`
+  with `isError: true` (the specification keeps `failed` for JSON-RPC
+  errors); a cancelled run is `cancelled`. A status the kind does not list
+  is reported as `working` with the raw value in `statusMessage`.
+- **Cancel and update.** `tasks/cancel` calls the kind's cancel operation.
+  No kind has one today, so it is refused with `-32601` and
+  `data.reason: "not_supported"`, as is `tasks/update`: no run takes input.
 
 ### Frontal client (`src/client.ts`)
 

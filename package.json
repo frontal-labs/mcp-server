@@ -41,6 +41,7 @@
     "sync-spec:check": "bun run scripts/sync-spec.ts --check",
     "smoke": "bun run scripts/smoke.ts",
     "conformance": "bun run scripts/conformance.ts",
+    "record-run-fixtures": "bun run scripts/record-run-fixtures.ts",
     "dev": "bun run src/server.ts",
     "prepublishOnly": "bun run build",
     "changeset": "changeset",
@@ -82,6 +83,7 @@
   "dependencies": {
     "@frontal-labs/error": "~0.7",
     "@modelcontextprotocol/core": "~2.4",
+    "@modelcontextprotocol/ext-tasks": "0.2.3",
     "@modelcontextprotocol/server": "~2.4",
     "@t3-oss/env-core": "^0.13.11",
     "@upstash/ratelimit": "^2.0.8",
