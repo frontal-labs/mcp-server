@@ -129,17 +129,19 @@ calling it:
 
 - **Read tools** are marked `readOnlyHint: true`.
 - **Write tools** are `data_create_pipeline`, `data_ingest_dataset`,
-  `ontology_extract_entities` and `integrations_test_connection`.
-  `data_ingest_dataset` is marked destructive, because it can change a
-  dataset's contents.
+  `ontology_extract_entities` and `integrations_test_connection`. Every tool
+  that is not read-only is marked `destructiveHint: true`, so a client shows
+  its own approval prompt before running it.
 - **`frontal_call_endpoint`** can call any operation, so it is marked
   destructive and open-world.
 - **`openWorldHint`** is `true` only for tools that reach systems outside
   Frontal: `integrations_test_connection` and `frontal_call_endpoint`.
 
-**Confirmation.** `data_create_pipeline` and `data_ingest_dataset` ask the
-user to confirm before they run, when the client supports elicitation. Other
-clients run them directly and rely on their own approval prompt.
+**Confirmation.** Any operation that is not on the read allow-list is
+confirmed with the user before it runs, when the client supports elicitation.
+This covers the write tools above and every write made through
+`frontal_call_endpoint`. Clients without elicitation run the tool directly and
+rely on their own approval prompt.
 
 **Read-only mode.** Set `FRONTAL_READ_ONLY=true` to offer only tools that
 read. Write tools are not registered, and `frontal_call_endpoint` refuses any

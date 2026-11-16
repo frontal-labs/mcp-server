@@ -140,9 +140,12 @@ for 401 (API key), 409 (region) and 501 (feature not enabled).
 ### Tool safety (`src/tools/policy.ts`, `src/tools/curated.ts`)
 
 - **Annotations.** `CuratedToolDef.annotations` is required, so a tool cannot
-  be added without declaring what it does. The presets are `read`, `create`,
-  `destructive`, `externalProbe` and `unrestricted`. `openWorldHint` is `true`
-  only for tools that reach systems outside Frontal.
+  be added without declaring what it does. The presets are `read`, `write`,
+  `externalWrite` and `unrestricted`. Every tool whose operation is not
+  read-only is registered with `destructiveHint: true`, whatever it declared,
+  so that a client which cannot be asked for confirmation still shows its own
+  approval prompt. `openWorldHint` is `true` only for tools that reach systems
+  outside Frontal.
 - **What counts as read-only.** Not the HTTP method alone. An operation only
   reads if it is a `GET`, or if it is on `READ_ONLY_POST_OPERATIONS`, an
   explicit allow-list of `POST` searches, queries and graph traversals.
@@ -151,13 +154,16 @@ for 401 (API key), 409 (region) and 501 (feature not enabled).
   not registered. `frontal_call_endpoint` stays, but refuses any operation
   that the same rule does not classify as read-only; for a path that is not
   in the spec it allows safe HTTP methods only.
-- **Confirmation.** A tool with a `confirm` question (`data_create_pipeline`,
-  `data_ingest_dataset`) returns an `input_required` elicitation and runs
-  only on an explicit yes. This applies when the client supports elicitation:
-  always checkable on 2026-07-28, and on 2025-era stdio connections. A
-  stateless 2025-era HTTP request cannot be asked, so the tool runs and the
-  host's approval UI covers it. The confirmation is a courtesy to the user,
-  not an access control.
+- **Confirmation** (`src/tools/confirmation.ts`). Any operation that is not
+  read-only by the rule above is confirmed first: the tool returns an
+  `input_required` elicitation and runs only on an explicit yes. This covers
+  every curated write tool (with its own `confirm` question, or a generic one
+  naming the operation) and every write made through `frontal_call_endpoint`.
+  It applies when the client supports elicitation: always checkable on
+  2026-07-28, and on 2025-era stdio connections. A stateless 2025-era HTTP
+  request cannot be asked, so the tool runs and the host's approval prompt
+  covers it. The confirmation is a courtesy to the user, not an access
+  control.
 - **Structured output.** `deriveOutputSchema` builds a tool's `outputSchema`
   from the operation's 2xx response schema, and the SDK then validates
   `structuredContent` against it. A schema that says nothing about its fields

@@ -89,7 +89,7 @@ const TOOLS: CuratedToolDef[] = [
     description:
       "Start a connection test for one integration. It contacts the external system the integration connects to, without changing data there, and records the test in Frontal. Read the outcome with connection_tests_get.",
     operationId: "postV1IntegrationsIntegrationIdConnection_tests",
-    annotations: ANNOTATIONS.externalProbe,
+    annotations: ANNOTATIONS.externalWrite,
     inputSchema: z.object({
       ...integrationRef,
       request: z
@@ -98,6 +98,8 @@ const TOOLS: CuratedToolDef[] = [
         .describe("Optional connection-test request body"),
     }),
     map: (a) => ({ ...integrationPath(a), body: a.request ?? {} }),
+    confirm: (a) =>
+      `Test the connection of integration \`${String(a.integration_id)}\`? This contacts the external system it connects to.`,
   },
   {
     name: "connection_tests_get",

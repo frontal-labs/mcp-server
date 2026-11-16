@@ -72,7 +72,7 @@ const TOOLS: CuratedToolDef[] = [
     description:
       "Create a new pipeline definition. Pass the pipeline definition as the body.",
     operationId: "postV1DataPipelinesPipelines",
-    annotations: ANNOTATIONS.create,
+    annotations: ANNOTATIONS.write,
     inputSchema: z.object({
       definition: z
         .record(z.string(), z.unknown())
@@ -123,7 +123,7 @@ const TOOLS: CuratedToolDef[] = [
     description:
       "Ingest data into a dataset. Pass the ingest request as the body.",
     operationId: "postV1DataIngestDatasetsIngest",
-    annotations: ANNOTATIONS.destructive,
+    annotations: ANNOTATIONS.write,
     inputSchema: z.object({
       request: z
         .record(z.string(), z.unknown())

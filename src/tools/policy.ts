@@ -58,31 +58,31 @@ export function isReadOnlyOperation(
 }
 
 /**
- * Annotation presets. `openWorldHint` is `true` only for tools that act on
- * systems outside Frontal (integration actions, connection tests); tools
- * that only touch Frontal data are closed-world.
+ * Annotation presets.
+ *
+ * Every tool that is not read-only is `destructiveHint: true`. That is
+ * deliberate: it is what makes a client show its own approval prompt when it
+ * cannot be asked for confirmation through an elicitation. Registration
+ * enforces it for curated tools.
+ *
+ * `openWorldHint` is `true` only for tools that act on systems outside
+ * Frontal (integration actions, connection tests); tools that only touch
+ * Frontal data are closed-world.
  */
 export const ANNOTATIONS = {
   /** Reads Frontal data and changes nothing. */
   read: { readOnlyHint: true, openWorldHint: false },
-  /** Creates something new in Frontal; existing data is untouched. */
-  create: {
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: false,
-  },
-  /** May change or overwrite existing Frontal data. */
-  destructive: {
+  /** Creates or changes Frontal data. */
+  write: {
     readOnlyHint: false,
     destructiveHint: true,
     idempotentHint: false,
     openWorldHint: false,
   },
-  /** Reaches a system outside Frontal, without changing data there. */
-  externalProbe: {
+  /** A write that also reaches a system outside Frontal. */
+  externalWrite: {
     readOnlyHint: false,
-    destructiveHint: false,
+    destructiveHint: true,
     idempotentHint: false,
     openWorldHint: true,
   },

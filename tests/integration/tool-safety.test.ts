@@ -150,23 +150,17 @@ describe("tool safety", () => {
       ]);
     });
 
-    it("flags the destructive tools", async () => {
+    it("marks every tool that is not read-only as destructive", async () => {
+      // A client that cannot be asked for confirmation relies on this hint
+      // to show its own approval prompt.
       const { client } = await http(server, era);
       const { tools } = await client.listTools();
-      const byName = new Map(tools.map((tool) => [tool.name, tool]));
 
-      expect(
-        byName.get("frontal_call_endpoint")?.annotations?.destructiveHint
-      ).toBe(true);
-      expect(
-        byName.get("data_ingest_dataset")?.annotations?.destructiveHint
-      ).toBe(true);
-      expect(
-        byName.get("data_create_pipeline")?.annotations?.destructiveHint
-      ).toBe(false);
-      expect(
-        byName.get("integrations_test_connection")?.annotations?.destructiveHint
-      ).toBe(false);
+      for (const tool of tools) {
+        const destructive = tool.annotations?.destructiveHint === true;
+        const readOnly = tool.annotations?.readOnlyHint === true;
+        expect(destructive, tool.name).toBe(!readOnly);
+      }
     });
   });
 
@@ -393,12 +387,136 @@ describe("tool safety", () => {
         return { action: "decline" };
       });
 
+      for (const [name, args] of [
+        ["data_list_datasets", {}],
+        // A POST on the read allow-list is a read.
+        ["events_query", { query: {} }],
+      ] as const) {
+        const result = await client.callTool({ name, arguments: args });
+        expect(result.isError, name).toBeFalsy();
+      }
+      expect(questions).toEqual([]);
+    });
+
+    it("asks before every curated write tool, and a no stops each one", async () => {
+      const questions: string[] = [];
+      const { client } = await http(server, "modern", (message) => {
+        questions.push(message);
+        return { action: "decline" };
+      });
+      const calls: [string, Record<string, unknown>][] = [
+        ["data_create_pipeline", { definition: { name: "orders" } }],
+        ["data_ingest_dataset", { request: { dataset_id: "ds_1" } }],
+        ["ontology_extract_entities", { request: { text: "hello" } }],
+        ["integrations_test_connection", { integration_id: "int_1" }],
+      ];
+      expect(calls.map(([name]) => name).sort()).toEqual(
+        [...WRITE_TOOLS].sort()
+      );
+
+      for (const [name, args] of calls) {
+        const before = edge.requests.length;
+        const result = await client.callTool({ name, arguments: args });
+
+        expect(result.isError, name).toBe(true);
+        expect(textOf(result), name).toContain("was not run");
+        expect(edge.requests.length, name).toBe(before);
+      }
+      expect(questions).toHaveLength(calls.length);
+      expect(questions[1]).toContain("`ds_1`");
+      expect(questions[3]).toContain("`int_1`");
+    });
+  });
+
+  describe("confirmation in frontal_call_endpoint", () => {
+    const WRITES = [
+      { operationId: "postV1DataPipelinesPipelines", body: { name: "x" } },
+      { method: "POST", path: PIPELINES_PATH, body: { name: "x" } },
+      {
+        operationId: "deleteV1IntegrationsIntegrationId",
+        pathParams: { integrationId: "int_1" },
+      },
+      { method: "DELETE", path: "/v1/not/in/the/spec" },
+      // A POST that is not on the read allow-list.
+      { operationId: "postV1EventsUsage", body: {} },
+    ];
+
+    it("asks before any operation that is not on the read allow-list", async () => {
+      const questions: string[] = [];
+      const { client } = await http(server, "modern", (message) => {
+        questions.push(message);
+        return { action: "decline" };
+      });
+
+      for (const args of WRITES) {
+        const before = edge.requests.length;
+        const result = await client.callTool({
+          name: "frontal_call_endpoint",
+          arguments: args,
+        });
+
+        expect(result.isError, JSON.stringify(args)).toBe(true);
+        expect(textOf(result)).toContain("was not run");
+        expect(edge.requests.length).toBe(before);
+      }
+      expect(questions).toHaveLength(WRITES.length);
+      expect(questions[0]).toContain(
+        "postV1DataPipelinesPipelines (POST /v1/data/pipelines/pipelines)"
+      );
+      expect(questions[3]).toContain("DELETE /v1/not/in/the/spec");
+    });
+
+    it("runs the write once the user says yes", async () => {
+      const { client } = await http(server, "modern", () => ({
+        action: "accept",
+        content: { confirm: true },
+      }));
+      const before = pipelineCalls();
+
       const result = await client.callTool({
-        name: "data_list_datasets",
-        arguments: {},
+        name: "frontal_call_endpoint",
+        arguments: WRITES[0],
       });
 
       expect(result.isError).toBeFalsy();
+      expect(pipelineCalls()).toBe(before + 1);
+    });
+
+    it("does not ask for GET or for an allow-listed read-only POST", async () => {
+      const questions: string[] = [];
+      const { client } = await http(server, "modern", (message) => {
+        questions.push(message);
+        return { action: "decline" };
+      });
+
+      for (const args of [
+        { operationId: "getV1DataCatalogCatalogDatasets" },
+        { method: "GET", path: "/v1/data/catalog/catalog/datasets" },
+        { operationId: "postV1EventsQuery", body: {} },
+      ]) {
+        const result = await client.callTool({
+          name: "frontal_call_endpoint",
+          arguments: args,
+        });
+        expect(result.isError, JSON.stringify(args)).toBeFalsy();
+      }
+      expect(questions).toEqual([]);
+    });
+
+    it("reports an unknown operationId without asking", async () => {
+      const questions: string[] = [];
+      const { client } = await http(server, "modern", (message) => {
+        questions.push(message);
+        return { action: "decline" };
+      });
+
+      const result = await client.callTool({
+        name: "frontal_call_endpoint",
+        arguments: { operationId: "noSuchOperation" },
+      });
+
+      expect(result.isError).toBe(true);
+      expect(textOf(result)).toContain("Unknown operationId");
       expect(questions).toEqual([]);
     });
   });

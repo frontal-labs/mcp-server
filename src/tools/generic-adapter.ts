@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer, ServerContext } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { confirmWrite, notConfirmed } from "@/tools/confirmation.js";
 import {
   ANNOTATIONS,
   isReadOnlyOperation,
@@ -184,9 +185,22 @@ export class GenericAdapter implements ServiceAdapter {
           ? ANNOTATIONS.read
           : ANNOTATIONS.unrestricted,
       },
-      async (input) => {
+      async (input, toolCtx: ServerContext) => {
         try {
-          const data = await this.dispatchCall(ctx, input);
+          const target = resolveTarget(ctx, input);
+          if (!target.readOnly) {
+            if (ctx.config.readOnly) throw readOnlyRefusal(target.label);
+            const outcome = confirmWrite(
+              server,
+              toolCtx,
+              `Call ${target.label}? This operation is not on the read-only list, so it may change data.`
+            );
+            if (outcome.status === "ask") return outcome.request;
+            if (outcome.status === "declined") {
+              return toToolError(notConfirmed(target.label));
+            }
+          }
+          const data = await this.dispatchCall(ctx, input, target);
           return toToolResult(data);
         } catch (error) {
           return toToolError(error);
@@ -195,34 +209,10 @@ export class GenericAdapter implements ServiceAdapter {
     );
   }
 
-  /**
-   * In read-only mode, refuse any operation that is not known to only read.
-   * The check uses the operation's entry in the spec index and the explicit
-   * read-only allow-list, not the HTTP method alone.
-   */
-  private assertAllowed(ctx: AdapterContext, operationId: string): void {
-    if (!ctx.config.readOnly) return;
-    const op = ctx.spec.getByOperationId(operationId);
-    // An unknown id is reported as such by callOperation.
-    if (op && !isReadOnlyOperation(op)) {
-      throw readOnlyRefusal(
-        `${operationId} (${op.method.toUpperCase()} ${op.path})`
-      );
-    }
-  }
-
   private async dispatchCall(
     ctx: AdapterContext,
-    input: {
-      operationId?: string;
-      method?: string;
-      path?: string;
-      pathParams?: Record<string, string | number>;
-      query?: Record<string, unknown>;
-      body?: unknown;
-      autoPaginate?: boolean;
-      idempotencyKey?: string;
-    }
+    input: CallEndpointInput,
+    target: CallTarget
   ): Promise<unknown> {
     const callInput: CallOperationInput = {
       pathParams: input.pathParams,
@@ -232,33 +222,14 @@ export class GenericAdapter implements ServiceAdapter {
       idempotencyKey: input.idempotencyKey,
     };
 
-    if (input.operationId) {
-      this.assertAllowed(ctx, input.operationId);
-      return callOperation(ctx, input.operationId, callInput);
+    if (target.operationId) {
+      return callOperation(ctx, target.operationId, callInput);
     }
 
-    if (!(input.method && input.path)) {
-      throw new ToolInputError(
-        "Provide either operationId, or both method and path.",
-        ERROR_CODE.INVALID_ARGUMENTS
-      );
-    }
-
-    const matched = ctx.spec.getByMethodPath(input.method, input.path);
-    if (matched) {
-      this.assertAllowed(ctx, matched.operationId);
-      return callOperation(ctx, matched.operationId, callInput);
-    }
-
-    // The path is not in the spec, so nothing is known about the operation
-    // beyond its HTTP method. Read-only mode lets through safe methods only.
-    if (ctx.config.readOnly && !isSafeMethod(input.method)) {
-      throw readOnlyRefusal(`${input.method.toUpperCase()} ${input.path}`);
-    }
-
-    const resolvedPath = substitutePath(input.path, input.pathParams);
+    // The path is not in the spec: call it as given.
+    const resolvedPath = substitutePath(target.path, input.pathParams);
     const token = ctx.getToken();
-    if (input.autoPaginate && input.method.toUpperCase() === "GET") {
+    if (input.autoPaginate && target.method === "GET") {
       return {
         pages: await ctx.client.paginate(resolvedPath, {
           query: input.query,
@@ -266,7 +237,7 @@ export class GenericAdapter implements ServiceAdapter {
         }),
       };
     }
-    const response = await ctx.client.request(input.method, resolvedPath, {
+    const response = await ctx.client.request(target.method, resolvedPath, {
       query: input.query,
       body: input.body,
       token,
@@ -274,6 +245,78 @@ export class GenericAdapter implements ServiceAdapter {
     });
     return response.data;
   }
+}
+
+interface CallEndpointInput {
+  autoPaginate?: boolean;
+  body?: unknown;
+  idempotencyKey?: string;
+  method?: string;
+  operationId?: string;
+  path?: string;
+  pathParams?: Record<string, string | number>;
+  query?: Record<string, unknown>;
+}
+
+/** What a `frontal_call_endpoint` call will actually invoke. */
+interface CallTarget {
+  /** For messages, e.g. `postV1Events (POST /v1/events)`. */
+  label: string;
+  method: string;
+  /** Set when the call matched an operation in the spec. */
+  operationId?: string;
+  path: string;
+  /**
+   * Whether the call only reads. For an operation in the spec this is the
+   * allow-list rule, not the HTTP method alone. For a path that is not in
+   * the spec, nothing is known beyond the method, so only safe methods
+   * count as reads.
+   */
+  readOnly: boolean;
+}
+
+function resolveTarget(
+  ctx: AdapterContext,
+  input: CallEndpointInput
+): CallTarget {
+  if (!(input.operationId || (input.method && input.path))) {
+    throw new ToolInputError(
+      "Provide either operationId, or both method and path.",
+      ERROR_CODE.INVALID_ARGUMENTS
+    );
+  }
+
+  const op = input.operationId
+    ? ctx.spec.getByOperationId(input.operationId)
+    : ctx.spec.getByMethodPath(input.method as string, input.path as string);
+
+  if (op) {
+    const method = op.method.toUpperCase();
+    return {
+      operationId: op.operationId,
+      method,
+      path: op.path,
+      readOnly: isReadOnlyOperation(op),
+      label: `${op.operationId} (${method} ${op.path})`,
+    };
+  }
+
+  if (input.operationId) {
+    throw new SpecError(
+      `Unknown operationId: ${input.operationId}`,
+      ERROR_CODE.UNKNOWN_OPERATION,
+      { operationId: input.operationId }
+    );
+  }
+
+  const method = (input.method as string).toUpperCase();
+  const path = input.path as string;
+  return {
+    method,
+    path,
+    readOnly: isSafeMethod(method),
+    label: `${method} ${path}`,
+  };
 }
 
 function readOnlyRefusal(operation: string): ToolInputError {

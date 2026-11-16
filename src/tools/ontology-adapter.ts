@@ -111,13 +111,15 @@ const TOOLS: CuratedToolDef[] = [
     description:
       "Run semantic entity extraction over text using the ontology extract service.",
     operationId: "postV1OntologyExtractExtractEntities",
-    annotations: ANNOTATIONS.create,
+    annotations: ANNOTATIONS.write,
     inputSchema: z.object({
       request: z
         .record(z.string(), z.unknown())
         .describe("Extraction request body (e.g. { text, ... })"),
     }),
     map: (a) => ({ body: a.request }),
+    confirm: () =>
+      "Run entity extraction? It is not known to be free of side effects, so it is treated as a write.",
   },
   {
     name: "ontology_list_schemas",
