@@ -132,12 +132,12 @@ For the Docker workflow, you can specify:
 
 Each release produces:
 
-| Artifact | Location | Notes |
-|---|---|---|
-| GitHub Release | github.com/frontal-labs/mcp-server/releases | Tagged `v<version>` |
-| Docker images | ghcr.io/frontal-labs/mcp-server | Multi-arch, signed, with SBOM |
-| SBOM attestation | Attached to Docker image | Generated during build |
-| Cosign signature | Stored in sigstore | Keyless/OIDC signing |
+| Artifact         | Location                                    | Notes                         |
+| ---------------- | ------------------------------------------- | ----------------------------- |
+| GitHub Release   | github.com/frontal-labs/mcp-server/releases | Tagged `v<version>`           |
+| Docker images    | ghcr.io/frontal-labs/mcp-server             | Multi-arch, signed, with SBOM |
+| SBOM attestation | Attached to Docker image                    | Generated during build        |
+| Cosign signature | Stored in sigstore                          | Keyless/OIDC signing          |
 
 ---
 
@@ -155,13 +155,13 @@ ghcr.io/frontal-labs/mcp-server
 
 The following tags are pushed for each release:
 
-| Tag pattern | Example | Description |
-|---|---|---|
-| `latest` | `latest` | Most recent stable release |
-| `v<semver>` | `v1.0.0` | Exact version |
-| `<major>.<minor>` | `1.0` | Major.minor version |
-| `<major>` | `1` | Major version (points to latest in that major) |
-| `sha-<short>` | `sha-a1b2c3d` | Specific commit SHA |
+| Tag pattern       | Example       | Description                                    |
+| ----------------- | ------------- | ---------------------------------------------- |
+| `latest`          | `latest`      | Most recent stable release                     |
+| `v<semver>`       | `v1.0.0`      | Exact version                                  |
+| `<major>.<minor>` | `1.0`         | Major.minor version                            |
+| `<major>`         | `1`           | Major version (points to latest in that major) |
+| `sha-<short>`     | `sha-a1b2c3d` | Specific commit SHA                            |
 
 ### Pulling Images
 

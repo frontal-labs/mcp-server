@@ -6,12 +6,12 @@ server will retire support for 2025-era clients.
 
 ## Summary
 
-| You use | What changes |
-| --- | --- |
-| stdio (Claude Desktop and other local clients) | Nothing. The same command, flags and `FRONTAL_API_KEY` work. |
-| HTTP with a current MCP client library | Nothing you need to do. The client negotiates `2026-07-28` by itself. |
-| HTTP with a 2025-era client | It keeps working, without sessions. See [HTTP clients](#http-clients). |
-| Self-hosted deployments | Remove `FRONTAL_HTTP_MAX_SESSIONS`. See [Removed configuration](#removed-configuration). |
+| You use                                        | What changes                                                                             |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| stdio (Claude Desktop and other local clients) | Nothing. The same command, flags and `FRONTAL_API_KEY` work.                             |
+| HTTP with a current MCP client library         | Nothing you need to do. The client negotiates `2026-07-28` by itself.                    |
+| HTTP with a 2025-era client                    | It keeps working, without sessions. See [HTTP clients](#http-clients).                   |
+| Self-hosted deployments                        | Remove `FRONTAL_HTTP_MAX_SESSIONS`. See [Removed configuration](#removed-configuration). |
 
 ## Protocol versions
 
@@ -50,17 +50,17 @@ and can be served by any instance.
 
 ## Removed configuration
 
-| Setting | Replacement |
-| --- | --- |
-| `FRONTAL_HTTP_MAX_SESSIONS` | None. It is no longer read; remove it. There are no sessions to limit. |
-| `transport.http.maxSessions` (config file) | None. Remove it. |
+| Setting                                    | Replacement                                                            |
+| ------------------------------------------ | ---------------------------------------------------------------------- |
+| `FRONTAL_HTTP_MAX_SESSIONS`                | None. It is no longer read; remove it. There are no sessions to limit. |
+| `transport.http.maxSessions` (config file) | None. Remove it.                                                       |
 
 ## New configuration
 
-| Setting | Default | What it does |
-| --- | --- | --- |
-| `FRONTAL_READ_ONLY` | `false` | When `true`, tools that write are not offered, and `frontal_call_endpoint` refuses every operation that is not known to only read. |
-| `FRONTAL_TOOLSETS` | all six | Three tool sets were added: `workflows`, `integrations` and `events`. If you set this variable explicitly, add them to get the new tools. |
+| Setting             | Default | What it does                                                                                                                              |
+| ------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `FRONTAL_READ_ONLY` | `false` | When `true`, tools that write are not offered, and `frontal_call_endpoint` refuses every operation that is not known to only read.        |
+| `FRONTAL_TOOLSETS`  | all six | Three tool sets were added: `workflows`, `integrations` and `events`. If you set this variable explicitly, add them to get the new tools. |
 
 ## Retiring 2025-era HTTP support
 

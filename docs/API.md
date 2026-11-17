@@ -27,6 +27,7 @@ Generate text using Frontal AI models with support for various parameters and fi
 This tool allows you to generate human-like text using Frontal's advanced AI models. Perfect for content creation, summarization, translation, and conversational responses.
 
 **Input Schema:**
+
 ```json
 {
   "model": "string",
@@ -37,6 +38,7 @@ This tool allows you to generate human-like text using Frontal's advanced AI mod
 ```
 
 **Output:**
+
 ```json
 {
   "text": "string",
@@ -57,6 +59,7 @@ Generate high-quality images from text descriptions using Frontal's AI image gen
 Create stunning images from natural language descriptions. Supports various sizes and quality settings for different use cases.
 
 **Input Schema:**
+
 ```json
 {
   "prompt": "string",
@@ -66,6 +69,7 @@ Create stunning images from natural language descriptions. Supports various size
 ```
 
 **Output:**
+
 ```json
 {
   "url": "string",
@@ -84,6 +88,7 @@ Generate vector embeddings for text inputs, enabling semantic search and similar
 Convert text into high-dimensional vectors that capture semantic meaning. Essential for building search systems, recommendations, and text analysis.
 
 **Input Schema:**
+
 ```json
 {
   "text": "string",
@@ -92,6 +97,7 @@ Convert text into high-dimensional vectors that capture semantic meaning. Essent
 ```
 
 **Output:**
+
 ```json
 {
   "embedding": "number[]",
@@ -106,9 +112,11 @@ Convert text into high-dimensional vectors that capture semantic meaning. Essent
 ### Blob Storage Tools
 
 #### `blob-upload`
+
 Upload files to Frontal blob storage.
 
 **Input:**
+
 ```json
 {
   "bucket": "string",
@@ -119,6 +127,7 @@ Upload files to Frontal blob storage.
 ```
 
 **Output:**
+
 ```json
 {
   "bucket": "string",
@@ -131,9 +140,11 @@ Upload files to Frontal blob storage.
 ```
 
 #### `blob-list`
+
 List objects in a bucket.
 
 **Input:**
+
 ```json
 {
   "bucket": "string",
@@ -143,6 +154,7 @@ List objects in a bucket.
 ```
 
 **Output:**
+
 ```json
 {
   "objects": [
@@ -160,9 +172,11 @@ List objects in a bucket.
 ### Functions Tools
 
 #### `functions-invoke`
+
 Invoke a serverless function.
 
 **Input:**
+
 ```json
 {
   "name": "string",
@@ -172,6 +186,7 @@ Invoke a serverless function.
 ```
 
 **Output:**
+
 ```json
 {
   "functionId": "string",
@@ -184,9 +199,11 @@ Invoke a serverless function.
 ```
 
 #### `functions-list`
+
 List deployed functions.
 
 **Input:**
+
 ```json
 {
   "status": "active|inactive|all"
@@ -194,6 +211,7 @@ List deployed functions.
 ```
 
 **Output:**
+
 ```json
 {
   "functions": [
@@ -213,9 +231,11 @@ List deployed functions.
 ### Graph Database Tools
 
 #### `graph-query`
+
 Execute graph queries.
 
 **Input:**
+
 ```json
 {
   "query": "string",
@@ -224,6 +244,7 @@ Execute graph queries.
 ```
 
 **Output:**
+
 ```json
 {
   "data": {
@@ -247,9 +268,11 @@ Execute graph queries.
 ```
 
 #### `graph-create-node`
+
 Create a graph node.
 
 **Input:**
+
 ```json
 {
   "type": "string",
@@ -258,6 +281,7 @@ Create a graph node.
 ```
 
 **Output:**
+
 ```json
 {
   "nodeId": "string",
@@ -270,9 +294,11 @@ Create a graph node.
 ### Pipelines Tools
 
 #### `pipelines-create`
+
 Create a new pipeline.
 
 **Input:**
+
 ```json
 {
   "name": "string",
@@ -282,6 +308,7 @@ Create a new pipeline.
 ```
 
 **Output:**
+
 ```json
 {
   "pipelineId": "string",
@@ -294,9 +321,11 @@ Create a new pipeline.
 ```
 
 #### `pipelines-run`
+
 Execute a pipeline.
 
 **Input:**
+
 ```json
 {
   "pipelineId": "string",
@@ -305,6 +334,7 @@ Execute a pipeline.
 ```
 
 **Output:**
+
 ```json
 {
   "runId": "string",
@@ -366,15 +396,15 @@ Add to your Claude Desktop configuration:
 ### Programmatic Usage
 
 ```typescript
-import { FrontalMcpServer, createLogger } from '@frontal-labs/mcp-server';
+import { FrontalMcpServer, createLogger } from "@frontal-labs/mcp-server";
 
 const config = {
-  apiKey: 'your_api_key',
-  transport: { transport: 'stdio' },
+  apiKey: "your_api_key",
+  transport: { transport: "stdio" },
   // ... other config
 };
 
-const logger = createLogger({ level: 'info' });
+const logger = createLogger({ level: "info" });
 const server = new FrontalMcpServer(config, logger);
 
 await server.initialize();

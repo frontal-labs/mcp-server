@@ -1,7 +1,9 @@
 ## Description
+
 <!-- Describe your changes in detail -->
 
 ## Type of Change
+
 - [ ] Bug fix (non-breaking change that fixes an issue)
 - [ ] New feature (non-breaking change that adds functionality)
 - [ ] Breaking change (fix or feature that would cause existing functionality to change)
@@ -11,12 +13,14 @@
 - [ ] Security fix
 
 ## Testing
+
 - [ ] All existing tests pass
 - [ ] New tests added for new functionality
 - [ ] Manual testing completed
 - [ ] Test coverage is not reduced
 
 ## Checklist
+
 - [ ] Code follows the project's style guidelines
 - [ ] Self-review of the code completed
 - [ ] No new warnings or errors introduced
@@ -26,8 +30,10 @@
 - [ ] Breaking changes are documented and migration path provided
 
 ## Related Issues
+
 <!-- Link to any related issues -->
 Closes #
 
 ## Additional Notes
+
 <!-- Any additional context, screenshots, or migration instructions -->

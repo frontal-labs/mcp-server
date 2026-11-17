@@ -5,6 +5,7 @@ Model Context Protocol (MCP) server for Frontal services, providing standardized
 ## Overview
 
 The Frontal MCP Server bridges AI assistants with Frontal's cloud services, enabling seamless integration of:
+
 - AI text generation, embedding, and image generation
 - Blob storage operations
 - Serverless function execution
@@ -77,26 +78,31 @@ The server is built with a modular architecture:
 ## Services
 
 ### AI Services
+
 - Text generation with various models
 - Text embedding for semantic search
 - Image generation capabilities
 
 ### Blob Storage
+
 - Upload and download files
 - Manage containers and metadata
 - Support for various file types
 
 ### Functions
+
 - Execute serverless functions
 - Manage function deployments
 - Monitor execution status
 
 ### Graph Database
+
 - Query graph data
 - Manage nodes and relationships
 - Support for complex traversals
 
 ### Pipelines
+
 - Orchestrate complex workflows
 - Monitor pipeline execution
 - Manage pipeline definitions

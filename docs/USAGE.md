@@ -58,15 +58,19 @@ Add to your Claude Desktop configuration file:
 Once configured, you can use Frontal services directly in Claude:
 
 **Generate Text:**
+
 > "Use the frontal AI service to write a professional email about a project update"
 
 **Generate Images:**
+
 > "Create an image of a futuristic cityscape at sunset using frontal image generation"
 
 **Upload Files:**
+
 > "Upload this document to frontal blob storage: [file content]"
 
 **Run Functions:**
+
 > "Execute the process-user-data function with this payload: {...}"
 
 ### Cline Integration
@@ -102,18 +106,18 @@ Once configured, you can use Frontal services directly in Claude:
 #### HTTP Transport Example
 
 ```typescript
-import { FrontalMcpServer } from '@frontal-labs/mcp-server';
+import { FrontalMcpServer } from "@frontal-labs/mcp-server";
 
 // Start server with HTTP transport
 const server = new FrontalMcpServer({
-  apiKey: 'your_api_key',
+  apiKey: "your_api_key",
   transport: {
-    transport: 'http',
+    transport: "http",
     http: {
-      host: 'localhost',
-      port: 3000
-    }
-  }
+      host: "localhost",
+      port: 3000,
+    },
+  },
 });
 
 await server.initialize();
@@ -133,7 +137,7 @@ await server.connectHttp();
 #### Programmatic Integration
 
 ```typescript
-import { FrontalMcpServer } from '@frontal-labs/mcp-server';
+import { FrontalMcpServer } from "@frontal-labs/mcp-server";
 
 class MyAIAssistant {
   private mcpServer: FrontalMcpServer;
@@ -141,7 +145,7 @@ class MyAIAssistant {
   constructor() {
     this.mcpServer = new FrontalMcpServer({
       apiKey: process.env.FRONTAL_API_KEY,
-      transport: { transport: 'stdio' }
+      transport: { transport: "stdio" },
     });
   }
 
@@ -152,10 +156,10 @@ class MyAIAssistant {
 
   async processUserRequest(request: string) {
     // Parse request and call appropriate MCP tool
-    if (request.includes('generate text')) {
-      return await this.mcpServer.callTool('ai-generate-text', {
-        model: 'frontal-gpt-4',
-        prompt: request
+    if (request.includes("generate text")) {
+      return await this.mcpServer.callTool("ai-generate-text", {
+        model: "frontal-gpt-4",
+        prompt: request,
       });
     }
     // Handle other request types...
@@ -171,41 +175,41 @@ class MyAIAssistant {
 // Example: Automated blog post generation
 async function createBlogPost(topic: string) {
   // 1. Generate outline
-  const outline = await mcpServer.callTool('ai-generate-text', {
-    model: 'frontal-gpt-4',
+  const outline = await mcpServer.callTool("ai-generate-text", {
+    model: "frontal-gpt-4",
     prompt: `Create a detailed outline for a blog post about ${topic}`,
-    maxTokens: 500
+    maxTokens: 500,
   });
 
   // 2. Generate content for each section
   const sections = await Promise.all(
     outline.data.sections.map(async (section) => {
-      return await mcpServer.callTool('ai-generate-text', {
-        model: 'frontal-gpt-4',
+      return await mcpServer.callTool("ai-generate-text", {
+        model: "frontal-gpt-4",
         prompt: `Write detailed content for: ${section.title}`,
-        maxTokens: 1000
+        maxTokens: 1000,
       });
     })
   );
 
   // 3. Generate featured image
-  const image = await mcpServer.callTool('ai-generate-image', {
+  const image = await mcpServer.callTool("ai-generate-image", {
     prompt: `Professional blog post image about ${topic}`,
-    size: '1024x1024',
-    quality: 'hd'
+    size: "1024x1024",
+    quality: "hd",
   });
 
   // 4. Upload image to blob storage
-  const uploadedImage = await mcpServer.callTool('blob-upload', {
-    bucket: 'blog-images',
+  const uploadedImage = await mcpServer.callTool("blob-upload", {
+    bucket: "blog-images",
     key: `${topic}-featured.jpg`,
-    content: image.data.url // Assuming URL-based upload
+    content: image.data.url, // Assuming URL-based upload
   });
 
   return {
     outline: outline.data,
-    sections: sections.map(s => s.data),
-    featuredImage: uploadedImage.data
+    sections: sections.map((s) => s.data),
+    featuredImage: uploadedImage.data,
   };
 }
 ```
@@ -216,50 +220,50 @@ async function createBlogPost(topic: string) {
 // Example: ETL pipeline with Frontal services
 async function runDataPipeline(dataFile: string) {
   // 1. Upload raw data to blob storage
-  const uploadResult = await mcpServer.callTool('blob-upload', {
-    bucket: 'raw-data',
+  const uploadResult = await mcpServer.callTool("blob-upload", {
+    bucket: "raw-data",
     key: `uploads/${Date.now()}-${dataFile}`,
-    content: fs.readFileSync(dataFile, 'base64'),
-    contentType: 'application/json'
+    content: fs.readFileSync(dataFile, "base64"),
+    contentType: "application/json",
   });
 
   // 2. Trigger data processing function
-  const processResult = await mcpServer.callTool('functions-invoke', {
-    name: 'process-customer-data',
+  const processResult = await mcpServer.callTool("functions-invoke", {
+    name: "process-customer-data",
     payload: {
       inputFile: uploadResult.data.key,
-      outputBucket: 'processed-data'
+      outputBucket: "processed-data",
     },
-    invokeAsync: false
+    invokeAsync: false,
   });
 
   // 3. Create pipeline for future automation
-  const pipeline = await mcpServer.callTool('pipelines-create', {
-    name: 'customer-data-processing',
-    description: 'Automated customer data ETL pipeline',
+  const pipeline = await mcpServer.callTool("pipelines-create", {
+    name: "customer-data-processing",
+    description: "Automated customer data ETL pipeline",
     steps: [
       {
-        name: 'upload',
-        type: 'blob-upload',
-        config: { bucket: 'raw-data' }
+        name: "upload",
+        type: "blob-upload",
+        config: { bucket: "raw-data" },
       },
       {
-        name: 'process',
-        type: 'function',
-        config: { functionName: 'process-customer-data' }
+        name: "process",
+        type: "function",
+        config: { functionName: "process-customer-data" },
       },
       {
-        name: 'store',
-        type: 'graph-create-node',
-        config: { nodeType: 'ProcessedCustomer' }
-      }
-    ]
+        name: "store",
+        type: "graph-create-node",
+        config: { nodeType: "ProcessedCustomer" },
+      },
+    ],
   });
 
   return {
     uploadId: uploadResult.data.key,
     processResult: processResult.data,
-    pipelineId: pipeline.data.pipelineId
+    pipelineId: pipeline.data.pipelineId,
   };
 }
 ```
@@ -270,44 +274,44 @@ async function runDataPipeline(dataFile: string) {
 // Example: Building a knowledge graph
 async function buildKnowledgeGraph(document: string) {
   // 1. Generate embeddings for semantic search
-  const embeddings = await mcpServer.callTool('ai-embed', {
+  const embeddings = await mcpServer.callTool("ai-embed", {
     text: document,
-    model: 'frontal-embed-3-large'
+    model: "frontal-embed-3-large",
   });
 
   // 2. Extract entities and relationships
-  const entities = await mcpServer.callTool('ai-generate-text', {
-    model: 'frontal-gpt-4',
+  const entities = await mcpServer.callTool("ai-generate-text", {
+    model: "frontal-gpt-4",
     prompt: `Extract entities and relationships from this document: ${document}`,
-    maxTokens: 1000
+    maxTokens: 1000,
   });
 
   // 3. Create nodes in graph database
   const nodes = await Promise.all(
     entities.data.entities.map(async (entity) => {
-      return await mcpServer.callTool('graph-create-node', {
+      return await mcpServer.callTool("graph-create-node", {
         type: entity.type,
         properties: {
           name: entity.name,
           description: entity.description,
-          embedding: embeddings.data.embedding
-        }
+          embedding: embeddings.data.embedding,
+        },
       });
     })
   );
 
   // 4. Store document in blob storage
-  const documentStorage = await mcpServer.callTool('blob-upload', {
-    bucket: 'knowledge-base',
+  const documentStorage = await mcpServer.callTool("blob-upload", {
+    bucket: "knowledge-base",
     key: `documents/${Date.now()}.txt`,
-    content: Buffer.from(document).toString('base64'),
-    contentType: 'text/plain'
+    content: Buffer.from(document).toString("base64"),
+    contentType: "text/plain",
   });
 
   return {
-    nodes: nodes.map(n => n.data),
+    nodes: nodes.map((n) => n.data),
     documentUrl: documentStorage.data.url,
-    embedding: embeddings.data.embedding
+    embedding: embeddings.data.embedding,
   };
 }
 ```
@@ -321,50 +325,52 @@ class CustomerSupportBot {
 
   async handleCustomerQuery(query: string, customerId: string) {
     // 1. Generate response using AI
-    const response = await this.mcpServer.callTool('ai-generate-text', {
-      model: 'frontal-gpt-4',
+    const response = await this.mcpServer.callTool("ai-generate-text", {
+      model: "frontal-gpt-4",
       prompt: `Customer query: ${query}. Generate a helpful response.`,
       maxTokens: 500,
-      temperature: 0.7
+      temperature: 0.7,
     });
 
     // 2. Check customer history in graph database
-    const customerHistory = await this.mcpServer.callTool('graph-query', {
+    const customerHistory = await this.mcpServer.callTool("graph-query", {
       query: `
         MATCH (c:Customer {id: $customerId})-[:HAS_TICKET]->(t:Ticket)
         RETURN t ORDER BY t.created DESC LIMIT 5
       `,
-      variables: { customerId }
+      variables: { customerId },
     });
 
     // 3. Log interaction
-    await this.mcpServer.callTool('functions-invoke', {
-      name: 'log-customer-interaction',
+    await this.mcpServer.callTool("functions-invoke", {
+      name: "log-customer-interaction",
       payload: {
         customerId,
         query,
         response: response.data.text,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
-      invokeAsync: true
+      invokeAsync: true,
     });
 
     // 4. Upload conversation transcript
-    await this.mcpServer.callTool('blob-upload', {
-      bucket: 'support-transcripts',
+    await this.mcpServer.callTool("blob-upload", {
+      bucket: "support-transcripts",
       key: `${customerId}/${Date.now()}.json`,
-      content: Buffer.from(JSON.stringify({
-        query,
-        response: response.data.text,
-        history: customerHistory.data
-      })).toString('base64'),
-      contentType: 'application/json'
+      content: Buffer.from(
+        JSON.stringify({
+          query,
+          response: response.data.text,
+          history: customerHistory.data,
+        })
+      ).toString("base64"),
+      contentType: "application/json",
     });
 
     return {
       response: response.data.text,
       hasHistory: customerHistory.data.nodes.length > 0,
-      ticketId: this.generateTicketId()
+      ticketId: this.generateTicketId(),
     };
   }
 
@@ -388,10 +394,10 @@ async function batchProcessDocuments(documents: string[]) {
     const batch = documents.slice(i, i + batchSize);
 
     const batchResults = await Promise.all(
-      batch.map(doc =>
-        this.mcpServer.callTool('ai-embed', {
+      batch.map((doc) =>
+        this.mcpServer.callTool("ai-embed", {
           text: doc,
-          model: 'frontal-embed-3-large'
+          model: "frontal-embed-3-large",
         })
       )
     );
@@ -399,7 +405,7 @@ async function batchProcessDocuments(documents: string[]) {
     results.push(...batchResults);
 
     // Rate limiting - small delay between batches
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
   return results;
@@ -420,7 +426,7 @@ async function robustAPICall(toolName: string, args: any, maxRetries = 3) {
 
       // Exponential backoff
       const delay = Math.pow(2, attempt) * 1000;
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
 
       console.log(`Retry ${attempt}/${maxRetries} for ${toolName}`);
     }
@@ -437,17 +443,17 @@ async function* streamTextGeneration(prompt: string) {
 
   // Generate in smaller chunks for streaming effect
   for (let i = 0; i < 5; i++) {
-    const chunk = await this.mcpServer.callTool('ai-generate-text', {
-      model: 'frontal-gpt-4',
+    const chunk = await this.mcpServer.callTool("ai-generate-text", {
+      model: "frontal-gpt-4",
       prompt: `${prompt} (part ${i + 1}/5)`,
-      maxTokens: 200
+      maxTokens: 200,
     });
 
     yield chunk.data.text;
     chunks.push(chunk.data.text);
   }
 
-  return chunks.join('');
+  return chunks.join("");
 }
 ```
 
@@ -459,35 +465,35 @@ async function* streamTextGeneration(prompt: string) {
 // config/development.ts
 export const devConfig = {
   apiKey: process.env.FRONTAL_API_KEY,
-  transport: { transport: 'stdio' },
+  transport: { transport: "stdio" },
   services: {
     ai: true,
     blob: true,
     functions: true,
     graph: true,
-    pipelines: true
+    pipelines: true,
   },
-  logLevel: 'debug'
+  logLevel: "debug",
 };
 
 // config/production.ts
 export const prodConfig = {
   apiKey: process.env.FRONTAL_API_KEY,
   transport: {
-    transport: 'http',
+    transport: "http",
     http: {
-      host: '0.0.0.0',
-      port: 3000
-    }
+      host: "0.0.0.0",
+      port: 3000,
+    },
   },
   services: {
     ai: true,
     blob: true,
     functions: true,
     graph: false, // Disabled in production
-    pipelines: true
+    pipelines: true,
   },
-  logLevel: 'info'
+  logLevel: "info",
 };
 ```
 
@@ -496,24 +502,24 @@ export const prodConfig = {
 ```typescript
 async function checkServiceHealth() {
   const healthChecks = await Promise.allSettled([
-    this.mcpServer.callTool('ai-generate-text', {
-      model: 'frontal-gpt-4',
-      prompt: 'Health check',
-      maxTokens: 10
+    this.mcpServer.callTool("ai-generate-text", {
+      model: "frontal-gpt-4",
+      prompt: "Health check",
+      maxTokens: 10,
     }),
-    this.mcpServer.callTool('blob-list', {
-      bucket: 'health-check',
-      maxKeys: 1
+    this.mcpServer.callTool("blob-list", {
+      bucket: "health-check",
+      maxKeys: 1,
     }),
-    this.mcpServer.callTool('functions-list', {
-      status: 'active'
-    })
+    this.mcpServer.callTool("functions-list", {
+      status: "active",
+    }),
   ]);
 
   return {
-    ai: healthChecks[0].status === 'fulfilled',
-    blob: healthChecks[1].status === 'fulfilled',
-    functions: healthChecks[2].status === 'fulfilled'
+    ai: healthChecks[0].status === "fulfilled",
+    blob: healthChecks[1].status === "fulfilled",
+    functions: healthChecks[2].status === "fulfilled",
   };
 }
 ```
@@ -587,10 +593,10 @@ async function rotateApiKey() {
 // Validate inputs before sending to MCP
 function validatePrompt(prompt: string): boolean {
   if (prompt.length > 10000) {
-    throw new Error('Prompt too long');
+    throw new Error("Prompt too long");
   }
-  if (prompt.includes('<script>')) {
-    throw new Error('Invalid characters in prompt');
+  if (prompt.includes("<script>")) {
+    throw new Error("Invalid characters in prompt");
   }
   return true;
 }
@@ -629,14 +635,14 @@ class CachedMCPClient {
 const server = new FrontalMcpServer({
   apiKey: process.env.FRONTAL_API_KEY,
   transport: {
-    transport: 'http',
+    transport: "http",
     http: {
-      host: 'localhost',
+      host: "localhost",
       port: 3000,
       maxConnections: 10,
-      keepAlive: true
-    }
-  }
+      keepAlive: true,
+    },
+  },
 });
 ```
 
@@ -649,7 +655,7 @@ class UsageTracker {
   private metrics = {
     totalCalls: 0,
     callsByTool: new Map(),
-    errors: 0
+    errors: 0,
   };
 
   async trackCall(toolName: string, args: any) {
@@ -672,7 +678,7 @@ class UsageTracker {
     return {
       totalCalls: this.metrics.totalCalls,
       toolBreakdown: Object.fromEntries(this.metrics.callsByTool),
-      errorRate: this.metrics.errors / this.metrics.totalCalls
+      errorRate: this.metrics.errors / this.metrics.totalCalls,
     };
   }
 }

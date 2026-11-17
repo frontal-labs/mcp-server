@@ -13,17 +13,17 @@ metadata:
     nginx.ingress.kubernetes.io/rate-limit-window: "1m"
 spec:
   tls:
-  - hosts:
-    - mcp.frontal.dev
-    secretName: mcp-server-tls
+    - hosts:
+        - mcp.frontal.dev
+      secretName: mcp-server-tls
   rules:
-  - host: mcp.frontal.dev
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: frontal-mcp-server-service
-            port:
-              number: 80
+    - host: mcp.frontal.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontal-mcp-server-service
+                port:
+                  number: 80

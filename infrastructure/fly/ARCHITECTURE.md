@@ -41,14 +41,14 @@ Fly Machine (iad - primary region)
 
 ## Files Created/Modified
 
-| File | Purpose |
-|------|---------|
-| `fly.toml` | Fly.io app configuration (root) |
-| `Dockerfile` | Multi-stage Docker build (root) |
-| `.dockerignore` | Docker build context exclusions |
-| `.github/workflows/fly-deploy.yml` | CI/CD pipeline |
-| `infrastructure/fly/DEPLOYMENT.md` | Deployment guide |
-| `src/server/http-transport.ts` | Added `/health` endpoint |
+| File                               | Purpose                         |
+| ---------------------------------- | ------------------------------- |
+| `fly.toml`                         | Fly.io app configuration (root) |
+| `Dockerfile`                       | Multi-stage Docker build (root) |
+| `.dockerignore`                    | Docker build context exclusions |
+| `.github/workflows/fly-deploy.yml` | CI/CD pipeline                  |
+| `infrastructure/fly/DEPLOYMENT.md` | Deployment guide                |
+| `src/server/http-transport.ts`     | Added `/health` endpoint        |
 
 ## Configuration Summary
 
@@ -67,6 +67,7 @@ Fly Machine (iad - primary region)
 ### Dockerfile
 
 Multi-stage build:
+
 1. `base` - Node 20 Alpine + libc6-compat
 2. `deps` - Install dependencies with bun
 3. `builder` - Build TypeScript source
@@ -75,6 +76,7 @@ Multi-stage build:
 ### Health Checks
 
 Three layers:
+
 1. **TCP check** (10s) - Verifies port 3000 is accepting connections
 2. **HTTP check** (15s) - GET /health returns 200
 3. **Machine check** (30s) - deploy-time node process validation
@@ -82,6 +84,7 @@ Three layers:
 ## Operational Commands
 
 ### Deployment
+
 ```bash
 # Initial deploy
 flyctl deploy
@@ -94,6 +97,7 @@ flyctl deploy --strategy bluegreen
 ```
 
 ### Monitoring
+
 ```bash
 # View status
 flyctl status
@@ -109,6 +113,7 @@ flyctl releases
 ```
 
 ### Scaling
+
 ```bash
 # Horizontal
 flyctl scale count 3
@@ -121,6 +126,7 @@ flyctl scale vm performance-1x
 ```
 
 ### Secrets
+
 ```bash
 flyctl secrets set FRONTAL_API_KEY=frt_your_key
 flyctl secrets list
@@ -128,6 +134,7 @@ flyctl secrets unset SECRET_NAME
 ```
 
 ### Rollback
+
 ```bash
 flyctl releases rollback <version>
 ```

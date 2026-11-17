@@ -46,24 +46,24 @@ uses no roots, sampling or protocol-level logging.
 
 ## Source tree
 
-| Path | What lives there |
-| --- | --- |
-| `bin/index.ts` | Process entry point. Calls `main()` from `src/server.ts`. |
-| `src/server.ts` | The CLI (commander): parses flags, loads config, starts the chosen transport, installs `SIGTERM` / `SIGINT` handlers. |
-| `src/index.ts` | Public exports of the npm package. |
-| `src/mcp/index.ts` | `FrontalMcpServer`: builds `McpServer` instances and registers the enabled adapters. |
-| `src/middlewares/` | The HTTP transport (`http-transport.ts`), the per-request token store (`auth.ts`) and the rate limiter (`rate-limit.ts`). |
-| `src/tools/` | Tool adapters (`generic`, `ontology`, `data`, `workflows`, `integrations`, `events`), curated-tool registration (`curated.ts`), the safety policy (`policy.ts`), output-schema derivation (`output-schema.ts`) and shared helpers (`tool-helpers.ts`). |
-| `src/spec/` | `SpecIndex` over the vendored OpenAPI document. |
-| `src/tasks/` | The MCP Tasks extension: stateless task ids (`task-id.ts`), the run-kind registry (`run-kinds.ts`) and the `tasks/*` handlers (`handlers.ts`). |
-| `src/client.ts` | `FrontalClient`, the HTTP client for the Frontal API. |
-| `src/config/` | Environment schema (`env.ts`) and config loading. |
-| `src/services/` | `HealthMonitor` and the incident.io client it uses. |
-| `src/types/` | Shared types, the zod config schema (`config.ts`) and the error classes (`errors.ts`). |
-| `src/helpers/`, `src/utils/` | Small array / async / object / string helpers and the winston logger. |
-| `openapi/public.v1.json` | The vendored OpenAPI spec. |
-| `scripts/` | `sync-spec.ts` (refresh or check the vendored spec), `smoke.ts` (tool-stack smoke test against a mock API) and `conformance.ts` (MCP conformance suite). |
-| `tests/`, `e2e/` | Vitest suites. |
+| Path                         | What lives there                                                                                                                                                                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `bin/index.ts`               | Process entry point. Calls `main()` from `src/server.ts`.                                                                                                                                                                                              |
+| `src/server.ts`              | The CLI (commander): parses flags, loads config, starts the chosen transport, installs `SIGTERM` / `SIGINT` handlers.                                                                                                                                  |
+| `src/index.ts`               | Public exports of the npm package.                                                                                                                                                                                                                     |
+| `src/mcp/index.ts`           | `FrontalMcpServer`: builds `McpServer` instances and registers the enabled adapters.                                                                                                                                                                   |
+| `src/middlewares/`           | The HTTP transport (`http-transport.ts`), the per-request token store (`auth.ts`) and the rate limiter (`rate-limit.ts`).                                                                                                                              |
+| `src/tools/`                 | Tool adapters (`generic`, `ontology`, `data`, `workflows`, `integrations`, `events`), curated-tool registration (`curated.ts`), the safety policy (`policy.ts`), output-schema derivation (`output-schema.ts`) and shared helpers (`tool-helpers.ts`). |
+| `src/spec/`                  | `SpecIndex` over the vendored OpenAPI document.                                                                                                                                                                                                        |
+| `src/tasks/`                 | The MCP Tasks extension: stateless task ids (`task-id.ts`), the run-kind registry (`run-kinds.ts`) and the `tasks/*` handlers (`handlers.ts`).                                                                                                         |
+| `src/client.ts`              | `FrontalClient`, the HTTP client for the Frontal API.                                                                                                                                                                                                  |
+| `src/config/`                | Environment schema (`env.ts`) and config loading.                                                                                                                                                                                                      |
+| `src/services/`              | `HealthMonitor` and the incident.io client it uses.                                                                                                                                                                                                    |
+| `src/types/`                 | Shared types, the zod config schema (`config.ts`) and the error classes (`errors.ts`).                                                                                                                                                                 |
+| `src/helpers/`, `src/utils/` | Small array / async / object / string helpers and the winston logger.                                                                                                                                                                                  |
+| `openapi/public.v1.json`     | The vendored OpenAPI spec.                                                                                                                                                                                                                             |
+| `scripts/`                   | `sync-spec.ts` (refresh or check the vendored spec), `smoke.ts` (tool-stack smoke test against a mock API) and `conformance.ts` (MCP conformance suite).                                                                                               |
+| `tests/`, `e2e/`             | Vitest suites.                                                                                                                                                                                                                                         |
 
 ## Components
 
@@ -229,9 +229,9 @@ JSON config file into a `ServerConfig`:
 
 ```typescript
 interface ServerConfig {
-  apiKey: string;      // FRONTAL_API_KEY (frt_...)
-  baseUrl: string;     // FRONTAL_BASE_URL (bare host, no /v1 suffix)
-  region: string;      // FRONTAL_REGION -> x-frontal-region
+  apiKey: string; // FRONTAL_API_KEY (frt_...)
+  baseUrl: string; // FRONTAL_BASE_URL (bare host, no /v1 suffix)
+  region: string; // FRONTAL_REGION -> x-frontal-region
   toolsets: Toolset[]; // FRONTAL_TOOLSETS
   transport: TransportConfig;
   auth: AuthConfig;

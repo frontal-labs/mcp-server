@@ -35,17 +35,20 @@ kubectl get pods -n mcp-server -w
 ## 📋 Prerequisites
 
 ### For Docker Deployment
+
 - Docker 20.10+
 - Docker Compose 2.0+
 - 2GB RAM minimum
 
 ### For Kubernetes Deployment
+
 - Kubernetes 1.24+
 - kubectl configured
 - cert-manager installed
 - Load balancer configured
 
 ### For Terraform Deployment
+
 - Terraform 1.0+
 - AWS CLI configured
 - Appropriate IAM permissions
@@ -95,12 +98,14 @@ data:
 Best for local development and testing.
 
 **Features:**
+
 - Hot reloading
 - Integrated monitoring
 - Easy setup
 - Local data persistence
 
 **Commands:**
+
 ```bash
 # Start development environment
 docker-compose -f infrastructure/docker/docker-compose.dev.yml up -d
@@ -117,12 +122,14 @@ docker-compose -f infrastructure/docker/docker-compose.dev.yml down
 For pre-production testing.
 
 **Features:**
+
 - Production-like environment
 - Auto-scaling
 - Monitoring integration
 - Blue-green deployment ready
 
 **Commands:**
+
 ```bash
 # Deploy to staging
 kubectl apply -f infrastructure/kubernetes/ -n mcp-server-staging
@@ -139,6 +146,7 @@ kubectl rollout status deployment/frontal-mcp-server -n mcp-server-staging
 For production workloads.
 
 **Features:**
+
 - Infrastructure as Code
 - High availability
 - Auto-scaling
@@ -146,6 +154,7 @@ For production workloads.
 - Backup and disaster recovery
 
 **Commands:**
+
 ```bash
 # Deploy infrastructure
 cd infrastructure/terraform
@@ -188,18 +197,21 @@ kubectl set image deployment/frontal-mcp-server mcp-server=your-registry/mcp-ser
 ### Prometheus Metrics
 
 Access metrics at:
+
 - Development: http://localhost:9090
 - Production: `kubectl port-forward -n monitoring svc/prometheus-server 9090:80`
 
 ### Grafana Dashboards
 
 Access dashboards at:
+
 - Development: http://localhost:3001 (admin/admin)
 - Production: `kubectl port-forward -n monitoring svc/grafana 3000:80`
 
 ### Alerting
 
 Alerts are configured for:
+
 - Service downtime
 - High resource usage
 - Error rate thresholds
@@ -210,6 +222,7 @@ Alerts are configured for:
 ### Common Issues
 
 #### Service Not Starting
+
 ```bash
 # Check logs
 kubectl logs -f deployment/frontal-mcp-server -n mcp-server
@@ -222,6 +235,7 @@ kubectl get configmap mcp-server-config -n mcp-server -o yaml
 ```
 
 #### High Memory Usage
+
 ```bash
 # Check resource usage
 kubectl top pods -n mcp-server
@@ -234,6 +248,7 @@ kubectl edit deployment frontal-mcp-server -n mcp-server
 ```
 
 #### Network Issues
+
 ```bash
 # Test connectivity
 kubectl exec -it deployment/frontal-mcp-server -n mcp-server -- curl http://localhost:3000/health
@@ -248,6 +263,7 @@ kubectl describe ingress frontal-mcp-server-ingress -n mcp-server
 ### Recovery Procedures
 
 #### Full Recovery
+
 ```bash
 # Delete deployment
 kubectl delete deployment frontal-mcp-server -n mcp-server
@@ -260,6 +276,7 @@ kubectl get pods -n mcp-server
 ```
 
 #### Rollback
+
 ```bash
 # Check rollout history
 kubectl rollout history deployment/frontal-mcp-server -n mcp-server
@@ -271,16 +288,19 @@ kubectl rollout undo deployment/frontal-mcp-server -n mcp-server
 ## 🛡️ Security Considerations
 
 ### Network Security
+
 - Use TLS for all communications
 - Implement network policies
 - Restrict ingress/egress traffic
 
 ### Secrets Management
+
 - Store API keys in Kubernetes secrets
 - Use external secret management
 - Rotate credentials regularly
 
 ### Container Security
+
 - Use non-root containers
 - Implement security contexts
 - Scan images for vulnerabilities
@@ -288,6 +308,7 @@ kubectl rollout undo deployment/frontal-mcp-server -n mcp-server
 ## 📈 Performance Optimization
 
 ### Resource Tuning
+
 ```yaml
 resources:
   requests:
@@ -299,6 +320,7 @@ resources:
 ```
 
 ### Auto-scaling
+
 ```yaml
 # HPA configuration
 minReplicas: 2
@@ -308,6 +330,7 @@ targetMemoryUtilizationPercentage: 80
 ```
 
 ### Caching
+
 - No session storage is needed: the HTTP transport is stateless
 - Use CDN for static assets
 - Implement application-level caching
@@ -315,6 +338,7 @@ targetMemoryUtilizationPercentage: 80
 ## 🔄 Maintenance
 
 ### Regular Tasks
+
 - Update base images
 - Rotate secrets
 - Backup configurations
@@ -322,6 +346,7 @@ targetMemoryUtilizationPercentage: 80
 - Update dependencies
 
 ### Backup Procedures
+
 ```bash
 # Export configurations
 kubectl get deployment,service,configmap,secret -n mcp-server -o yaml > backup.yaml
@@ -331,6 +356,7 @@ terraform state pull > terraform-backup.tfstate
 ```
 
 ### Disaster Recovery
+
 1. Restore from backup
 2. Recreate infrastructure
 3. Deploy application

@@ -256,7 +256,7 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
         with:
-          cosign-release: 'v2.6.0'
+          cosign-release: "v2.6.0"
 
       - name: Sign the Docker image with cosign
         env:

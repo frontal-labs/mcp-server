@@ -22,6 +22,7 @@ src/
 ### Design Patterns
 
 #### Adapter Pattern
+
 Each Frontal service (AI, Blob, Functions, etc.) has its own adapter:
 
 ```typescript
@@ -36,6 +37,7 @@ export class AIAdapter {
 ```
 
 #### Server Pattern
+
 The main MCP server coordinates all adapters:
 
 ```typescript
@@ -50,6 +52,7 @@ export class FrontalMcpServer {
 ```
 
 #### Configuration Pattern
+
 Centralized configuration with environment variable support:
 
 ```typescript
@@ -57,17 +60,19 @@ Centralized configuration with environment variable support:
 export const ServerConfigSchema = z.object({
   apiKey: z.string(),
   transport: z.object({
-    transport: z.enum(['stdio', 'http']),
-    http: z.object({
-      host: z.string(),
-      port: z.number()
-    }).optional()
+    transport: z.enum(["stdio", "http"]),
+    http: z
+      .object({
+        host: z.string(),
+        port: z.number(),
+      })
+      .optional(),
   }),
   services: z.object({
     ai: z.boolean(),
     blob: z.boolean(),
     // ...
-  })
+  }),
 });
 ```
 
@@ -168,7 +173,7 @@ export class AIAdapter implements ServiceAdapter {
   private readonly logger: Logger;
 
   constructor(config: AIConfig, logger: Logger) {
-    this.logger = logger.child({ service: 'ai' });
+    this.logger = logger.child({ service: "ai" });
   }
 
   /**
@@ -176,19 +181,19 @@ export class AIAdapter implements ServiceAdapter {
    */
   async generateText(params: TextGenerationParams): Promise<TextResult> {
     try {
-      this.logger.debug('Generating text', { params });
+      this.logger.debug("Generating text", { params });
 
       const result = await this.apiClient.generateText(params);
 
-      this.logger.info('Text generated successfully', {
+      this.logger.info("Text generated successfully", {
         model: result.model,
-        tokens: result.usage.totalTokens
+        tokens: result.usage.totalTokens,
       });
 
       return result;
     } catch (error) {
-      this.logger.error('Failed to generate text', { error, params });
-      throw new AIServiceError('Text generation failed', error);
+      this.logger.error("Failed to generate text", { error, params });
+      throw new AIServiceError("Text generation failed", error);
     }
   }
 }
@@ -228,11 +233,11 @@ bun test tests/unit/ai-adapter.test.ts
 
 ```typescript
 // tests/unit/ai-adapter.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { AIAdapter } from '../../src/adapters/ai-adapter';
-import { MockAPIClient } from '../mocks/api-client';
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { AIAdapter } from "../../src/adapters/ai-adapter";
+import { MockAPIClient } from "../mocks/api-client";
 
-describe('AIAdapter', () => {
+describe("AIAdapter", () => {
   let adapter: AIAdapter;
   let mockClient: MockAPIClient;
 
@@ -241,11 +246,11 @@ describe('AIAdapter', () => {
     adapter = new AIAdapter(mockConfig, mockLogger);
   });
 
-  it('should generate text successfully', async () => {
+  it("should generate text successfully", async () => {
     const params = {
-      model: 'frontal-gpt-4',
-      prompt: 'Test prompt',
-      maxTokens: 100
+      model: "frontal-gpt-4",
+      prompt: "Test prompt",
+      maxTokens: 100,
     };
 
     mockClient.generateText.mockResolvedValue(mockTextResult);
@@ -256,8 +261,10 @@ describe('AIAdapter', () => {
     expect(mockClient.generateText).toHaveBeenCalledWith(params);
   });
 
-  it('should handle API errors', async () => {
-    mockClient.generateText.mockRejectedValue(new APIError('Service unavailable'));
+  it("should handle API errors", async () => {
+    mockClient.generateText.mockRejectedValue(
+      new APIError("Service unavailable")
+    );
 
     await expect(adapter.generateText(params)).rejects.toThrow(AIServiceError);
   });
@@ -268,10 +275,10 @@ describe('AIAdapter', () => {
 
 ```typescript
 // tests/integration/mcp-server.test.ts
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { FrontalMcpServer } from '../../src/server/mcp-server';
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { FrontalMcpServer } from "../../src/server/mcp-server";
 
-describe('FrontalMcpServer Integration', () => {
+describe("FrontalMcpServer Integration", () => {
   let server: FrontalMcpServer;
 
   beforeAll(async () => {
@@ -283,14 +290,14 @@ describe('FrontalMcpServer Integration', () => {
     await server.close();
   });
 
-  it('should handle AI tool calls', async () => {
-    const result = await server.callTool('ai-generate-text', {
-      model: 'frontal-gpt-4',
-      prompt: 'Test'
+  it("should handle AI tool calls", async () => {
+    const result = await server.callTool("ai-generate-text", {
+      model: "frontal-gpt-4",
+      prompt: "Test",
     });
 
     expect(result.success).toBe(true);
-    expect(result.data).toHaveProperty('text');
+    expect(result.data).toHaveProperty("text");
   });
 });
 ```
@@ -300,10 +307,16 @@ describe('FrontalMcpServer Integration', () => {
 ```typescript
 // tests/utils/test-helpers.ts
 export const createMockConfig = (overrides = {}): ServerConfig => ({
-  apiKey: 'test-key',
-  transport: { transport: 'stdio' },
-  services: { ai: true, blob: true, functions: true, graph: true, pipelines: true },
-  ...overrides
+  apiKey: "test-key",
+  transport: { transport: "stdio" },
+  services: {
+    ai: true,
+    blob: true,
+    functions: true,
+    graph: true,
+    pipelines: true,
+  },
+  ...overrides,
 });
 
 export const createMockLogger = (): Logger => ({
@@ -311,7 +324,7 @@ export const createMockLogger = (): Logger => ({
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
-  child: () => createMockLogger()
+  child: () => createMockLogger(),
 });
 ```
 
@@ -338,8 +351,8 @@ export const ServerConfigSchema = z.object({
   // ... existing fields
   services: z.object({
     // ... existing services
-    newService: z.boolean().default(true)
-  })
+    newService: z.boolean().default(true),
+  }),
 });
 ```
 
@@ -363,7 +376,7 @@ private async initializeAdapters(): Promise<void> {
 
 ```typescript
 // tests/unit/new-service-adapter.test.ts
-describe('NewServiceAdapter', () => {
+describe("NewServiceAdapter", () => {
   // Test implementation
 });
 ```
@@ -378,15 +391,15 @@ Use built-in metrics and logging:
 // src/utils/metrics.ts
 export const metrics = {
   requestDuration: new Histogram({
-    name: 'mcp_request_duration_seconds',
-    help: 'Duration of MCP requests'
+    name: "mcp_request_duration_seconds",
+    help: "Duration of MCP requests",
   }),
 
   requestCount: new Counter({
-    name: 'mcp_requests_total',
-    help: 'Total number of MCP requests',
-    labelNames: ['service', 'tool', 'status']
-  })
+    name: "mcp_requests_total",
+    help: "Total number of MCP requests",
+    labelNames: ["service", "tool", "status"],
+  }),
 };
 ```
 
@@ -411,7 +424,7 @@ export class CacheManager {
   async set<T>(key: string, value: T, ttl: number): Promise<void> {
     this.cache.set(key, {
       value,
-      expiresAt: Date.now() + ttl * 1000
+      expiresAt: Date.now() + ttl * 1000,
     });
   }
 }
@@ -429,7 +442,7 @@ export class HTTPClient {
   constructor(config: HTTPConfig) {
     this.pool = new ConnectionPool({
       maxConnections: config.maxConnections,
-      timeout: config.timeout
+      timeout: config.timeout,
     });
   }
 }
@@ -447,7 +460,7 @@ export const AIGenerateTextSchema = z.object({
   model: z.string().min(1),
   prompt: z.string().min(1).max(10000),
   maxTokens: z.number().min(1).max(4000).optional(),
-  temperature: z.number().min(0).max(2).optional()
+  temperature: z.number().min(0).max(2).optional(),
 });
 ```
 
@@ -464,7 +477,7 @@ export class McpError extends Error {
     public readonly details?: any
   ) {
     super(message);
-    this.name = 'McpError';
+    this.name = "McpError";
   }
 }
 
@@ -474,10 +487,10 @@ export function sanitizeError(error: unknown): McpError {
   }
 
   // Log full error for debugging
-  logger.error('Unhandled error', { error });
+  logger.error("Unhandled error", { error });
 
   // Return sanitized error to client
-  return new McpError('Internal server error', 'INTERNAL_ERROR');
+  return new McpError("Internal server error", "INTERNAL_ERROR");
 }
 ```
 
@@ -565,6 +578,7 @@ type(scope): description
 ```
 
 Types:
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation
@@ -643,10 +657,10 @@ bun run dev --validate-config
 Use structured logging:
 
 ```typescript
-this.logger.info('Processing request', {
-  tool: 'ai-generate-text',
-  requestId: 'req-123',
-  userId: 'user-456'
+this.logger.info("Processing request", {
+  tool: "ai-generate-text",
+  requestId: "req-123",
+  userId: "user-456",
 });
 ```
 

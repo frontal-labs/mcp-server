@@ -23,7 +23,6 @@
 - aa63a76: Address post-merge review of the api.frontal.dev rebuild (follow-up to #84).
 
   Behavior changes (review before release — these tighten the HTTP contract):
-
   - **HTTP transport now requires a per-request `Authorization: Bearer frt_...`
     header** and returns `401` when it is missing. It no longer falls back to the
     server's `FRONTAL_API_KEY` (that key is stdio-only). `GET /health` stays
@@ -36,7 +35,6 @@
     major to type against the supported floor.
 
   Fixes:
-
   - Thread a stable `idempotencyKey` through `frontal_call_endpoint` /
     `callOperation` so retried writes can be deduped by the edge.
   - Preserve `/` in path parameters so catch-all routes are not `%2F`-collapsed.

@@ -68,14 +68,14 @@ flyctl deploy --remote-only
 
 The main configuration file (`fly.toml`) at the project root defines:
 
-| Section | Purpose |
-|---------|---------|
-| `[build]` | Docker build configuration |
+| Section          | Purpose                                   |
+| ---------------- | ----------------------------------------- |
+| `[build]`        | Docker build configuration                |
 | `[http_service]` | HTTP endpoint, health checks, concurrency |
-| `[[vm]]` | VM sizing and resource allocation |
-| `[env]` | Runtime environment variables |
-| `[deploy]` | Deployment strategy |
-| `[[checks]]` | Top-level health monitoring |
+| `[[vm]]`         | VM sizing and resource allocation         |
+| `[env]`          | Runtime environment variables             |
+| `[deploy]`       | Deployment strategy                       |
+| `[[checks]]`     | Top-level health monitoring               |
 
 ### Health Checks
 
@@ -90,6 +90,7 @@ Three layers of health monitoring:
 Default: shared-cpu-1x with 512MB RAM
 
 To scale:
+
 ```bash
 # Scale memory
 flyctl scale memory 1024
@@ -107,10 +108,10 @@ flyctl scale count 3
 
 Set via `flyctl secrets set`:
 
-| Secret | Description |
-|--------|-------------|
-| `FRONTAL_API_KEY` | API key for Frontal services |
-| `FRONTAL_BASE_URL` | Frontal API base URL |
+| Secret             | Description                  |
+| ------------------ | ---------------------------- |
+| `FRONTAL_API_KEY`  | API key for Frontal services |
+| `FRONTAL_BASE_URL` | Frontal API base URL         |
 
 ### Best Practices
 
@@ -172,17 +173,18 @@ Currently configured for primary deployment in `iad` (Ashburn, VA).
 
 Available regions:
 
-| Code | Location |
-|------|----------|
-| iad | Ashburn, Virginia (US) |
-| ewr | Secaucus, NJ (US) |
-| lhr | London, UK |
-| fra | Frankfurt, Germany |
-| syd | Sydney, Australia |
-| nrt | Tokyo, Japan |
-| sin | Singapore |
+| Code | Location               |
+| ---- | ---------------------- |
+| iad  | Ashburn, Virginia (US) |
+| ewr  | Secaucus, NJ (US)      |
+| lhr  | London, UK             |
+| fra  | Frankfurt, Germany     |
+| syd  | Sydney, Australia      |
+| nrt  | Tokyo, Japan           |
+| sin  | Singapore              |
 
 To add regions:
+
 ```bash
 flyctl regions add lhr
 flyctl regions add fra
@@ -213,6 +215,7 @@ flyctl scale vm performance-1x
 ### Auto-scaling
 
 Configure autostop/autostart in `fly.toml`:
+
 ```toml
 [http_service]
   auto_stop_machines = "stop"
@@ -246,23 +249,27 @@ Configure autostop/autostart in `fly.toml`:
 ### Common Issues
 
 **Deployment fails**:
+
 ```bash
 flyctl logs
 flyctl status
 ```
 
 **Health check failing**:
+
 ```bash
 flyctl checks list
 flyctl logs --search "health"
 ```
 
 **Connection refused**:
+
 - Verify `HOST=0.0.0.0` environment variable
 - Check internal_port matches server port
 - Verify server starts on correct address
 
 **Build timeout**:
+
 ```bash
 # Build locally and deploy the image
 docker build -t frontal-mcp-server .
@@ -282,6 +289,7 @@ flyctl releases rollback <version>
 ## Costs
 
 Current configuration is eligible for Fly.io Free Tier:
+
 - 3 shared-cpu-1x VMs (256MB each, but 512MB may incur small cost)
 - 3GB persistent storage
 - 160GB outbound data transfer

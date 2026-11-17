@@ -157,17 +157,17 @@ when it is a JSON object, and always as JSON text in `content`.
 
 ### Environment Variables
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `FRONTAL_API_KEY` | Frontal API key (`frt_...`). Used by stdio only; never a fallback for HTTP | - | For stdio |
-| `FRONTAL_BASE_URL` | API base URL (bare host; `/v1/` is in the paths) | `https://api.frontal.dev` | No |
-| `FRONTAL_REGION` | Region pin (`x-frontal-region`, e.g. `iad`, `lhr`, `fra`, `sin`) | - | No |
-| `FRONTAL_TOOLSETS` | Comma-separated tool sets to register (invalid values are rejected) | `generic,ontology,data,workflows,integrations,events` | No |
-| `FRONTAL_READ_ONLY` | Offer only tools and operations that read data (`true`/`false`) | `false` | No |
-| `FRONTAL_HTTP_ALLOWED_ORIGINS` | Comma-separated CORS allowlist for the HTTP transport | - (no origin trusted) | No |
-| `FRONTAL_HTTP_ALLOWED_HOSTS` | Comma-separated `Host` allowlist for the HTTP transport (blocks DNS rebinding) | - (no host check) | No |
-| `FRONTAL_HTTP_MAX_BODY_BYTES` | Largest HTTP request body accepted, in bytes | `4194304` | No |
-| `MCP_LOG_LEVEL` | Log level | `info` | No |
+| Variable                       | Description                                                                    | Default                                               | Required  |
+| ------------------------------ | ------------------------------------------------------------------------------ | ----------------------------------------------------- | --------- |
+| `FRONTAL_API_KEY`              | Frontal API key (`frt_...`). Used by stdio only; never a fallback for HTTP     | -                                                     | For stdio |
+| `FRONTAL_BASE_URL`             | API base URL (bare host; `/v1/` is in the paths)                               | `https://api.frontal.dev`                             | No        |
+| `FRONTAL_REGION`               | Region pin (`x-frontal-region`, e.g. `iad`, `lhr`, `fra`, `sin`)               | -                                                     | No        |
+| `FRONTAL_TOOLSETS`             | Comma-separated tool sets to register (invalid values are rejected)            | `generic,ontology,data,workflows,integrations,events` | No        |
+| `FRONTAL_READ_ONLY`            | Offer only tools and operations that read data (`true`/`false`)                | `false`                                               | No        |
+| `FRONTAL_HTTP_ALLOWED_ORIGINS` | Comma-separated CORS allowlist for the HTTP transport                          | - (no origin trusted)                                 | No        |
+| `FRONTAL_HTTP_ALLOWED_HOSTS`   | Comma-separated `Host` allowlist for the HTTP transport (blocks DNS rebinding) | - (no host check)                                     | No        |
+| `FRONTAL_HTTP_MAX_BODY_BYTES`  | Largest HTTP request body accepted, in bytes                                   | `4194304`                                             | No        |
+| `MCP_LOG_LEVEL`                | Log level                                                                      | `info`                                                | No        |
 
 Over the HTTP transport, every **MCP request** must send a per-request
 `Authorization: Bearer frt_...` header (multi-tenant hosting); MCP requests
@@ -218,17 +218,17 @@ FRONTAL_TOOLSETS=generic,data FRONTAL_API_KEY=your_key ./dist/bin/frontal-mcp-se
 ### Programmatic Usage
 
 ```typescript
-import { FrontalMcpServer, createLogger } from '@frontal-labs/mcp-server';
+import { FrontalMcpServer, createLogger } from "@frontal-labs/mcp-server";
 
-import { createConfig } from '@frontal-labs/mcp-server';
+import { createConfig } from "@frontal-labs/mcp-server";
 
 const config = createConfig({
-  apiKey: 'frt_your_api_key',
-  toolsets: ['generic', 'ontology', 'data'],
-  transport: { transport: 'stdio' },
+  apiKey: "frt_your_api_key",
+  toolsets: ["generic", "ontology", "data"],
+  transport: { transport: "stdio" },
 });
 
-const logger = createLogger({ level: 'info' });
+const logger = createLogger({ level: "info" });
 const server = new FrontalMcpServer(config, logger);
 
 await server.initialize();
@@ -332,6 +332,7 @@ We welcome contributions! Please see our [Developer Guide](docs/DEVELOPERS.md) f
 ### Common Issues
 
 **Server won't start:**
+
 ```bash
 # Check API key
 echo $FRONTAL_API_KEY
@@ -341,6 +342,7 @@ frontal-mcp-server --validate-config
 ```
 
 **Connection issues:**
+
 ```bash
 # Test with different transport
 frontal-mcp-server --transport http --port 3000
@@ -350,6 +352,7 @@ frontal-mcp-server --verbose
 ```
 
 **Performance issues:**
+
 ```bash
 # Enable debug logging
 MCP_LOG_LEVEL=debug frontal-mcp-server
