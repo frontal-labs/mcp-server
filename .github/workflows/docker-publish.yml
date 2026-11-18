@@ -4,37 +4,37 @@ on:
   workflow_dispatch:
     inputs:
       tags:
-        description: 'Additional tags beyond auto-generated semver/SHA/latest (comma-separated)'
+        description: "Additional tags beyond auto-generated semver/SHA/latest (comma-separated)"
         required: false
-        default: ''
+        default: ""
       platforms:
-        description: 'Platforms to build for'
+        description: "Platforms to build for"
         required: false
-        default: 'linux/amd64,linux/arm64'
+        default: "linux/amd64,linux/arm64"
         type: choice
         options:
-          - 'linux/amd64'
-          - 'linux/amd64,linux/arm64'
+          - "linux/amd64"
+          - "linux/amd64,linux/arm64"
   workflow_call:
     inputs:
       version:
-        description: 'Version tag to apply'
+        description: "Version tag to apply"
         required: false
         type: string
-        default: ''
+        default: ""
     outputs:
       digest:
-        description: 'Image digest'
+        description: "Image digest"
         value: ${{ jobs.build.outputs.digest }}
   push:
     branches: [main]
     paths:
-      - 'Dockerfile'
-      - '.dockerignore'
-      - 'package.json'
-      - 'bun.lock'
-      - 'src/**'
-      - '.github/workflows/docker-publish.yml'
+      - "Dockerfile"
+      - ".dockerignore"
+      - "package.json"
+      - "bun.lock"
+      - "src/**"
+      - ".github/workflows/docker-publish.yml"
 
 permissions:
   contents: read
@@ -125,7 +125,7 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
         with:
-          cosign-release: 'v2.6.0'
+          cosign-release: "v2.6.0"
 
       - name: Sign image with cosign
         run: |

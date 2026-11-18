@@ -106,12 +106,11 @@ export async function main(): Promise<void> {
       const { HttpTransport } = await import("@/middlewares/http-transport.js");
       const { createRateLimiter } = await import("@/middlewares/rate-limit.js");
       const httpTransport = new HttpTransport(
-        () => server.createServer(),
+        (request) => server.createServer(request),
         logger,
         {
           allowedOrigins: config.transport.http?.allowedOrigins,
           maxRequestBodyBytes: config.transport.http?.maxRequestBodyBytes,
-          maxSessions: config.transport.http?.maxSessions,
           allowedHosts: config.transport.http?.allowedHosts,
           rateLimiter: createRateLimiter(config.rateLimit, logger),
         }

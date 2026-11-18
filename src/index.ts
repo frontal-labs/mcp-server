@@ -45,8 +45,10 @@ export {
 export {
   ConfigError,
   ERROR_CODE,
+  ERROR_SCOPE,
   FrontalApiError,
   FrontalError,
+  hintForStatus,
   isFrontalApiError,
   isFrontalError,
   isRetryableError,

@@ -20,6 +20,8 @@
  * All custom error classes, error codes, and type guards.
  */
 
+import { FrontalError as BaseFrontalError } from "@frontal-labs/error";
+
 export const ERROR_CODE = {
   UNAUTHORIZED: "unauthorized",
   FORBIDDEN: "forbidden",
@@ -33,6 +35,7 @@ export const ERROR_CODE = {
   UNKNOWN_OPERATION: "unknown_operation",
   MISSING_PARAMETER: "missing_parameter",
   INVALID_ARGUMENTS: "invalid_arguments",
+  READ_ONLY: "read_only",
   CONFIG_INVALID: "config_invalid",
   SPEC_INVALID: "spec_invalid",
   UPSTREAM: "upstream",
@@ -59,17 +62,60 @@ export interface ErrorEnvelope {
   details?: unknown;
 }
 
-export abstract class FrontalError extends Error {
+/** The `scope` every error raised by this server carries. */
+export const ERROR_SCOPE = "mcp-server";
+
+/**
+ * Advice attached to an API error by HTTP status. It is shown to the model
+ * as a `Hint:` line under the error message.
+ */
+const STATUS_HINTS: Readonly<Record<number, string>> = {
+  401: "Check your API key or authentication configuration.",
+  409: "The region may be invalid or already in use.",
+  501: "This feature is not currently enabled.",
+};
+
+/** The hint for an HTTP status, if there is one. */
+export function hintForStatus(httpStatus: number): string | undefined {
+  return STATUS_HINTS[httpStatus];
+}
+
+interface ErrorExtras {
+  hint?: string;
+  requestId?: string;
+  statusCode?: number;
+}
+
+/**
+ * Base class of this server's errors. It extends the shared
+ * `@frontal-labs/error` class, so the errors carry the same `scope`, `code`,
+ * `hint` and `statusCode` fields as the rest of the Frontal tooling.
+ */
+export abstract class FrontalError extends BaseFrontalError<string> {
   abstract readonly kind: string;
+  declare readonly code: ErrorCode | string;
+  readonly context?: ErrorContext;
 
   constructor(
     message: string,
-    readonly code: ErrorCode | string = ERROR_CODE.UNKNOWN,
-    readonly context?: ErrorContext
+    code: ErrorCode | string = ERROR_CODE.UNKNOWN,
+    context?: ErrorContext,
+    extras: ErrorExtras = {}
   ) {
-    super(message);
+    super(message, {
+      scope: ERROR_SCOPE,
+      // The shared class rejects a blank code.
+      code: code.trim() ? code : ERROR_CODE.UNKNOWN,
+      ...extras,
+    });
     this.name = new.target.name;
+    this.context = context;
   }
+}
+
+/** HTTP statuses the shared error class accepts as `statusCode`. */
+function asErrorStatus(httpStatus: number): number | undefined {
+  return httpStatus >= 400 && httpStatus <= 599 ? httpStatus : undefined;
 }
 
 export class FrontalApiError extends FrontalError {
@@ -81,9 +127,13 @@ export class FrontalApiError extends FrontalError {
     code: ErrorCode | string = ERROR_CODE.UNKNOWN,
     readonly retryable: boolean = false,
     readonly details?: unknown,
-    readonly requestId?: string
+    requestId?: string
   ) {
-    super(message, code, requestId ? { requestId } : undefined);
+    super(message, code, requestId ? { requestId } : undefined, {
+      hint: hintForStatus(httpStatus),
+      requestId,
+      statusCode: asErrorStatus(httpStatus),
+    });
   }
 }
 

@@ -72,6 +72,9 @@ Add to your Claude Desktop configuration:
   never 401/409/501), idempotency keys on retried writes, and region pinning.
 - **Multi-transport**: stdio (local / Claude Desktop) and Streamable HTTP,
   with per-request `Authorization` for multi-tenant hosting.
+- **MCP 2026-07-28**: speaks the 2026-07-28 protocol revision and still
+  serves 2025-era clients. The HTTP transport is stateless (no sessions), so
+  it runs as any number of instances behind a load balancer.
 - **Type safe**: TypeScript throughout with Zod-validated tool inputs.
 - **Monitoring**: Optional incident.io status-page integration and structured logging.
 
@@ -99,20 +102,72 @@ Tools are grouped into **tool sets** selectable via `FRONTAL_TOOLSETS`.
 `data_list_pipeline_runs`, `data_get_pipeline_run`, `data_ingest_dataset`,
 `data_list_streams`, `data_list_schemas`.
 
+### Workflows (curated) — `workflows`
+
+`workflows_search`, `workflows_get_run`, `workflows_get_run_summary`,
+`workflows_get_run_timeline`.
+
+### Integrations (curated) — `integrations`
+
+`integrations_get`, `integrations_list_capabilities`,
+`integrations_list_action_runs`, `action_runs_get`,
+`integrations_test_connection`, `connection_tests_get`, `providers_get`.
+
+The public API has no endpoint that lists integrations, so there is no
+`integrations_list` tool.
+
+### Events (curated, read-only) — `events`
+
+`events_list`, `events_get`, `events_query`.
+
 Everything not covered by a curated tool stays reachable via the generic tools.
+
+### Tool safety
+
+Every tool carries MCP annotations, so a client can tell what it does before
+calling it:
+
+- **Read tools** are marked `readOnlyHint: true`.
+- **Write tools** are `data_create_pipeline`, `data_ingest_dataset`,
+  `ontology_extract_entities` and `integrations_test_connection`. Every tool
+  that is not read-only is marked `destructiveHint: true`, so a client shows
+  its own approval prompt before running it.
+- **`frontal_call_endpoint`** can call any operation, so it is marked
+  destructive and open-world.
+- **`openWorldHint`** is `true` only for tools that reach systems outside
+  Frontal: `integrations_test_connection` and `frontal_call_endpoint`.
+
+**Confirmation.** Any operation that is not on the read allow-list is
+confirmed with the user before it runs, when the client supports elicitation.
+This covers the write tools above and every write made through
+`frontal_call_endpoint`. Clients without elicitation run the tool directly and
+rely on their own approval prompt.
+
+**Read-only mode.** Set `FRONTAL_READ_ONLY=true` to offer only tools that
+read. Write tools are not registered, and `frontal_call_endpoint` refuses any
+operation that is not known to only read. "Read" is not decided by HTTP method
+alone: `GET` operations qualify, and so do the `POST` operations on an explicit
+allow-list of searches, queries and graph traversals
+(`src/tools/policy.ts`).
+
+**Structured output.** Tools return the API response as `structuredContent`
+when it is a JSON object, and always as JSON text in `content`.
 
 ## Configuration
 
 ### Environment Variables
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `FRONTAL_API_KEY` | Frontal API key (`frt_...`). Used by stdio only; never a fallback for HTTP | - | For stdio |
-| `FRONTAL_BASE_URL` | API base URL (bare host; `/v1/` is in the paths) | `https://api.frontal.dev` | No |
-| `FRONTAL_REGION` | Region pin (`x-frontal-region`, e.g. `iad`, `lhr`, `fra`, `sin`) | - | No |
-| `FRONTAL_TOOLSETS` | Comma-separated tool sets to register (invalid values are rejected) | `generic,ontology,data` | No |
-| `FRONTAL_HTTP_ALLOWED_ORIGINS` | Comma-separated CORS allowlist for the HTTP transport | - (no origin trusted) | No |
-| `MCP_LOG_LEVEL` | Log level | `info` | No |
+| Variable                       | Description                                                                    | Default                                               | Required  |
+| ------------------------------ | ------------------------------------------------------------------------------ | ----------------------------------------------------- | --------- |
+| `FRONTAL_API_KEY`              | Frontal API key (`frt_...`). Used by stdio only; never a fallback for HTTP     | -                                                     | For stdio |
+| `FRONTAL_BASE_URL`             | API base URL (bare host; `/v1/` is in the paths)                               | `https://api.frontal.dev`                             | No        |
+| `FRONTAL_REGION`               | Region pin (`x-frontal-region`, e.g. `iad`, `lhr`, `fra`, `sin`)               | -                                                     | No        |
+| `FRONTAL_TOOLSETS`             | Comma-separated tool sets to register (invalid values are rejected)            | `generic,ontology,data,workflows,integrations,events` | No        |
+| `FRONTAL_READ_ONLY`            | Offer only tools and operations that read data (`true`/`false`)                | `false`                                               | No        |
+| `FRONTAL_HTTP_ALLOWED_ORIGINS` | Comma-separated CORS allowlist for the HTTP transport                          | - (no origin trusted)                                 | No        |
+| `FRONTAL_HTTP_ALLOWED_HOSTS`   | Comma-separated `Host` allowlist for the HTTP transport (blocks DNS rebinding) | - (no host check)                                     | No        |
+| `FRONTAL_HTTP_MAX_BODY_BYTES`  | Largest HTTP request body accepted, in bytes                                   | `4194304`                                             | No        |
+| `MCP_LOG_LEVEL`                | Log level                                                                      | `info`                                                | No        |
 
 Over the HTTP transport, every **MCP request** must send a per-request
 `Authorization: Bearer frt_...` header (multi-tenant hosting); MCP requests
@@ -122,6 +177,13 @@ The `FRONTAL_API_KEY` env key is used only by the stdio transport and is never
 applied to HTTP requests. CORS trusts no origin by default: responses only carry
 `Access-Control-Allow-Origin` for origins listed in
 `FRONTAL_HTTP_ALLOWED_ORIGINS` (never `*`).
+
+The HTTP transport keeps no sessions. `GET` and `DELETE` on the MCP endpoint
+return `405`, no `Mcp-Session-Id` is issued, and `FRONTAL_HTTP_MAX_SESSIONS`
+is no longer read. See [docs/MCP_SERVER.md](docs/MCP_SERVER.md) for the
+supported protocol versions, and
+[docs/MIGRATION-2026-07-28.md](docs/MIGRATION-2026-07-28.md) for what changed
+and when 2025-era HTTP support will be retired.
 
 ### CLI Options
 
@@ -156,17 +218,17 @@ FRONTAL_TOOLSETS=generic,data FRONTAL_API_KEY=your_key ./dist/bin/frontal-mcp-se
 ### Programmatic Usage
 
 ```typescript
-import { FrontalMcpServer, createLogger } from '@frontal-labs/mcp-server';
+import { FrontalMcpServer, createLogger } from "@frontal-labs/mcp-server";
 
-import { createConfig } from '@frontal-labs/mcp-server';
+import { createConfig } from "@frontal-labs/mcp-server";
 
 const config = createConfig({
-  apiKey: 'frt_your_api_key',
-  toolsets: ['generic', 'ontology', 'data'],
-  transport: { transport: 'stdio' },
+  apiKey: "frt_your_api_key",
+  toolsets: ["generic", "ontology", "data"],
+  transport: { transport: "stdio" },
 });
 
-const logger = createLogger({ level: 'info' });
+const logger = createLogger({ level: "info" });
 const server = new FrontalMcpServer(config, logger);
 
 await server.initialize();
@@ -179,12 +241,13 @@ The server is a thin, spec-driven layer over the Frontal public API:
 
 1. **Vendored OpenAPI spec** (`openapi/public.v1.json`) indexed at startup —
    the source of truth for endpoints, params, and auth.
-2. **Frontal client** (`src/clients/frontal-client.ts`) — an edge-aware fetch
+2. **Frontal client** (`src/client.ts`) — an edge-aware fetch
    client (auth, pagination, retry matrix, idempotency, region pin, errors).
 3. **Tool adapters** — a generic (meta-tool) adapter plus curated
-   ontology/data adapters, gated by `FRONTAL_TOOLSETS`.
-4. **Transport layer** — stdio and Streamable HTTP, the latter binding a
-   per-request bearer token via AsyncLocalStorage.
+   adapters (ontology, data, workflows, integrations, events), gated by
+   `FRONTAL_TOOLSETS`.
+4. **Transport layer** — stdio and stateless Streamable HTTP on the MCP SDK
+   v2, the latter binding a per-request bearer token via AsyncLocalStorage.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
 
@@ -238,7 +301,8 @@ bun run type-check
   (vendored + refreshable via `bun run sync-spec`).
 - Generic meta-tools (full coverage) + curated ontology/data tools.
 - Edge-aware client (auth, pagination, retry matrix, idempotency, region pin).
-- stdio and Streamable HTTP transports, per-request auth over HTTP.
+- stdio and stateless Streamable HTTP transports, per-request auth over HTTP.
+- MCP protocol revision 2026-07-28, with 2025-era clients still served.
 - Test suite and CI (lint, type-check, coverage, build) plus Fly.io deploy.
 
 **Planned:**
@@ -268,6 +332,7 @@ We welcome contributions! Please see our [Developer Guide](docs/DEVELOPERS.md) f
 ### Common Issues
 
 **Server won't start:**
+
 ```bash
 # Check API key
 echo $FRONTAL_API_KEY
@@ -277,6 +342,7 @@ frontal-mcp-server --validate-config
 ```
 
 **Connection issues:**
+
 ```bash
 # Test with different transport
 frontal-mcp-server --transport http --port 3000
@@ -286,6 +352,7 @@ frontal-mcp-server --verbose
 ```
 
 **Performance issues:**
+
 ```bash
 # Enable debug logging
 MCP_LOG_LEVEL=debug frontal-mcp-server

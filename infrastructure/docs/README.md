@@ -17,6 +17,7 @@ infrastructure/
 ## 🐳 Docker Configuration
 
 ### Files
+
 - `Dockerfile` - Multi-stage build for production
 - `docker-compose.dev.yml` - Development environment with monitoring
 - `docker-compose.prod.yml` - Production environment with nginx
@@ -26,6 +27,7 @@ infrastructure/
 ### Usage
 
 #### Development
+
 ```bash
 # Copy environment file
 cp infrastructure/docker/.env.example .env
@@ -38,6 +40,7 @@ docker-compose -f infrastructure/docker/docker-compose.dev.yml logs -f mcp-serve
 ```
 
 #### Production
+
 ```bash
 # Start production environment
 docker-compose -f infrastructure/docker/docker-compose.prod.yml up -d
@@ -49,6 +52,7 @@ docker-compose -f infrastructure/docker/docker-compose.prod.yml up -d --scale mc
 ## ☸️ Kubernetes Configuration
 
 ### Files
+
 - `namespace.yaml` - Kubernetes namespace
 - `deployment.yaml` - Application deployment
 - `service.yaml` - Service configuration
@@ -60,11 +64,13 @@ docker-compose -f infrastructure/docker/docker-compose.prod.yml up -d --scale mc
 ### Deployment
 
 #### Prerequisites
+
 - Kubernetes cluster (EKS, GKE, or AKS)
 - kubectl configured
 - cert-manager installed (for TLS)
 
 #### Steps
+
 ```bash
 # Create namespace
 kubectl apply -f infrastructure/kubernetes/namespace.yaml
@@ -84,6 +90,7 @@ kubectl get ingress -n mcp-server
 ## 🏗️ Terraform Infrastructure
 
 ### Files
+
 - `main.tf` - Main Terraform configuration
 - `variables.tf` - Input variables
 - `eks.tf` - EKS cluster configuration
@@ -93,27 +100,32 @@ kubectl get ingress -n mcp-server
 ### Usage
 
 #### Initialize
+
 ```bash
 cd infrastructure/terraform
 terraform init
 ```
 
 #### Plan
+
 ```bash
 terraform plan -var-file="terraform.tfvars"
 ```
 
 #### Apply
+
 ```bash
 terraform apply -var-file="terraform.tfvars" -auto-approve
 ```
 
 #### Destroy
+
 ```bash
 terraform destroy -var-file="terraform.tfvars" -auto-approve
 ```
 
 ### Variables
+
 Create a `terraform.tfvars` file:
 
 ```hcl
@@ -128,12 +140,14 @@ enable_logging = true
 ## 📊 Monitoring and Observability
 
 ### Components
+
 - **Prometheus** - Metrics collection
 - **Grafana** - Visualization and dashboards
 - **AlertManager** - Alert management
 - **CloudWatch** - Logging (AWS)
 
 ### Files
+
 - `prometheus.yml` - Prometheus configuration
 - `alert_rules.yml` - Alert rules
 - `grafana/dashboards/` - Grafana dashboard definitions
@@ -141,10 +155,12 @@ enable_logging = true
 ### Access Points
 
 #### Development (Docker Compose)
+
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3001 (admin/admin)
 
 #### Production (Kubernetes)
+
 - Access via port-forward:
 ```bash
 kubectl port-forward -n monitoring svc/prometheus-server 9090:80
@@ -154,15 +170,18 @@ kubectl port-forward -n monitoring svc/grafana 3000:80
 ## 🚀 CI/CD Pipelines
 
 ### GitHub Actions
+
 - File: `ci/github-actions.yml`
 - Triggers: Push to main/develop, PRs, releases
 - Environments: staging, production
 
 ### GitLab CI
+
 - File: `ci/gitlab-ci.yml`
 - Similar workflow to GitHub Actions
 
 ### Pipeline Stages
+
 1. **Test** - Unit tests, linting, type checking
 2. **Security** - Vulnerability scanning
 3. **Build** - Docker image building and pushing
@@ -174,11 +193,13 @@ kubectl port-forward -n monitoring svc/grafana 3000:80
 ### Required Environment Variables
 
 #### Application
+
 - `FRONTAL_API_KEY` - Frontal API key
 - `FRONTAL_BASE_URL` - API base URL
 - `NODE_ENV` - Environment (development/production)
 
 #### Service Toggles
+
 - `ENABLE_AI` - Enable AI service
 - `ENABLE_BLOB` - Enable Blob service
 - `ENABLE_FUNCTIONS` - Enable Functions service
@@ -186,6 +207,7 @@ kubectl port-forward -n monitoring svc/grafana 3000:80
 - `ENABLE_PIPELINES` - Enable Pipelines service
 
 #### Infrastructure
+
 - `MCP_LOG_LEVEL` - Logging level
 - `KUBE_CONFIG_*` - Kubernetes configuration
 - `AWS_*` - AWS credentials (for Terraform)
@@ -193,12 +215,14 @@ kubectl port-forward -n monitoring svc/grafana 3000:80
 ## 🛠️ Local Development Setup
 
 ### Prerequisites
+
 - Docker and Docker Compose
 - Node.js 18+ and Bun
 - kubectl (for Kubernetes)
 - Terraform (for IaC)
 
 ### Quick Start
+
 ```bash
 # 1. Clone and setup
 git clone <repository>
@@ -225,6 +249,7 @@ bun run dev
 ### Common Issues
 
 #### Docker Issues
+
 ```bash
 # Clean up Docker resources
 docker system prune -a
@@ -235,6 +260,7 @@ docker-compose -f infrastructure/docker/docker-compose.dev.yml build --no-cache
 ```
 
 #### Kubernetes Issues
+
 ```bash
 # Check pod status
 kubectl describe pod -n mcp-server
@@ -247,6 +273,7 @@ kubectl rollout restart deployment/frontal-mcp-server -n mcp-server
 ```
 
 #### Terraform Issues
+
 ```bash
 # Reinitialize Terraform
 rm -rf .terraform

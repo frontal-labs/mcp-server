@@ -57,66 +57,74 @@ export interface ServiceAdapter {
 
 ## Transport Mechanisms
 
+The server is built on the MCP TypeScript SDK v2 (`@modelcontextprotocol/server`)
+and speaks two protocol eras from the same tool definitions:
+
+| Era    | Protocol versions                          | How a connection starts                                                                                                                          |
+| ------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Modern | `2026-07-28`                               | No handshake. Each request carries the protocol version and client capabilities in `_meta`; `server/discover` returns the server's capabilities. |
+| Legacy | `2025-11-25` and earlier 2025-era versions | The `initialize` handshake.                                                                                                                      |
+
 ### Stdio Transport
 
-The stdio transport uses standard input/output for communication, ideal for local AI assistants.
+For local clients such as Claude Desktop. The API key comes from
+`FRONTAL_API_KEY` (or `--api-key`). Logs go to stderr.
 
 ```typescript
-// Implementation
-async connectStdio(): Promise<void> {
-  const transport = new StdioServerTransport();
-  await this.server.connect(transport);
-  this.logger.info("Connected via stdio transport");
+// src/mcp/index.ts
+connectStdio(): Promise<void> {
+  this.stdio = serveStdio(() => this.createServer(), { /* ... */ });
 }
 ```
 
+The client's opening message selects the era, and one server instance then
+serves the connection for its lifetime.
+
 **Usage:**
+
 ```bash
 frontal-mcp-server --transport stdio
 ```
 
-**Message Format:**
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": {
-    "name": "ai-generate-text",
-    "arguments": {
-      "model": "frontal-gpt-4",
-      "prompt": "Hello world"
-    }
-  },
-  "id": 1
-}
-```
-
 ### HTTP Transport
 
-The HTTP transport provides a REST API interface for remote integration.
+For remote, multi-tenant use. The transport is **stateless**: it keeps no
+sessions, builds a fresh server instance for every request, and can run as any
+number of instances behind a load balancer.
 
 ```typescript
-// Implementation
-async connectHttp(): Promise<void> {
-  const transport = new HttpTransport(
-    this.config.http.port,
-    this.config.http.host
-  );
-  await this.server.connect(transport);
-  this.logger.info(`Connected via HTTP transport on ${this.config.http.host}:${this.config.http.port}`);
-}
+// src/middlewares/http-transport.ts
+this.handler = createMcpHandler(createMcpServer, {
+  legacy: "stateless",
+  maxRequestBodySize: this.maxRequestBodyBytes,
+});
 ```
 
 **Usage:**
+
 ```bash
 frontal-mcp-server --transport http --port 3000
 ```
 
 **Endpoints:**
-- `POST /tools/call` - Execute a tool
-- `GET /tools/list` - List available tools
-- `GET /resources/list` - List available resources
-- `POST /resources/read` - Read a resource
+
+- `POST /mcp` (any path other than `/health`): the MCP endpoint. Every request
+  must carry `Authorization: Bearer frt_...`.
+- `GET /health`: returns `200 {"status":"ok"}` without a token.
+- `GET` and `DELETE` on the MCP endpoint return `405`. They were the session
+  operations of the 2025-era transport, and there are no sessions.
+
+**Request headers (modern era):** `MCP-Protocol-Version`, `Mcp-Method` and
+`Mcp-Name` are required by the 2026-07-28 revision. MCP client libraries send
+them for you. They are allowed and exposed over CORS for origins listed in
+`FRONTAL_HTTP_ALLOWED_ORIGINS`.
+
+**Caching (modern era):** `tools/list` and `server/discover` results carry
+`ttlMs: 300000` and `cacheScope: "private"`.
+
+**Legacy clients:** a 2025-era client still works. Each of its requests is
+served independently, no `Mcp-Session-Id` is issued, and one sent by the
+client is ignored.
 
 ## Service Adapters
 
@@ -364,9 +372,7 @@ export function createConfig(options: ConfigOptions): ServerConfig {
   const envConfig = loadFromEnv();
 
   // Load from config file if specified
-  const fileConfig = options.configPath
-    ? loadFromFile(options.configPath)
-    : {};
+  const fileConfig = options.configPath ? loadFromFile(options.configPath) : {};
 
   // Apply CLI overrides
   const cliConfig = applyCliOverrides(options);
@@ -389,19 +395,19 @@ export class McpServerError extends Error {
     public readonly details?: any
   ) {
     super(message);
-    this.name = 'McpServerError';
+    this.name = "McpServerError";
   }
 }
 
 export class ValidationError extends McpServerError {
   constructor(message: string, details?: any) {
-    super(message, 'VALIDATION_ERROR', details);
+    super(message, "VALIDATION_ERROR", details);
   }
 }
 
 export class ServiceError extends McpServerError {
   constructor(service: string, message: string, details?: any) {
-    super(`${service} service error: ${message}`, 'SERVICE_ERROR', details);
+    super(`${service} service error: ${message}`, "SERVICE_ERROR", details);
   }
 }
 ```
@@ -426,21 +432,22 @@ export interface ErrorResponse {
 // Centralized error handling
 export function handleError(error: unknown, requestId?: string): ErrorResponse {
   // Log full error for debugging
-  logger.error('MCP Server error', { error, requestId });
+  logger.error("MCP Server error", { error, requestId });
 
   // Convert to MCP error
-  const mcpError = error instanceof McpServerError
-    ? error
-    : new McpServerError('Internal server error', 'INTERNAL_ERROR');
+  const mcpError =
+    error instanceof McpServerError
+      ? error
+      : new McpServerError("Internal server error", "INTERNAL_ERROR");
 
   return {
     error: {
       code: mcpError.code,
       message: mcpError.message,
-      details: mcpError.details
+      details: mcpError.details,
     },
     id: requestId ?? null,
-    jsonrpc: "2.0"
+    jsonrpc: "2.0",
   };
 }
 ```
@@ -460,13 +467,13 @@ export function createLogger(config: LoggerConfig): Logger {
       winston.format.json()
     ),
     defaultMeta: {
-      service: 'frontal-mcp-server',
-      version: process.env.npm_package_version
+      service: "frontal-mcp-server",
+      version: process.env.npm_package_version,
     },
     transports: [
       new winston.transports.Console(),
-      new winston.transports.File({ filename: 'mcp-server.log' })
-    ]
+      new winston.transports.File({ filename: "mcp-server.log" }),
+    ],
   });
 }
 ```
@@ -478,23 +485,23 @@ export function createLogger(config: LoggerConfig): Logger {
 export const metrics = {
   // Request metrics
   requestCount: new Counter({
-    name: 'mcp_requests_total',
-    help: 'Total number of MCP requests',
-    labelNames: ['service', 'tool', 'status']
+    name: "mcp_requests_total",
+    help: "Total number of MCP requests",
+    labelNames: ["service", "tool", "status"],
   }),
 
   requestDuration: new Histogram({
-    name: 'mcp_request_duration_seconds',
-    help: 'Duration of MCP requests',
-    labelNames: ['service', 'tool']
+    name: "mcp_request_duration_seconds",
+    help: "Duration of MCP requests",
+    labelNames: ["service", "tool"],
   }),
 
   // Error metrics
   errorCount: new Counter({
-    name: 'mcp_errors_total',
-    help: 'Total number of MCP errors',
-    labelNames: ['service', 'tool', 'error_type']
-  })
+    name: "mcp_errors_total",
+    help: "Total number of MCP errors",
+    labelNames: ["service", "tool", "error_type"],
+  }),
 };
 ```
 
@@ -506,17 +513,17 @@ export const metrics = {
 // API key validation
 export function validateApiKey(apiKey: string): boolean {
   if (!apiKey || apiKey.length < 32) {
-    throw new ValidationError('Invalid API key format');
+    throw new ValidationError("Invalid API key format");
   }
   return true;
 }
 
 // Request authentication
 export function authenticateRequest(request: MCPRequest): void {
-  const apiKey = request.headers?.['authorization']?.replace('Bearer ', '');
+  const apiKey = request.headers?.["authorization"]?.replace("Bearer ", "");
 
   if (!apiKey) {
-    throw new AuthenticationError('Missing API key');
+    throw new AuthenticationError("Missing API key");
   }
 
   validateApiKey(apiKey);
@@ -531,7 +538,7 @@ export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown): T {
   try {
     return schema.parse(input);
   } catch (error) {
-    throw new ValidationError('Invalid input', error.issues);
+    throw new ValidationError("Invalid input", error.issues);
   }
 }
 ```
@@ -576,7 +583,7 @@ export class ConnectionPool {
       return this.createConnection();
     }
 
-    throw new Error('Connection pool exhausted');
+    throw new Error("Connection pool exhausted");
   }
 
   release(connection: Connection): void {
@@ -609,7 +616,10 @@ export class CacheManager {
       const redisValue = await this.redisCache.get(key);
       if (redisValue) {
         const parsed = JSON.parse(redisValue);
-        this.memoryCache.set(key, { value: parsed, expiresAt: Date.now() + 60000 });
+        this.memoryCache.set(key, {
+          value: parsed,
+          expiresAt: Date.now() + 60000,
+        });
         return parsed;
       }
     }
@@ -625,7 +635,7 @@ export class CacheManager {
 
 ```typescript
 // tests/unit/ai-adapter.test.ts
-describe('AIAdapter', () => {
+describe("AIAdapter", () => {
   let adapter: AIAdapter;
   let mockApiClient: MockAPIClient;
 
@@ -634,12 +644,12 @@ describe('AIAdapter', () => {
     adapter = new AIAdapter(mockConfig, mockLogger);
   });
 
-  it('should register tools correctly', () => {
+  it("should register tools correctly", () => {
     const mockServer = createMockMcpServer();
     adapter.registerTools(mockServer);
 
     expect(mockServer.registerTool).toHaveBeenCalledWith(
-      'ai-generate-text',
+      "ai-generate-text",
       expect.any(Object),
       expect.any(Function)
     );
@@ -651,7 +661,7 @@ describe('AIAdapter', () => {
 
 ```typescript
 // tests/integration/mcp-server.test.ts
-describe('FrontalMcpServer Integration', () => {
+describe("FrontalMcpServer Integration", () => {
   let server: FrontalMcpServer;
 
   beforeAll(async () => {
@@ -659,14 +669,14 @@ describe('FrontalMcpServer Integration', () => {
     await server.initialize();
   });
 
-  it('should handle tool calls end-to-end', async () => {
-    const result = await server.callTool('ai-generate-text', {
-      model: 'frontal-gpt-4',
-      prompt: 'Test prompt'
+  it("should handle tool calls end-to-end", async () => {
+    const result = await server.callTool("ai-generate-text", {
+      model: "frontal-gpt-4",
+      prompt: "Test prompt",
     });
 
     expect(result.success).toBe(true);
-    expect(result.data).toHaveProperty('text');
+    expect(result.data).toHaveProperty("text");
   });
 });
 ```
@@ -719,23 +729,23 @@ spec:
         app: frontal-mcp-server
     spec:
       containers:
-      - name: mcp-server
-        image: frontal/mcp-server:latest
-        ports:
-        - containerPort: 3000
-        env:
-        - name: FRONTAL_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: frontal-secrets
-              key: api-key
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+        - name: mcp-server
+          image: frontal/mcp-server:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: FRONTAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: frontal-secrets
+                  key: api-key
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
 ```
 
 ## Troubleshooting

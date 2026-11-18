@@ -6,10 +6,11 @@ repos:
     hooks:
       - id: end-of-file-fixer
       - id: check-yaml
-        # Vendored k8s-manifest-generator assets are intentional
-        # multi-document templates for `kubectl apply`, which the
-        # single-document check-yaml hook cannot validate.
-        exclude: ^skills/k8s-manifest-generator/assets/
+        # Vendored k8s-manifest-generator assets and the kubernetes/
+        # manifests are intentional multi-document files for `kubectl
+        # apply`, which the single-document check-yaml hook cannot
+        # validate.
+        exclude: (^skills/k8s-manifest-generator/assets/|^infrastructure/kubernetes/)
       - id: check-json
       - id: check-added-large-files
       - id: debug-statements
@@ -17,7 +18,7 @@ repos:
       - id: check-merge-conflict
       - id: fix-byte-order-marker
       - id: mixed-line-ending
-        args: ['--fix=lf']
+        args: ["--fix=lf"]
       - id: check-toml
       - id: check-xml
       # NOTE: no pretty-format-json here. Biome (via ultracite) owns JSON
@@ -26,7 +27,7 @@ repos:
       # made `bun run check` and `git commit` reformat the same files back
       # and forth forever. `check-json` above still validates syntax.
       - id: trailing-whitespace
-        args: ['--markdown-linebreak-ext=md']
+        args: ["--markdown-linebreak-ext=md"]
   # Local hooks mirror the checks husky enforced (biome, type-check, test,
   # commitlint) so parity is preserved after the migration.
   # The gitleaks hook is new (no husky predecessor): it scans staged changes

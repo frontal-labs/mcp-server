@@ -41,8 +41,8 @@ jobs:
           stale-issue-label: stale
           stale-pr-label: stale
 
-          exempt-issue-labels: 'security,priority-critical,epic,needs-discussion'
-          exempt-pr-labels: 'security,priority-critical,work-in-progress,dependencies'
+          exempt-issue-labels: "security,priority-critical,epic,needs-discussion"
+          exempt-pr-labels: "security,priority-critical,work-in-progress,dependencies"
 
           exempt-draft-pr: true
           exempt-all-milestones: true

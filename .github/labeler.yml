@@ -2,35 +2,35 @@
 labels:
   - name: documentation
     pattern:
-      - '*.md'
-      - 'docs/**'
+      - "*.md"
+      - "docs/**"
 
   - name: bug
     pattern:
-      - 'src/**'
+      - "src/**"
 
   - name: dependencies
     pattern:
-      - 'package.json'
-      - 'bun.lock'
+      - "package.json"
+      - "bun.lock"
 
   - name: ci/cd
     pattern:
-      - '.github/**'
+      - ".github/**"
 
   - name: tests
     pattern:
-      - '**/test/**'
-      - '**/tests/**'
-      - 'e2e/**'
+      - "**/test/**"
+      - "**/tests/**"
+      - "e2e/**"
 
   - name: enhancement
     pattern:
-      - 'src/**'
+      - "src/**"
 
   - name: security
     pattern:
-      - 'SECURITY.md'
-      - '.gitleaks.toml'
+      - "SECURITY.md"
+      - ".gitleaks.toml"
 
 only: PRs

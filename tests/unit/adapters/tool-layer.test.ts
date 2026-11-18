@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer } from "@modelcontextprotocol/server";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { FrontalClient } from "@/client.js";
 import { loadSpecIndex } from "@/spec/spec-index.js";

@@ -5,12 +5,14 @@ Thank you for your interest in contributing to the Frontal MCP Server! This docu
 ## Development Setup
 
 ### Prerequisites
+
 - Node.js 18 or higher
 - Bun 1.3.8 or higher
 - Git
 - Gitleaks 8.30.1 or higher (`brew install gitleaks`) — enforced via pre-commit and CI
 
 ### Getting Started
+
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/your-username/mcp-server.git`
 3. Navigate to the project: `cd mcp-server`
@@ -20,6 +22,7 @@ Thank you for your interest in contributing to the Frontal MCP Server! This docu
 ## Development Workflow
 
 ### Running Tests
+
 ```bash
 # Run all tests
 bun run test
@@ -32,6 +35,7 @@ bun run test:coverage
 ```
 
 ### Building
+
 ```bash
 # Build the project
 bun run build
@@ -41,6 +45,7 @@ bun run build:watch
 ```
 
 ### Linting and Formatting
+
 ```bash
 # Run linter
 bun run lint
@@ -53,11 +58,13 @@ bun run type-check
 ```
 
 ### Secret Scanning
+
 Gitleaks scans staged changes on every commit (pre-commit hook) and the full
 history on every PR/push plus weekly (`.github/workflows/gitleaks.yml`).
 Policy lives in `.gitleaks.toml`, which allowlists verified dummy values only
 (test fixtures, placeholders, public-spec examples) — never add a real
 credential there.
+
 ```bash
 # Full history + working tree scan
 bun run secrets:scan
@@ -71,6 +78,7 @@ bun run secrets:scan:staged
 We use Biome for linting and formatting. The configuration is defined in `biome.jsonc`.
 
 ### Guidelines
+
 - Use TypeScript for all new code
 - Follow the existing code style and patterns
 - Write meaningful commit messages following [Conventional Commits](https://www.conventionalcommits.org/)
@@ -80,7 +88,9 @@ We use Biome for linting and formatting. The configuration is defined in `biome.
 ## Submitting Changes
 
 ### Commit Messages
+
 Follow the Conventional Commits format:
+
 - `feat:` for new features
 - `fix:` for bug fixes
 - `docs:` for documentation changes
@@ -90,6 +100,7 @@ Follow the Conventional Commits format:
 - `chore:` for maintenance tasks
 
 Example:
+
 ```
 feat(server): add support for custom adapters
 
@@ -100,6 +111,7 @@ Closes #123
 ```
 
 ### Pull Requests
+
 1. Update your fork with the latest changes from the main repository
 2. Create a new branch for your feature or bugfix
 3. Make your changes and add tests
@@ -109,11 +121,13 @@ Closes #123
 ## Testing
 
 ### Unit Tests
+
 - Write unit tests for all new functionality
 - Use Vitest as the testing framework
 - Aim for high test coverage
 
 ### Integration Tests
+
 - Integration tests are located in the `tests/integration/` directory
 - Test the interaction between different components
 
@@ -140,6 +154,7 @@ By contributing to this project, you agree that your contributions will be licen
 ## Release Process
 
 Releases are managed using Changesets:
+
 1. Add a changeset for your changes: `bun run changeset`
 2. When ready to release, run: `bun run release`
 

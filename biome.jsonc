@@ -7,6 +7,11 @@
       "!coverage",
       "!openapi",
       "!bun.lock",
+      // Vendored dev-only agent skills; not part of the shipped server.
+      "!skills",
+      // Changesets use a fixed YAML front-matter layout the changesets CLI
+      // must parse; Biome's markdown formatter rewrites it into a heading.
+      "!.changeset",
       // Per-machine local state, not shared config.
       "!**/.claude/settings.local.json"
     ]

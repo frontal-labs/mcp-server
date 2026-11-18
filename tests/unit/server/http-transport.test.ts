@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 import { request } from "node:http";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "winston";
+import { z } from "zod";
+import { getRequestToken } from "@/middlewares/auth.js";
 import { HttpTransport } from "@/middlewares/http-transport.js";
 import { createLogger } from "@/utils/logger.js";
 
@@ -62,21 +64,55 @@ function requestWithHost(
   });
 }
 
-function createMockMcpServer() {
-  return {
-    connect: vi.fn().mockResolvedValue(undefined),
-  } as unknown as McpServer;
+/** A real server with one tool, so `tools/list` has something to answer. */
+function createTestMcpServer(): McpServer {
+  const server = new McpServer({ name: "test", version: "0.0.0" });
+  server.registerTool("echo", { description: "Echo" }, () => ({
+    content: [{ type: "text", text: "ok" }],
+  }));
+  return server;
+}
+
+const JSON_HEADERS = {
+  "Content-Type": "application/json",
+  Accept: "application/json, text/event-stream",
+};
+
+function legacyBody(method: string, id = 1): string {
+  const params =
+    method === "initialize"
+      ? {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "probe", version: "0.0.0" },
+        }
+      : {};
+  return JSON.stringify({ jsonrpc: "2.0", id, method, params });
+}
+
+/** Parse a JSON-RPC response sent either as JSON or as a one-event SSE body. */
+async function readRpc(response: Response): Promise<Record<string, unknown>> {
+  const text = await response.text();
+  const data = text
+    .split("\n")
+    .find((line) => line.startsWith("data:"))
+    ?.slice("data:".length);
+  return JSON.parse(data ?? text) as Record<string, unknown>;
 }
 
 describe("HttpTransport", () => {
   let logger: Logger;
-  let mockMcpServer: McpServer;
+  let created: McpServer[];
   let mcpServerFactory: () => McpServer;
 
   beforeEach(() => {
     logger = createLogger({ level: "error" });
-    mockMcpServer = createMockMcpServer();
-    mcpServerFactory = () => mockMcpServer;
+    created = [];
+    mcpServerFactory = () => {
+      const server = createTestMcpServer();
+      created.push(server);
+      return server;
+    };
   });
 
   it("should construct without error", () => {
@@ -96,10 +132,9 @@ describe("HttpTransport", () => {
       const response = await fetch(`http://127.0.0.1:${port}/health`);
       expect(response.status).toBe(200);
 
-      // ...but no MCP server is connected yet. Servers are created per
-      // session on `initialize`, not once at startup — binding a single
-      // server at startup would let only the first client connect.
-      expect(mockMcpServer.connect).not.toHaveBeenCalled();
+      // ...but no MCP server exists yet. Servers are created per request,
+      // not once at startup.
+      expect(created).toHaveLength(0);
     } finally {
       await transport.stop();
     }
@@ -235,7 +270,7 @@ describe("HttpTransport", () => {
     }
   });
 
-  it("should handle malformed JSON with 500 error", async () => {
+  it("answers malformed JSON with a JSON-RPC parse error, not a crash", async () => {
     const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
@@ -244,16 +279,16 @@ describe("HttpTransport", () => {
       const response = await fetch(`http://127.0.0.1:${port}`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          ...JSON_HEADERS,
           // Authenticated so the request reaches JSON parsing (not the 401 gate).
           Authorization: "Bearer frt_test",
         },
         body: "not valid json{{{",
       });
 
-      expect(response.status).toBe(500);
-      const data = (await response.json()) as { error: string };
-      expect(data.error).toBe("Internal server error");
+      expect(response.status).toBe(400);
+      const data = (await response.json()) as { error: { code: number } };
+      expect(data.error.code).toBe(-32_700);
     } finally {
       await transport.stop();
     }
@@ -265,44 +300,26 @@ describe("HttpTransport", () => {
     await transport1.start(port, "127.0.0.1");
 
     try {
-      const transport2 = new HttpTransport(() => createMockMcpServer(), logger);
+      const transport2 = new HttpTransport(mcpServerFactory, logger);
       await expect(transport2.start(port, "127.0.0.1")).rejects.toThrow();
     } finally {
       await transport1.stop();
     }
   });
 
-  it("gives each client its own session instead of rejecting the second", async () => {
-    // Regression: a single shared StreamableHTTPServerTransport made the
-    // second and every later client fail with "Server already initialized",
-    // so only one tenant could ever use an HTTP deployment.
-    const created: McpServer[] = [];
-    const transport = new HttpTransport(() => {
-      const server = new McpServer({ name: "test", version: "0.0.0" });
-      created.push(server);
-      return server;
-    }, logger);
+  it("serves every client from a fresh server and issues no session id", async () => {
+    // Replaces the session-era test "gives each client its own session".
+    // The transport is stateless: each request gets its own server instance,
+    // so any number of tenants can connect and no session id is handed out.
+    const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
 
     const initialize = (token: string) =>
       fetch(`http://127.0.0.1:${port}/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json, text/event-stream",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "initialize",
-          params: {
-            protocolVersion: "2024-11-05",
-            capabilities: {},
-            clientInfo: { name: "probe", version: "0.0.0" },
-          },
-        }),
+        headers: { ...JSON_HEADERS, Authorization: `Bearer ${token}` },
+        body: legacyBody("initialize"),
       });
 
     try {
@@ -311,73 +328,35 @@ describe("HttpTransport", () => {
 
       expect(first.status).toBe(200);
       expect(second.status).toBe(200);
-
-      // Distinct sessions, each backed by its own server instance.
-      const firstId = first.headers.get("mcp-session-id");
-      const secondId = second.headers.get("mcp-session-id");
-      expect(firstId).toBeTruthy();
-      expect(secondId).toBeTruthy();
-      expect(firstId).not.toBe(secondId);
+      expect(first.headers.get("mcp-session-id")).toBeNull();
+      expect(second.headers.get("mcp-session-id")).toBeNull();
       expect(created).toHaveLength(2);
+      expect(created[0]).not.toBe(created[1]);
     } finally {
       await transport.stop();
     }
   });
 
-  it("closes sessions that go idle past the timeout", async () => {
-    // A client that crashes or drops off the network never sends DELETE, so
-    // sessions must also expire on their own or they accumulate forever.
-    const transport = new HttpTransport(
-      () => new McpServer({ name: "test", version: "0.0.0" }),
-      logger,
-      { sessionIdleTimeoutMs: 1, sessionSweepIntervalMs: 10 }
-    );
+  it("answers a request that was never preceded by initialize", async () => {
+    // Replaces the session-era test "closes sessions that go idle past the
+    // timeout". There are no sessions to expire: a request is complete on
+    // its own, so a client is never told that its session went away.
+    const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
 
     try {
       const response = await fetch(`http://127.0.0.1:${port}/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json, text/event-stream",
-          Authorization: "Bearer frt_test",
-        },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "initialize",
-          params: {
-            protocolVersion: "2024-11-05",
-            capabilities: {},
-            clientInfo: { name: "probe", version: "0.0.0" },
-          },
-        }),
+        headers: { ...JSON_HEADERS, Authorization: "Bearer frt_test" },
+        body: legacyBody("tools/list"),
       });
-      const sessionId = response.headers.get("mcp-session-id");
-      expect(sessionId).toBeTruthy();
-      await response.body?.cancel();
 
-      // Wait for a sweep to evict the now-idle session.
-      await vi.waitFor(
-        async () => {
-          const followUp = await fetch(`http://127.0.0.1:${port}/`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: "Bearer frt_test",
-              "Mcp-Session-Id": sessionId as string,
-            },
-            body: JSON.stringify({
-              jsonrpc: "2.0",
-              id: 2,
-              method: "tools/list",
-            }),
-          });
-          expect(followUp.status).toBe(404);
-        },
-        { timeout: 3000, interval: 50 }
-      );
+      expect(response.status).toBe(200);
+      const rpc = (await readRpc(response)) as {
+        result: { tools: { name: string }[] };
+      };
+      expect(rpc.result.tools.map((tool) => tool.name)).toEqual(["echo"]);
     } finally {
       await transport.stop();
     }
@@ -551,53 +530,27 @@ describe("HttpTransport", () => {
     }
   });
 
-  it("refuses new sessions once the session limit is reached", async () => {
-    // Each session holds its own McpServer, so unbounded session creation is
-    // a memory-exhaustion vector; the process should degrade with 503 rather
-    // than run out of memory.
-    const transport = new HttpTransport(
-      () => new McpServer({ name: "test", version: "0.0.0" }),
-      logger,
-      { maxSessions: 2 }
-    );
+  it("holds no per-client state, so there is no session limit to hit", async () => {
+    // Replaces the session-era test "refuses new sessions once the session
+    // limit is reached". Nothing is retained between requests, so many
+    // handshakes in a row all succeed and none is answered 503.
+    const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
 
-    const initialize = () =>
-      fetch(`http://127.0.0.1:${port}/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json, text/event-stream",
-          Authorization: "Bearer frt_test",
-        },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "initialize",
-          params: {
-            protocolVersion: "2024-11-05",
-            capabilities: {},
-            clientInfo: { name: "probe", version: "0.0.0" },
-          },
-        }),
-      });
-
     try {
-      const first = await initialize();
-      const second = await initialize();
-      expect(first.status).toBe(200);
-      expect(second.status).toBe(200);
-      await first.body?.cancel();
-      await second.body?.cancel();
+      const HANDSHAKES = 20;
+      for (let index = 0; index < HANDSHAKES; index++) {
+        const response = await fetch(`http://127.0.0.1:${port}/`, {
+          method: "POST",
+          headers: { ...JSON_HEADERS, Authorization: "Bearer frt_test" },
+          body: legacyBody("initialize"),
+        });
+        expect(response.status).toBe(200);
+        await response.body?.cancel();
+      }
+      expect(created).toHaveLength(HANDSHAKES);
 
-      const third = await initialize();
-      expect(third.status).toBe(503);
-      expect(third.headers.get("retry-after")).toBe("60");
-      const data = (await third.json()) as { error: { message: string } };
-      expect(data.error.message).toContain("session limit");
-
-      // The server is still healthy for everyone else.
       const health = await fetch(`http://127.0.0.1:${port}/health`);
       expect(health.status).toBe(200);
     } finally {
@@ -606,7 +559,7 @@ describe("HttpTransport", () => {
   });
 
   it("rejects an oversized body declared by content-length", async () => {
-    // The body is buffered before the session is resolved, so an unbounded
+    // The body is buffered before the request is dispatched, so an unbounded
     // read lets one caller exhaust the process.
     const transport = new HttpTransport(mcpServerFactory, logger, {
       maxRequestBodyBytes: 1024,
@@ -649,14 +602,17 @@ describe("HttpTransport", () => {
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
       });
 
-      // Reaches session routing rather than being rejected on size.
+      // Reaches the MCP handler rather than being rejected on size.
       expect(response.status).not.toBe(413);
     } finally {
       await transport.stop();
     }
   });
 
-  it("rejects a request carrying an unknown session id", async () => {
+  it("serves a request that carries a stale session id", async () => {
+    // Replaces the session-era test "rejects a request carrying an unknown
+    // session id". A client that still sends the id it got from an older
+    // deployment must keep working: the header is ignored.
     const transport = new HttpTransport(mcpServerFactory, logger);
     const port = 30000 + Math.floor(Math.random() * 10000);
     await transport.start(port, "127.0.0.1");
@@ -665,18 +621,108 @@ describe("HttpTransport", () => {
       const response = await fetch(`http://127.0.0.1:${port}/`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          ...JSON_HEADERS,
           Authorization: "Bearer frt_test",
           "Mcp-Session-Id": "00000000-0000-4000-8000-000000000000",
         },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+        body: legacyBody("tools/list"),
       });
 
-      expect(response.status).toBe(404);
-      const data = (await response.json()) as {
-        error: { code: number; message: string };
-      };
-      expect(data.error.message).toContain("initialize");
+      expect(response.status).toBe(200);
+    } finally {
+      await transport.stop();
+    }
+  });
+
+  it("answers GET and DELETE on the MCP endpoint with 405", async () => {
+    // They were the session operations (event stream, session teardown).
+    const transport = new HttpTransport(mcpServerFactory, logger);
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    try {
+      for (const method of ["GET", "DELETE"]) {
+        const response = await fetch(`http://127.0.0.1:${port}/`, {
+          method,
+          headers: {
+            Accept: "text/event-stream",
+            Authorization: "Bearer frt_test",
+          },
+        });
+        expect(response.status).toBe(405);
+      }
+    } finally {
+      await transport.stop();
+    }
+  });
+
+  it("allows and exposes the 2026-07-28 MCP headers over CORS, not the session id", async () => {
+    const transport = new HttpTransport(mcpServerFactory, logger, {
+      allowedOrigins: ["https://trusted.example"],
+    });
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}`, {
+        method: "OPTIONS",
+        headers: { Origin: "https://trusted.example" },
+      });
+      const allowed = response.headers.get("access-control-allow-headers");
+      const exposed = response.headers.get("access-control-expose-headers");
+
+      for (const header of ["MCP-Protocol-Version", "Mcp-Method", "Mcp-Name"]) {
+        expect(allowed).toContain(header);
+        expect(exposed).toContain(header);
+      }
+      expect(allowed).toContain("Authorization");
+      expect(exposed).toContain("RateLimit-Remaining");
+      expect(exposed).toContain("Retry-After");
+      expect(allowed).not.toContain("Mcp-Session-Id");
+      expect(exposed).not.toContain("Mcp-Session-Id");
+      expect(
+        response.headers.get("access-control-allow-methods")
+      ).not.toContain("DELETE");
+    } finally {
+      await transport.stop();
+    }
+  });
+
+  it("keeps the caller's token isolated between concurrent requests", async () => {
+    // Each request runs inside `runWithToken`; a tool must only ever see the
+    // token of the request it is serving, even when requests interleave.
+    const seen: Record<string, string | undefined> = {};
+    const transport = new HttpTransport(() => {
+      const server = new McpServer({ name: "test", version: "0.0.0" });
+      server.registerTool(
+        "whoami",
+        { inputSchema: z.object({ label: z.string() }) },
+        async ({ label }) => {
+          await new Promise((done) => setTimeout(done, label === "a" ? 30 : 5));
+          seen[label] = getRequestToken();
+          return { content: [{ type: "text", text: label }] };
+        }
+      );
+      return server;
+    }, logger);
+    const port = 30000 + Math.floor(Math.random() * 10000);
+    await transport.start(port, "127.0.0.1");
+
+    const call = (label: string, token: string) =>
+      fetch(`http://127.0.0.1:${port}/`, {
+        method: "POST",
+        headers: { ...JSON_HEADERS, Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name: "whoami", arguments: { label } },
+        }),
+      }).then((response) => response.text());
+
+    try {
+      await Promise.all([call("a", "frt_tenant_a"), call("b", "frt_tenant_b")]);
+      expect(seen).toEqual({ a: "frt_tenant_a", b: "frt_tenant_b" });
     } finally {
       await transport.stop();
     }

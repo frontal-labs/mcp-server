@@ -5,18 +5,23 @@ This directory contains practical examples and integration patterns for using th
 ## Available Examples
 
 ### [claude-desktop.json](./claude-desktop.json)
+
 Basic Claude Desktop configuration for stdio transport integration.
 
 ### HTTP Integration
+
 Complete HTTP transport example with Express.js server and web client.
 
 ### AI Assistant
+
 Custom AI assistant implementation showing programmatic MCP integration.
 
 ### Batch Processing
+
 Batch processing examples with rate limiting and error handling.
 
 ### Monitoring
+
 Performance monitoring and analytics integration examples.
 
 ## Quick Start
@@ -29,6 +34,7 @@ Performance monitoring and analytics integration examples.
 ## Integration Patterns
 
 ### Claude Desktop
+
 ```json
 {
   "mcpServers": {
@@ -44,15 +50,16 @@ Performance monitoring and analytics integration examples.
 ```
 
 ### HTTP Web Server
+
 ```typescript
-import { FrontalMcpServer } from '@frontal-labs/mcp-server';
+import { FrontalMcpServer } from "@frontal-labs/mcp-server";
 
 const server = new FrontalMcpServer({
   apiKey: process.env.FRONTAL_API_KEY,
   transport: {
-    transport: 'http',
-    http: { host: 'localhost', port: 3000 }
-  }
+    transport: "http",
+    http: { host: "localhost", port: 3000 },
+  },
 });
 
 await server.initialize();
@@ -60,14 +67,15 @@ await server.connectHttp();
 ```
 
 ### Custom AI Assistant
+
 ```typescript
 class MyAssistant {
   constructor(private mcpServer: FrontalMcpServer) {}
 
   async processRequest(request: string) {
-    return await this.mcpServer.callTool('ai-generate-text', {
-      model: 'frontal-gpt-4',
-      prompt: request
+    return await this.mcpServer.callTool("ai-generate-text", {
+      model: "frontal-gpt-4",
+      prompt: request,
     });
   }
 }

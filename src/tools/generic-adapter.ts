@@ -13,9 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ZodRawShapeCompat } from "@modelcontextprotocol/sdk/server/zod-compat.js";
+import type { McpServer, ServerContext } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { confirmWrite, notConfirmed } from "@/tools/confirmation.js";
+import {
+  ANNOTATIONS,
+  isReadOnlyOperation,
+  isSafeMethod,
+} from "@/tools/policy.js";
 import {
   type CallOperationInput,
   callOperation,
@@ -25,6 +30,9 @@ import {
 } from "@/tools/tool-helpers.js";
 import type { AdapterContext, ServiceAdapter } from "@/tools/types.js";
 import { ERROR_CODE, SpecError, ToolInputError } from "@/types/errors.js";
+
+const CALL_ENDPOINT_DESCRIPTION =
+  "Invoke any Frontal public API operation. Identify it either by operationId, or by method + templated path. Provide pathParams for `{placeholders}`, query for query-string params, and body for the JSON request body. Set autoPaginate for cursor-paginated GET lists.";
 
 const DEFAULT_PAGE = 50;
 const MAX_PAGE = 200;
@@ -40,7 +48,7 @@ export class GenericAdapter implements ServiceAdapter {
   }
 
   private registerListEndpoints(server: McpServer, ctx: AdapterContext): void {
-    const listEndpointsSchema = {
+    const listEndpointsSchema = z.object({
       tag: z.string().optional().describe("Filter by tag"),
       search: z
         .string()
@@ -48,7 +56,7 @@ export class GenericAdapter implements ServiceAdapter {
         .describe("Free-text match over operationId, path, and summary"),
       limit: z.number().int().min(1).max(MAX_PAGE).optional(),
       offset: z.number().int().min(0).optional(),
-    } as unknown as ZodRawShapeCompat;
+    });
 
     server.registerTool(
       "frontal_list_endpoints",
@@ -57,6 +65,7 @@ export class GenericAdapter implements ServiceAdapter {
         description:
           "Browse the Frontal public API surface. Filter by tag (e.g. 'ontology', 'data', 'events', 'integrations', 'webhook-endpoints', 'workflows') and/or a free-text search over path/summary/operationId. Returns a compact, paginated list of operations to feed into frontal_describe_endpoint or frontal_call_endpoint.",
         inputSchema: listEndpointsSchema,
+        annotations: ANNOTATIONS.read,
       },
       ({ tag, search, limit, offset }) => {
         try {
@@ -87,9 +96,9 @@ export class GenericAdapter implements ServiceAdapter {
     server: McpServer,
     ctx: AdapterContext
   ): void {
-    const describeEndpointSchema = {
+    const describeEndpointSchema = z.object({
       operationId: z.string().describe("The operationId to describe"),
-    } as unknown as ZodRawShapeCompat;
+    });
 
     server.registerTool(
       "frontal_describe_endpoint",
@@ -98,6 +107,7 @@ export class GenericAdapter implements ServiceAdapter {
         description:
           "Return full detail for one operation (parameters, request body, responses, auth) so you can construct a correct frontal_call_endpoint call. Look up by operationId (from frontal_list_endpoints).",
         inputSchema: describeEndpointSchema,
+        annotations: ANNOTATIONS.read,
       },
       ({ operationId }) => {
         const op = ctx.spec.getByOperationId(operationId);
@@ -132,7 +142,7 @@ export class GenericAdapter implements ServiceAdapter {
   }
 
   private registerCallEndpoint(server: McpServer, ctx: AdapterContext): void {
-    const callEndpointSchema = {
+    const callEndpointSchema = z.object({
       operationId: z
         .string()
         .optional()
@@ -159,19 +169,38 @@ export class GenericAdapter implements ServiceAdapter {
         .describe(
           "Stable key for retry-safe writes; reuse across retries of the same logical write so the edge can dedupe"
         ),
-    } as unknown as ZodRawShapeCompat;
+    });
 
     server.registerTool(
       "frontal_call_endpoint",
       {
         title: "Call a Frontal API endpoint",
-        description:
-          "Invoke any Frontal public API operation. Identify it either by operationId, or by method + templated path. Provide pathParams for `{placeholders}`, query for query-string params, and body for the JSON request body. Set autoPaginate for cursor-paginated GET lists.",
+        description: ctx.config.readOnly
+          ? `${CALL_ENDPOINT_DESCRIPTION} This server is in read-only mode: only operations that read data can be called.`
+          : CALL_ENDPOINT_DESCRIPTION,
         inputSchema: callEndpointSchema,
+        // It can call any operation, so it is annotated for the worst case.
+        // In read-only mode it stays registered but refuses writes.
+        annotations: ctx.config.readOnly
+          ? ANNOTATIONS.read
+          : ANNOTATIONS.unrestricted,
       },
-      async (input) => {
+      async (input, toolCtx: ServerContext) => {
         try {
-          const data = await this.dispatchCall(ctx, input);
+          const target = resolveTarget(ctx, input);
+          if (!target.readOnly) {
+            if (ctx.config.readOnly) throw readOnlyRefusal(target.label);
+            const outcome = confirmWrite(
+              server,
+              toolCtx,
+              `Call ${target.label}? This operation is not on the read-only list, so it may change data.`
+            );
+            if (outcome.status === "ask") return outcome.request;
+            if (outcome.status === "declined") {
+              return toToolError(notConfirmed(target.label));
+            }
+          }
+          const data = await this.dispatchCall(ctx, input, target);
           return toToolResult(data);
         } catch (error) {
           return toToolError(error);
@@ -182,16 +211,8 @@ export class GenericAdapter implements ServiceAdapter {
 
   private async dispatchCall(
     ctx: AdapterContext,
-    input: {
-      operationId?: string;
-      method?: string;
-      path?: string;
-      pathParams?: Record<string, string | number>;
-      query?: Record<string, unknown>;
-      body?: unknown;
-      autoPaginate?: boolean;
-      idempotencyKey?: string;
-    }
+    input: CallEndpointInput,
+    target: CallTarget
   ): Promise<unknown> {
     const callInput: CallOperationInput = {
       pathParams: input.pathParams,
@@ -201,25 +222,14 @@ export class GenericAdapter implements ServiceAdapter {
       idempotencyKey: input.idempotencyKey,
     };
 
-    if (input.operationId) {
-      return callOperation(ctx, input.operationId, callInput);
+    if (target.operationId) {
+      return callOperation(ctx, target.operationId, callInput);
     }
 
-    if (!(input.method && input.path)) {
-      throw new ToolInputError(
-        "Provide either operationId, or both method and path.",
-        ERROR_CODE.INVALID_ARGUMENTS
-      );
-    }
-
-    const matched = ctx.spec.getByMethodPath(input.method, input.path);
-    if (matched) {
-      return callOperation(ctx, matched.operationId, callInput);
-    }
-
-    const resolvedPath = substitutePath(input.path, input.pathParams);
+    // The path is not in the spec: call it as given.
+    const resolvedPath = substitutePath(target.path, input.pathParams);
     const token = ctx.getToken();
-    if (input.autoPaginate && input.method.toUpperCase() === "GET") {
+    if (input.autoPaginate && target.method === "GET") {
       return {
         pages: await ctx.client.paginate(resolvedPath, {
           query: input.query,
@@ -227,7 +237,7 @@ export class GenericAdapter implements ServiceAdapter {
         }),
       };
     }
-    const response = await ctx.client.request(input.method, resolvedPath, {
+    const response = await ctx.client.request(target.method, resolvedPath, {
       query: input.query,
       body: input.body,
       token,
@@ -235,4 +245,83 @@ export class GenericAdapter implements ServiceAdapter {
     });
     return response.data;
   }
+}
+
+interface CallEndpointInput {
+  autoPaginate?: boolean;
+  body?: unknown;
+  idempotencyKey?: string;
+  method?: string;
+  operationId?: string;
+  path?: string;
+  pathParams?: Record<string, string | number>;
+  query?: Record<string, unknown>;
+}
+
+/** What a `frontal_call_endpoint` call will actually invoke. */
+interface CallTarget {
+  /** For messages, e.g. `postV1Events (POST /v1/events)`. */
+  label: string;
+  method: string;
+  /** Set when the call matched an operation in the spec. */
+  operationId?: string;
+  path: string;
+  /**
+   * Whether the call only reads. For an operation in the spec this is the
+   * allow-list rule, not the HTTP method alone. For a path that is not in
+   * the spec, nothing is known beyond the method, so only safe methods
+   * count as reads.
+   */
+  readOnly: boolean;
+}
+
+function resolveTarget(
+  ctx: AdapterContext,
+  input: CallEndpointInput
+): CallTarget {
+  if (!(input.operationId || (input.method && input.path))) {
+    throw new ToolInputError(
+      "Provide either operationId, or both method and path.",
+      ERROR_CODE.INVALID_ARGUMENTS
+    );
+  }
+
+  const op = input.operationId
+    ? ctx.spec.getByOperationId(input.operationId)
+    : ctx.spec.getByMethodPath(input.method as string, input.path as string);
+
+  if (op) {
+    const method = op.method.toUpperCase();
+    return {
+      operationId: op.operationId,
+      method,
+      path: op.path,
+      readOnly: isReadOnlyOperation(op),
+      label: `${op.operationId} (${method} ${op.path})`,
+    };
+  }
+
+  if (input.operationId) {
+    throw new SpecError(
+      `Unknown operationId: ${input.operationId}`,
+      ERROR_CODE.UNKNOWN_OPERATION,
+      { operationId: input.operationId }
+    );
+  }
+
+  const method = (input.method as string).toUpperCase();
+  const path = input.path as string;
+  return {
+    method,
+    path,
+    readOnly: isSafeMethod(method),
+    label: `${method} ${path}`,
+  };
+}
+
+function readOnlyRefusal(operation: string): ToolInputError {
+  return new ToolInputError(
+    `Refused: this server is in read-only mode (FRONTAL_READ_ONLY=true) and ${operation} is not a read-only operation. Only operations that read data can be called.`,
+    ERROR_CODE.READ_ONLY
+  );
 }

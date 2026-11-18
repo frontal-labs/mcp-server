@@ -49,13 +49,25 @@ export const env = createEnv({
 
     /**
      * Comma-separated list of tool sets to register. `generic` exposes the
-     * spec-driven meta-tools; `ontology` and `data` expose curated tools.
+     * spec-driven meta-tools; `ontology`, `data`, `workflows`, `integrations`
+     * and `events` expose curated tools.
      */
     FRONTAL_TOOLSETS: z
       .string()
       .optional()
-      .default("generic,ontology,data")
+      .default("generic,ontology,data,workflows,integrations,events")
       .describe("Comma-separated tool sets to enable"),
+
+    /**
+     * Read-only mode. When true, tools that write are not registered, and
+     * `frontal_call_endpoint` refuses every operation that is not known to
+     * only read. Accepts true/false, 1/0, yes/no, on/off.
+     */
+    FRONTAL_READ_ONLY: z
+      .stringbool()
+      .optional()
+      .default(false)
+      .describe("Expose only tools and operations that read data"),
 
     /**
      * Comma-separated list of browser origins allowed to make cross-origin
@@ -72,7 +84,7 @@ export const env = createEnv({
 
     /**
      * Largest MCP request body accepted by the HTTP transport, in bytes.
-     * Bodies are buffered before the session is resolved, so this bounds
+     * Bodies are buffered before the request is dispatched, so this bounds
      * what a single caller can make the process allocate.
      */
     FRONTAL_HTTP_MAX_BODY_BYTES: z.coerce
@@ -81,18 +93,6 @@ export const env = createEnv({
       .positive()
       .optional()
       .describe("Max HTTP request body size in bytes (default 4 MiB)"),
-
-    /**
-     * Largest number of concurrent MCP sessions. Each session holds its own
-     * server instance, so this is the main memory dial: raise it on a larger
-     * VM, lower it on a smaller one.
-     */
-    FRONTAL_HTTP_MAX_SESSIONS: z.coerce
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .describe("Max concurrent MCP sessions (default 256)"),
 
     /**
      * Comma-separated hosts accepted in the `Host` header of MCP requests.
@@ -194,9 +194,9 @@ export const env = createEnv({
     FRONTAL_BASE_URL: process.env.FRONTAL_BASE_URL,
     FRONTAL_REGION: process.env.FRONTAL_REGION,
     FRONTAL_TOOLSETS: process.env.FRONTAL_TOOLSETS,
+    FRONTAL_READ_ONLY: process.env.FRONTAL_READ_ONLY,
     FRONTAL_HTTP_ALLOWED_ORIGINS: process.env.FRONTAL_HTTP_ALLOWED_ORIGINS,
     FRONTAL_HTTP_MAX_BODY_BYTES: process.env.FRONTAL_HTTP_MAX_BODY_BYTES,
-    FRONTAL_HTTP_MAX_SESSIONS: process.env.FRONTAL_HTTP_MAX_SESSIONS,
     FRONTAL_HTTP_ALLOWED_HOSTS: process.env.FRONTAL_HTTP_ALLOWED_HOSTS,
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
