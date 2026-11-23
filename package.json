@@ -106,7 +106,7 @@
     "@vitest/coverage-v8": "^5.1.0",
     "tsup": "^9.0.0",
     "typescript": "^6.0.3",
-    "ultracite": "8.2.0",
+    "ultracite": "8.3.1",
     "vite": "^8.3.4",
     "vitest": "5"
   }
